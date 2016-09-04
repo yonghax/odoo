@@ -45,172 +45,6 @@ class PrestashopImportMapper(ImportMapper):
         )
         return erp_ps_object['openerp_id'][0]
 
-
-@prestashop
-class ShopGroupImportMapper(PrestashopImportMapper):
-    _model_name = 'prestashop.shop.group'
-
-    direct = [('name', 'name')]
-
-    @mapping
-    def name(self, record):
-        name = record['name']
-        if name is None:
-            name = _('Undefined')
-        return {'name': name}
-
-    @mapping
-    def backend_id(self, record):
-        return {'backend_id': self.backend_record.id}
-
-
-@prestashop
-class ShopImportMapper(PrestashopImportMapper):
-    _model_name = 'prestashop.shop'
-
-    direct = [
-        ('name', 'name'),
-        ('id_shop_group', 'shop_group_id'),
-    ]
-
-    @mapping
-    def backend_id(self, record):
-        return {'backend_id': self.backend_record.id}
-
-    @mapping
-    def company_id(self, record):
-        return {'company_id': self.backend_record.company_id.id}
-
-    @mapping
-    def warehouse_id(self, record):
-        return {'warehouse_id': self.backend_record.warehouse_id.id}
-
-
-@prestashop
-class PartnerCategoryImportMapper(PrestashopImportMapper):
-    _model_name = 'prestashop.res.partner.category'
-
-    direct = [
-        ('name', 'name'),
-        ('date_add', 'date_add'),
-        ('date_upd', 'date_upd'),
-    ]
-
-    @mapping
-    def prestashop_id(self, record):
-        return {'prestashop_id': record['id']}
-
-    @mapping
-    def backend_id(self, record):
-        return {'backend_id': self.backend_record.id}
-
-
-@prestashop
-class PartnerImportMapper(PrestashopImportMapper):
-    _model_name = 'prestashop.res.partner'
-
-    direct = [
-        ('date_add', 'date_add'),
-        ('date_upd', 'date_upd'),
-        ('email', 'email'),
-        ('newsletter', 'newsletter'),
-        ('company', 'company'),
-        ('active', 'active'),
-        ('note', 'comment'),
-        ('id_shop_group', 'shop_group_id'),
-        ('id_shop', 'shop_id'),
-    ]
-
-    @mapping
-    def account_AR(self, record):
-        return {'property_account_receivable_id': self.backend_record.property_account_receivable_id}
-
-    @mapping
-    def account_AP(self, record):
-        return {'property_account_payable_id': self.backend_record.property_account_payable_id}
-
-    @mapping
-    def pricelist(self, record):
-        binder = self.env['product.pricelist'].search([])
-        binder.ensure_one()
-        #pricelist_id = binder.to_openerp(record['id_default_group'], unwrap=True)
-        if not binder:
-            return {}
-        return {'property_product_pricelist': binder.id}
-
-    @mapping
-    def birthday(self, record):
-        if record['birthday'] in ['0000-00-00', '']:
-            return {}
-        return {'birthday': record['birthday']}
-
-    @mapping
-    def name(self, record):
-        name = ""
-        if record['firstname']:
-            name += record['firstname']
-        if record['lastname']:
-            if len(name) != 0:
-                name += " "
-            name += record['lastname']
-        return {'name': name}
-
-    #@mapping
-    #def groups(self, record):
-    #    groups = record.get('associations', {}).get('groups', {}).get('group', [])
-    #    if not isinstance(groups, list):
-    #        groups = [groups]
-    #    partner_categories = []
-    #    for group in groups:
-    #        binder = self.binder_for(
-    #            'prestashop.res.partner.category'
-    #        )
-    #        category_id = binder.to_openerp(group['id'])
-    #        partner_categories.append(category_id)
-
-    #    return {'group_ids': [(6, 0, partner_categories)]}
-
-    @mapping
-    def backend_id(self, record):
-        return {'backend_id': self.backend_record.id}
-
-    #@mapping
-    #def lang(self, record):
-    #    binder = self.binder_for('prestashop.res.lang')
-    #    erp_lang_id = None
-    #    if record.get('id_lang'):
-    #        erp_lang_id = binder.to_openerp(record['id_lang'])
-    #    if erp_lang_id is None:
-    #        data_obj = self.session.pool.get('ir.model.data')
-    #        erp_lang_id = data_obj.get_object_reference(
-    #            self.session.cr,
-    #            self.session.uid,
-    #            'base',
-    #            'lang_en')[1]
-    #    model = self.environment.session.pool.get('prestashop.res.lang')
-    #    erp_lang = model.read(
-    #        self.session.cr,
-    #        self.session.uid,
-    #        erp_lang_id,
-    #    )
-    #    return {'lang': erp_lang['code']}
-
-    @mapping
-    def customer(self, record):
-        return {'customer': True}
-
-    @mapping
-    def is_company(self, record):
-        # This is sad because we _have_ to have a company partner if we want to
-        # store multiple adresses... but... well... we have customers who want
-        # to be billed at home and be delivered at work... (...)...
-        return {'is_company': True}
-
-    @mapping
-    def company_id(self, record):
-        return {'company_id': self.backend_record.company_id.id}
-
-
 @prestashop
 class SupplierMapper(PrestashopImportMapper):
     _model_name = 'prestashop.supplier'
@@ -236,84 +70,6 @@ class SupplierMapper(PrestashopImportMapper):
             'is_company': True,
             'customer': False,
         }
-
-
-@prestashop
-class AddressImportMapper(PrestashopImportMapper):
-    _model_name = 'prestashop.address'
-
-    direct = [
-        ('address1', 'street'),
-        ('address2', 'street2'),
-        ('city', 'city'),
-        ('other', 'comment'),
-        ('phone', 'phone'),
-        ('phone_mobile', 'mobile'),
-        ('postcode', 'zip'),
-        ('date_add', 'date_add'),
-        ('date_upd', 'date_upd'),
-        ('id_customer', 'prestashop_partner_id'),
-    ]
-
-    @mapping
-    def parent_id(self, record):
-        parent_id = self.get_openerp_id(
-            'prestashop.res.partner',
-            record['id_customer']
-        )
-        if record['vat_number']:
-            vat_number = record['vat_number'].replace('.', '').replace(' ', '')
-            if self._check_vat(vat_number):
-                self.session.write(
-                    'res.partner',
-                    [parent_id],
-                    {'vat': vat_number}
-                )
-            else:
-                add_checkpoint(
-                    self.session,
-                    'res.partner',
-                    parent_id,
-                    self.backend_record.id
-                )
-        return {'parent_id': parent_id}
-
-    def _check_vat(self, vat):
-        vat_country, vat_number = vat[:2].lower(), vat[2:]
-        return self.session.pool['res.partner'].simple_vat_check(
-            self.session.cr,
-            self.session.uid,
-            vat_country,
-            vat_number,
-            context=self.session.context
-        )
-
-    @mapping
-    def name(self, record):
-        name = ""
-        if record['firstname']:
-            name += record['firstname']
-        if record['lastname']:
-            if name:
-                name += " "
-            name += record['lastname']
-        if record['alias']:
-            if name:
-                name += " "
-            name += '('+record['alias']+')'
-        return {'name': name}
-
-    @mapping
-    def customer(self, record):
-        return {'customer': True}
-    
-    @mapping
-    def country(self, record):
-        return {'country_id': 101} # Hardcode to ID country Indonesia
-
-    @mapping
-    def company_id(self, record):
-        return {'company_id': self.backend_record.company_id.id}
 
 @prestashop
 class SaleOrderStateMapper(PrestashopImportMapper):
@@ -367,7 +123,7 @@ class SaleOrderMapper(PrestashopImportMapper):
 
         children = []
         for child_record in child_records:
-            adapter = self.get_connector_unit_for_model(GenericAdapter,
+            adapter = self.unit_for(GenericAdapter,
                                                         model_name)
             detail_record = adapter.read(child_record['id'])
 
@@ -384,7 +140,7 @@ class SaleOrderMapper(PrestashopImportMapper):
     def _get_discounts_lines(self, record):
         if record['total_discounts'] == '0.00':
             return []
-        adapter = self.get_connector_unit_for_model(
+        adapter = self.unit_for(
             GenericAdapter, 'prestashop.sale.order.line.discount')
         discount_ids = adapter.search({'filter[id_order]': record['id']})
         discount_mappers = []
@@ -482,15 +238,6 @@ class SaleOrderMapper(PrestashopImportMapper):
         method_id = method_ids[0]
         return {'payment_method_id': method_id}
 
-    # @mapping
-    # def carrier_id(self, record):
-    #     if record['id_carrier'] == '0':
-    #         return {}
-    #     return {'carrier_id': self.get_openerp_id(
-    #         'prestashop.delivery.carrier',
-    #         record['id_carrier']
-    #     )}
-
     @mapping
     def total_tax_amount(self, record):
         tax = float(record['total_paid_tax_incl'])\
@@ -512,7 +259,7 @@ class SaleOrderMapper(PrestashopImportMapper):
                 order_line_ids,
                 sess.context
             )
-        onchange = self.get_connector_unit_for_model(SaleOrderOnChange)
+        onchange = self.unit_for(SaleOrderOnChange)
         order_line_ids = []
         if 'prestashop_order_line_ids' in result:
             order_line_ids = result['prestashop_order_line_ids']
@@ -669,16 +416,16 @@ class SupplierInfoMapper(PrestashopImportMapper):
 
     @mapping
     def name(self, record):
-        binder = self.get_connector_unit_for_model(Binder, 'prestashop.supplier')
+        binder = self.unit_for(Binder, 'prestashop.supplier')
         partner_id = binder.to_openerp(record['id_supplier'], unwrap=True)
         return {'name': partner_id}
 
     @mapping
     def product_id(self, record):
         if record['id_product_attribute'] != '0':
-            binder = self.get_connector_unit_for_model(Binder, 'prestashop.product.combination')
+            binder = self.unit_for(Binder, 'prestashop.product.combination')
             return {'product_id': binder.to_openerp(record['id_product_attribute'], unwrap=True)}
-        binder = self.get_connector_unit_for_model(Binder, 'prestashop.product.product')
+        binder = self.unit_for(Binder, 'prestashop.product.product')
         return {'product_id': binder.to_openerp(record['id_product'], unwrap=True)}
 
     @mapping
@@ -736,7 +483,7 @@ class MailMessageMapper(PrestashopImportMapper):
 
     @mapping
     def object_ref(self, record):
-        binder = self.get_connector_unit_for_model(
+        binder = self.unit_for(
             Binder, 'prestashop.sale.order'
         )
         order_id = binder.to_openerp(record['id_order'], unwrap=True)
@@ -748,7 +495,7 @@ class MailMessageMapper(PrestashopImportMapper):
     @mapping
     def author_id(self, record):
         if record['id_customer'] != '0':
-            binder = self.get_connector_unit_for_model(Binder, 'prestashop.res.partner')
+            binder = self.unit_for(Binder, 'prestashop.res.partner')
             partner_id = binder.to_openerp(record['id_customer'], unwrap=True)
             return {'author_id': partner_id}
         return {}
@@ -789,3 +536,5 @@ class ProductPricelistMapper(PrestashopImportMapper):
             'items_id': [(0, 0, item)],
         }
         return {'version_id': [(0, 0, version)]}
+
+

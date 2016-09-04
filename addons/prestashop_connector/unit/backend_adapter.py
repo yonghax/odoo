@@ -116,19 +116,6 @@ class GenericAdapter(PrestaShopCRUDAdapter):
         """ Delete a record(s) on the external system """
         return api.delete(self._prestashop_model, ids)
 
-
-@prestashop
-class ShopGroupAdapter(GenericAdapter):
-    _model_name = 'prestashop.shop.group'
-    _prestashop_model = 'shop_groups'
-
-
-@prestashop
-class ShopAdapter(GenericAdapter):
-    _model_name = 'prestashop.shop'
-    _prestashop_model = 'shops'
-
-
 @prestashop
 class ResLangAdapter(GenericAdapter):
     _model_name = 'prestashop.res.lang'
@@ -151,30 +138,6 @@ class ResCurrencyAdapter(GenericAdapter):
 class AccountTaxAdapter(GenericAdapter):
     _model_name = 'prestashop.account.tax'
     _prestashop_model = 'taxes'
-
-
-@prestashop
-class PartnerCategoryAdapter(GenericAdapter):
-    _model_name = 'prestashop.res.partner.category'
-    _prestashop_model = 'groups'
-
-
-@prestashop
-class PartnerAdapter(GenericAdapter):
-    _model_name = 'prestashop.res.partner'
-    _prestashop_model = 'customers'
-
-
-@prestashop
-class PartnerAddressAdapter(GenericAdapter):
-    _model_name = 'prestashop.address'
-    _prestashop_model = 'addresses'
-
-
-@prestashop
-class ProductCategoryAdapter(GenericAdapter):
-    _model_name = 'prestashop.product.category'
-    _prestashop_model = 'categories'
 
 @prestashop
 class TaxGroupAdapter(GenericAdapter):
@@ -210,3 +173,9 @@ class MailMessageAdapter(GenericAdapter):
 class PricelistAdapter(GenericAdapter):
     _model_name = 'prestashop.groups.pricelist'
     _prestashop_model = 'groups'
+
+@prestashop
+class ProductCombinationAdapter(GenericAdapter):
+    _model_name = 'prestashop_product_combination'
+    _prestashop_model = 'combinations'
+    _export_node_name = 'combination'
