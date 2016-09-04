@@ -6,14 +6,29 @@
         
     'description': """
         Version 0.1:
+        
         - Import Shop Group
+        
         - Import Shop
+        
         - Import Customer
+
+        Version 0.2
+        
+        - Import Product Attribute
+        
+        - Import Product Attribute Value
+        
+        - Import Product Attribute Line
+        
+        - Import Product Template
+        
+        - Import Product Variant
     """,
     'author': "Internal Development - PT. Social Bella Indonesia",
     'website': "http://www.sociolla.com",
     'category': 'Addon Sociolla',
-    'version': '0.1',
+    'version': '0.2',
 
     'depends': [
         'base',

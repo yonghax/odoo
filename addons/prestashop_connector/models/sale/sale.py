@@ -25,13 +25,6 @@ class sale_order(models.Model):
                     string="Invoice Number",
         
                     )
-                    
-    main_picking = fields.Char(
-            related='picking_ids.name',
-            string='Main picking',            
-            readonly=True,
-            store=True
-        )
     
     @api.multi
     def action_invoice_create(self, grouped=False, states=['confirmed', 'done', 'exception'], date_invoice = False, context=None):
@@ -241,19 +234,3 @@ class prestashop_sale_order_line_discount(models.Model):
         return super(prestashop_sale_order_line_discount, self).create(
             cr, uid, vals, context=context
         )
-
-
-class account_payment_mode(models.Model):
-    """ Payment methods
-    """
-    _name = 'account.payment.mode'
-    _description = u'Payment Method'
-
-    _order = 'name ASC'
-
-    name = fields.Char(string='Name', size=256, index=True)
-    company_id = fields.Many2one('res.company', string='Company', required=True, default=lambda self: self.env.user.company_id) 
-
-class prestashop_payment_method(models.Model):
-    _inherit = 'account.payment.mode'
-    allow_zero=fields.Boolean("Allow to import Zero values")

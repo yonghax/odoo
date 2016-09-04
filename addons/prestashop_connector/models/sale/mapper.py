@@ -29,8 +29,7 @@ class SaleOrderMapper(PrestashopImportMapper):
     def _get_discounts_lines(self, record):
         if record['total_discounts'] == '0.00':
             return []       
-        adapter = self.unit_for(GenericAdapter,
-                    'prestashop.sale.order.line.discount')
+        adapter = self.unit_for(GenericAdapter,'prestashop.sale.order.line.discount')
         discount_ids = adapter.search({'filter[id_order]': record['id']})
         _logger.debug(discount_ids)
         discount_mappers = []
@@ -87,7 +86,7 @@ class SaleOrderMapper(PrestashopImportMapper):
         return discount_mappers
 
     def _sale_order_exists(self, name):
-        ids = self.session.search('sale.order', [
+        ids = self.env['sale.order'].search([
             ('name', '=', name),
             ('company_id', '=', self.backend_record.company_id.id),
         ])
@@ -108,7 +107,7 @@ class SaleOrderMapper(PrestashopImportMapper):
     @mapping
     def shop_id(self, record):
         if record['id_shop'] == '0':
-            shop_ids = self.session.search('prestashop.shop', [
+            shop_ids = self.env['prestashop.shop'].search([
                 ('backend_id', '=', self.backend_record.id)
             ])
             shop = self.session.read(
@@ -150,11 +149,10 @@ class SaleOrderMapper(PrestashopImportMapper):
         if partner_pricelist_id  :
             return {'pricelist_id': partner_pricelist_id.id}
         
-        pricelist_id = self.session.search(
-            'product.pricelist',
-            [('currency_id', '=',
-                self.backend_record.company_id.currency_id.id),
-                ('type', '=', 'sale')], order="id")        
+        pricelist_id = self.env['product.pricelist'].search([
+            ('currency_id', '=', self.backend_record.company_id.currency_id.id),
+            ('type', '=', 'sale')], 
+            order="id")        
         if pricelist_id:
             return {'pricelist_id': pricelist_id[0]}
         return {}
@@ -163,30 +161,26 @@ class SaleOrderMapper(PrestashopImportMapper):
     def backend_id(self, record):
         return {'backend_id': self.backend_record.id}
 
-    @mapping
-    def payment(self, record):
-        method_ids = self.session.search(
-            'account.payment.mode',
-            [
-                ('name', '=', record['payment']),
-                ('company_id', '=', self.backend_record.company_id.id),
-            ]
-        )
-        assert method_ids, ("Payment method '%s' has not been found ; "
-                            "you should create it manually (in Sales->"
-                            "Configuration->Sales->Payment Methods" %
-                            record['payment'])
-        method_id = method_ids[0]
-        return {'payment_method_id': method_id}
+    # @mapping
+    # def payment(self, record):
+    #     method_ids = self.session.search(
+    #         'payment.method',
+    #         [
+    #             ('name', '=', record['payment']),
+    #             ('company_id', '=', self.backend_record.company_id.id),
+    #         ]
+    #     )
+    #     method_id = method_ids[0]
+    #     return {'payment_method_id': method_id}
 
-    @mapping
-    def carrier_id(self, record):
-        if record['id_carrier'] == '0':
-            return {}
-        return {'carrier_id': self.get_openerp_id(
-            'prestashop.delivery.carrier',
-            record['id_carrier']
-        )}
+    #@mapping
+    #def carrier_id(self, record):
+    #    if record['id_carrier'] == '0':
+    #        return {}
+    #    return {'carrier_id': self.get_openerp_id(
+    #        'prestashop.delivery.carrier',
+    #        record['id_carrier']
+    #    )}
 
     @mapping
     def amount_tax(self, record):
@@ -217,25 +211,25 @@ class SaleOrderMapper(PrestashopImportMapper):
             order_line_ids = result['prestashop_order_line_ids']
         return onchange.play(result, order_line_ids)
 
-    @mapping
-    def get_workflow_datas(self, record):
-        payment = self.payment(record)
+    # @mapping
+    # def get_workflow_datas(self, record):
+    #     payment = self.payment(record)
         
-        payment = self.env['account.payment.mode'].browse(payment['payment_method_id'])
-        _logger.debug("display payment_method_id")
-        _logger.debug(payment)
+    #     payment = self.env['payment.method'].browse(payment['payment_method_id'])
+    #     _logger.debug("display payment_method_id")
+    #     _logger.debug(payment)
         
-        automation_vals = {
-                'workflow_process_id' : payment.workflow_process_id.id,
-                'payment_term' : payment.payment_term_id.id,
-                'picking_policy' : payment.workflow_process_id.picking_policy,
-                'order_policy' : payment.workflow_process_id.order_policy
-        }
+    #     automation_vals = {
+    #             'workflow_process_id' : payment.workflow_process_id.id,
+    #             'payment_term' : payment.payment_term_id.id,
+    #             'picking_policy' : payment.workflow_process_id.picking_policy,
+    #             'order_policy' : payment.workflow_process_id.order_policy
+    #     }
         
-        _logger.debug("AUTOMATION")
-        _logger.debug(automation_vals)
+    #     _logger.debug("AUTOMATION")
+    #     _logger.debug(automation_vals)
         
-        return automation_vals
+    #     return automation_vals
 
 @prestashop
 class SaleOrderLineMapper(PrestashopImportMapper):
@@ -260,7 +254,7 @@ class SaleOrderLineMapper(PrestashopImportMapper):
                 'prestashop.product.template',
                 record['product_id'])
 
-            product_id = self.session.search('product.product', [
+            product_id = self.env['product.product'].search([
                 ('product_tmpl_id', '=', template_id),
                 ('company_id', '=', self.backend_record.company_id.id)])
         return not product_id
@@ -294,7 +288,7 @@ class SaleOrderLineMapper(PrestashopImportMapper):
             template_id = self.get_openerp_id(
                 'prestashop.product.template',
                 record['product_id'])
-            product_id = self.session.search('product.product', [
+            product_id = self.env['product.product'].search([
                 ('product_tmpl_id', '=', template_id),
                 ('company_id', '=', self.backend_record.company_id.id)])[0]
             if isinstance(product_id, int):
@@ -306,10 +300,8 @@ class SaleOrderLineMapper(PrestashopImportMapper):
         return {'product_id': product_id}
 
     def _find_tax(self, ps_tax_id):
-        binder = self.binder_for('prestashop.account.tax')
-        openerp_id = binder.to_openerp(ps_tax_id, unwrap=True)
         tax = self.session.read(
-            'account.tax', openerp_id.id,
+            'account.tax', self.backend_record.tax_out_id,
             ['price_include', 'related_inc_tax_id'])
 
         if self.backend_record.taxes_included and not \
