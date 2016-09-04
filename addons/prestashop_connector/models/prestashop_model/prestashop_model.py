@@ -16,7 +16,6 @@ from ...unit.import_synchronizer import (
     import_products,
     import_refunds,
     import_product_attribute,
-    import_suppliers,
     import_record,
     export_product_quantities,
 )
@@ -243,10 +242,6 @@ class prestashop_backend(orm.Model):
 
     def _scheduler_import_refunds(self, cr, uid, domain=None, context=None):
         self._scheduler_launch(cr, uid, self.import_refunds,
-                               domain=domain, context=context)
-
-    def _scheduler_import_suppliers(self, cr, uid, domain=None, context=None):
-        self._scheduler_launch(cr, uid, self.import_suppliers,
                                domain=domain, context=context)
 
     def import_record(self, cr, uid, backend_id, model_name, ext_id,

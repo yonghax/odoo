@@ -3,7 +3,6 @@
 from openerp.osv import fields
 from openerp.osv import orm
 
-
 class account_invoice(orm.Model):
     _inherit = 'account.invoice'
 
@@ -14,7 +13,7 @@ class account_invoice(orm.Model):
             string="Prestashop Bindings"
         ),
     }
-
+   
     def action_move_create(self, cr, uid, ids, context=None):
         so_obj = self.pool.get('prestashop.sale.order')
         line_replacement = {}
@@ -23,8 +22,7 @@ class account_invoice(orm.Model):
             if not so_ids:
                 continue
             sale_order = so_obj.browse(cr, uid, so_ids[0])
-            discount_product_id = sale_order.backend_id.discount_product_id.id
-
+            discount_product_id = sale_order.backend_id.discount_product_id.id            
             for invoice_line in invoice.invoice_line:
                 if invoice_line.product_id.id != discount_product_id:
                     continue
@@ -32,7 +30,7 @@ class account_invoice(orm.Model):
                 if invoice.partner_id.parent_id:
                     partner_id = invoice.partner_id.parent_id.id
                 else:
-                    invoice.partner_id.id
+                    partner_id = invoice.partner_id.id
                 refund_id = self._find_refund(
                     cr, uid, -1 * amount, partner_id,
                     context=context)

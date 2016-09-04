@@ -263,31 +263,6 @@ class AddCheckpoint(ConnectorUnit):
 
 
 @prestashop
-class PaymentMethodsImportSynchronizer(BatchImportSynchronizer):
-    _model_name = 'payment.method'
-
-    def run(self, filters=None):
-        if filters is None:
-            filters = {}
-        filters['display'] = '[id,payment]'
-        return super(PaymentMethodsImportSynchronizer, self).run(
-            filters
-        )
-
-    def _import_record(self, record):
-        ids = self.env['payment.method'].search([
-            ('name', '=', record['payment']),
-            ('company_id', '=', self.backend_record.company_id.id),
-        ])
-        if ids:
-            return
-        self.session.create('payment.method', {
-            'name': record['payment'],
-            'company_id': self.backend_record.company_id.id,
-        })
-
-
-@prestashop
 class DirectBatchImport(BatchImportSynchronizer):
     """ Import the PrestaShop Shop Groups + Shops
 
@@ -350,157 +325,6 @@ class SimpleRecordImport(PrestashopImportSynchronizer):
     ]
 
 @prestashop
-class MailMessageRecordImport(PrestashopImportSynchronizer):
-    """ Import one simple record """
-    _model_name = 'prestashop.mail.message'
-
-    def _import_dependencies(self):
-        record = self.prestashop_record
-        self._check_dependency(record['id_order'], 'prestashop.sale.order')
-        if record['id_customer'] != '0':
-            self._check_dependency(
-                record['id_customer'], 'prestashop.res.partner'
-            )
-
-    def _has_to_skip(self):
-        record = self.prestashop_record
-        binder = self.binder_for('prestashop.sale.order')
-        ps_so_id = binder.to_openerp(record['id_order'])
-        return record['id_order'] == '0' or not ps_so_id
-
-
-@prestashop
-class SaleImportRule(ConnectorUnit):
-    _model_name = ['prestashop.sale.order']
-
-    def _rule_always(self, record, method):
-        """ Always import the order """
-        return True
-
-    def _rule_never(self, record, method):
-        """ Never import the order """
-        raise NothingToDoJob('Orders with payment method %s '
-                             'are never imported.' %
-                             record['payment']['method'])
-
-    def _rule_paid(self, record, method):
-        """ Import the order only if it has received a payment """
-        if self._get_paid_amount(record) == 0.0:
-            raise OrderImportRuleRetry('The order has not been paid.\n'
-                                       'The import will be retried later.')
-
-    def _get_paid_amount(self, record):
-        payment_adapter = self.unit_for(
-            GenericAdapter,
-            '__not_exist_prestashop.payment'
-        )
-        payment_ids = payment_adapter.search({
-            'filter[order_reference]': record['reference']
-        })
-        paid_amount = 0.0
-        for payment_id in payment_ids:
-            payment = payment_adapter.read(payment_id)
-            paid_amount += float(payment['amount'])
-        return paid_amount
-
-    _rules = {'always': _rule_always,
-              'paid': _rule_paid,
-              'authorized': _rule_paid,
-              'never': _rule_never,
-              }
-
-    def check(self, record):
-        """ Check whether the current sale order should be imported
-        or not. It will actually use the payment method configuration
-        and see if the chosen rule is fullfilled.
-
-        :returns: True if the sale order should be imported
-        :rtype: boolean
-        """
-        session = self.session
-        payment_method = record['payment']
-        method_ids = session.env['payment.method'].search([('name', '=', payment_method)])
-        if not method_ids:
-            raise FailedJobError(
-                "The configuration is missing for the Payment Method '%s'.\n\n"
-                "Resolution:\n"
-                "- Go to 'Sales > Configuration > Sales > Customer Payment "
-                "Method'\n"
-                "- Create a new Payment Method with name '%s'\n"
-                "-Eventually  link the Payment Method to an existing Workflow "
-                "Process or create a new one." % (payment_method,
-                                                  payment_method))
-        method = self.env['payment.method'].browse(method_ids[0])
-
-        self._rule_global(record, method)
-        self._rules[method.import_rule](self, record, method)
-
-    def _rule_global(self, record, method):
-        """ Rule always executed, whichever is the selected rule """
-        order_id = record['id']
-        max_days = method.days_before_cancel
-        if not max_days:
-            return
-        if self._get_paid_amount(record) != 0.0:
-            return
-        fmt = '%Y-%m-%d %H:%M:%S'
-        order_date = datetime.strptime(record['date_add'], fmt)
-        if order_date + timedelta(days=max_days) < datetime.now():
-            raise NothingToDoJob('Import of the order %s canceled '
-                                 'because it has not been paid since %d '
-                                 'days' % (order_id, max_days))
-
-
-@prestashop
-class SaleOrderImport(PrestashopImportSynchronizer):
-    _model_name = ['prestashop.sale.order']
-
-    def _import_dependencies(self):
-        record = self.prestashop_record
-        self._check_dependency(record['id_customer'], 'prestashop.res.partner')
-        self._check_dependency(
-            record['id_address_invoice'], 'prestashop.address'
-        )
-        self._check_dependency(
-            record['id_address_delivery'], 'prestashop.address'
-        )
-
-        # if record['id_carrier'] != '0':
-        #     self._check_dependency(record['id_carrier'],
-        #                            'prestashop.delivery.carrier')
-
-        orders = record['associations']\
-            .get('order_rows', {})\
-            .get('order_row', [])
-        if isinstance(orders, dict):
-            orders = [orders]
-        for order in orders:
-            try:
-                self._check_dependency(order['product_id'],
-                                       'prestashop.product.product')
-            except PrestaShopWebServiceError:
-                pass
-
-    def _check_refunds(self, id_customer, id_order):
-        backend_adapter = self.unit_for(
-            GenericAdapter, 'prestashop.refund'
-        )
-        filters = {'filter[id_customer]': id_customer}
-        refund_ids = backend_adapter.search(filters=filters)
-        for refund_id in refund_ids:
-            refund = backend_adapter.read(refund_id)
-            if refund['id_order'] == id_order:
-                continue
-            self._check_dependency(refund_id, 'prestashop.refund')
-
-    def _has_to_skip(self):
-        """ Return True if the import can be skipped """
-        if self._get_openerp_id():
-            return True
-        rules = self.unit_for(SaleImportRule)
-        return rules.check(self.prestashop_record)
-
-@prestashop
 class TranslatableRecordImport(PrestashopImportSynchronizer):
 
     """ Import one translatable record """
@@ -525,7 +349,6 @@ class TranslatableRecordImport(PrestashopImportSynchronizer):
 
     def find_each_language(self, record):
         languages = {}
-#        for field in self._translatable_fields[self.environment.model_name]:
         fields = self.model.fields_get()
         translatable_fields = [field for field, attrs in fields.iteritems()
                                if attrs.get('translate')]
@@ -612,48 +435,7 @@ class TranslatableRecordImport(PrestashopImportSynchronizer):
 
         return binding
 
-@prestashop
-class SaleOrderStateImport(TranslatableRecordImport):
-    """ Import one translatable record """
-    _model_name = [
-        'prestashop.sale.order.state',
-    ]
 
-    _translatable_fields = {
-        'prestashop.sale.order.state': [
-            'name',
-        ],
-    }
-
-@prestashop
-class SaleOrderLineRecordImport(PrestashopImportSynchronizer):
-    _model_name = [
-        'prestashop.sale.order.line',
-    ]
-
-    def run(self, prestashop_record, order_id):
-        """ Run the synchronization
-
-        :param prestashop_record: record from Prestashop sale order
-        """
-        self.prestashop_record = prestashop_record
-
-        skip = self._has_to_skip()
-        if skip:
-            return skip
-
-        # import the missing linked resources
-        self._import_dependencies()
-
-        self.mapper.convert(self.prestashop_record)
-        record = self.mapper.data
-        record['order_id'] = order_id
-
-        # special check on data before import
-        self._validate_data(record)
-
-        erp_id = self._create(record)
-        self._after_import(erp_id)
 
 @job(default_channel='root')
 def import_batch(session, model_name, backend_id, filters=None,**kwargs):
@@ -767,23 +549,6 @@ def import_refunds(session, backend_id, since_date):
         context=session.context
     )
 
-
-@job
-def import_suppliers(session, backend_id, since_date):
-    filters = None
-    if since_date:
-        date_str = since_date.strftime('%Y-%m-%d %H:%M:%S')
-        filters = {'date': '1', 'filter[date_upd]': '>[%s]' % (date_str)}
-    now_fmt = datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
-    import_batch(session, 'prestashop.supplier', backend_id, filters)
-    import_batch(session, 'prestashop.product.supplierinfo', backend_id)
-    session.pool.get('prestashop.backend').write(
-        session.cr,
-        session.uid,
-        backend_id,
-        {'import_suppliers_since': now_fmt},
-        context=session.context
-    )
 
 @job
 def export_product_quantities(session, ids):

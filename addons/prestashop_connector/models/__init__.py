@@ -3,3 +3,4 @@ import partner
 import product_attribute
 import product
 import product_combination
+import sale
