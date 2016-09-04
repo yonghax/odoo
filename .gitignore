@@ -32,12 +32,10 @@ install/win32/meta.py
 /man/
 /share/
 /src/
-
-*.gitignore
-obj/
-*.pyproj
-*.sln
+web.config
 openerp-server.conf
-*.config
-connector/
+obj/*
+web.debug.config
+Sociolla.pyproj
 Sociolla.pyproj.user
+Sociolla.sln
