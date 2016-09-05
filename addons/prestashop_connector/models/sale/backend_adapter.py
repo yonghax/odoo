@@ -1,5 +1,12 @@
+from prestapyt import PrestaShopWebServiceDict
+
 from ...backend import prestashop
 from ...unit.backend_adapter import GenericAdapter
+
+@prestashop
+class SalesOrderHistoryAdapter(GenericAdapter):
+    _model_name = 'order.histories'
+    _prestashop_model = 'order_histories'
 
 @prestashop
 class SaleOrderAdapter(GenericAdapter):

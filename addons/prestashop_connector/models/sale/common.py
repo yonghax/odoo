@@ -2,7 +2,34 @@ from openerp.addons.connector.connector import ConnectorUnit
 from prestapyt import PrestaShopWebServiceError
 
 from ...backend import prestashop
-from ...unit.import_synchronizer import PrestashopImportSynchronizer
+from ...unit.import_synchronizer import PrestashopImportSynchronizer, BatchImportSynchronizer, import_record
+from ...unit.backend_adapter import GenericAdapter
+from ...connector import get_environment
+
+
+@prestashop
+class OrderHistoryImport(BatchImportSynchronizer):
+    _model_name = ['order.histories']
+
+    def _run_page(self, filters,**kwargs):
+        record_ids = self.backend_adapter.search(filters)
+        
+        for record_id in record_ids:
+            order_history = self.backend_adapter.read(record_id)
+            self._import_record(order_history['id_order'],**kwargs)
+
+        return record_ids
+
+    def _import_record(self, record,**kwargs):
+        """ Import a record directly or delay the import of the record """
+        import_record.delay(
+            self.session,
+            'prestashop.sale.order',
+            self.backend_record.id,
+            record,
+            **kwargs
+        )
+
 
 @prestashop
 class SaleOrderImport(PrestashopImportSynchronizer):
@@ -38,22 +65,6 @@ class SaleOrderImport(PrestashopImportSynchronizer):
             self.session.uid,
             erp_id.id,
         )
-
-        shipping_total = erp_order.total_shipping_tax_included \
-            if self.backend_record.taxes_included \
-            else erp_order.total_shipping_tax_excluded
-        if shipping_total:
-            sale_line_obj = self.environment.session.pool['sale.order.line']
-
-            sale_line_obj.create(
-                self.session.cr,
-                self.session.uid,
-                {'order_id': erp_order.openerp_id.id,
-                 'product_id': erp_order.openerp_id.carrier_id.product_id.id,
-                 'price_unit':  shipping_total,
-                 'is_delivery': True
-                 },
-                context=self.session.context)
 
         erp_order.openerp_id.recompute()
         return True

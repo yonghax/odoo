@@ -482,11 +482,13 @@ def import_orders_since(session, model_name, backend_id, since_date=None):
     filters = None
     if since_date:
         date_str = since_date.strftime('%Y-%m-%d %H:%M:%S')
-        filters = {'date': '1', 'filter[date_upd]': '>[%s]' % (date_str)}
+        filters = {'date': '1', 'filter[date_add]': '>[%s]' % (date_str), 'filter[id_order_state':'4'}
+        
     now_fmt = datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
-    import_batch(
-        session, model_name, backend_id, filters
-    )
+    import_batch(session, 'order.histories', backend_id, filters)
+    #import_batch(
+    #    session, model_name, backend_id, filters
+    #)
 
     if since_date:
         filters = {'date': '1', 'filter[date_add]': '>[%s]' % date_str}
