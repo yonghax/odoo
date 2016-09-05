@@ -5,7 +5,11 @@ from openerp import models, fields, api, _
 
 class sale_order(models.Model):
     _inherit = 'sale.order'
-
+    
+    payment_method = fields.Char(
+        string='Payment Method',
+    )
+    
     prestashop_bind_ids = fields.One2many(
             comodel_name='prestashop.sale.order', 
             inverse_name='openerp_id',            
@@ -23,7 +27,6 @@ class sale_order(models.Model):
                     related="prestashop_bind_ids.prestashop_invoice_number",
                     store=False,
                     string="Invoice Number",
-        
                     )
     
     @api.multi
@@ -124,6 +127,9 @@ class prestashop_sale_order(models.Model):
             digits_compute=dp.get_precision('Account'),
             readonly=True
         )
+    payment = fields.Char(
+        string='Payment Method',
+    )
     
     @api.model
     def create_payments(self, ps_orders):

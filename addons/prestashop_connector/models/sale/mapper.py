@@ -1,6 +1,8 @@
 import logging
+from decimal import Decimal
 from ...backend import prestashop
 from ...unit.mapper import PrestashopImportMapper, mapping
+from openerp.addons.connector.unit.backend_adapter import BackendAdapter
 
 _logger = logging.getLogger(__name__)
 
@@ -14,12 +16,12 @@ class SaleOrderMapper(PrestashopImportMapper):
         ('delivery_number', 'prestashop_delivery_number'),
         ('total_paid', 'total_amount'),
         ('total_shipping_tax_incl', 'total_shipping_tax_included'),
-        ('total_shipping_tax_excl', 'total_shipping_tax_excluded')
+        ('total_shipping_tax_excl', 'total_shipping_tax_excluded'),
     ]
 
     def _get_sale_order_lines(self, record):
         orders = record['associations'].get(
-            'order_rows', {}).get('order_row', [])
+            'order_rows', {}).get('order_rows', [])
         if isinstance(orders, dict):
             orders = [orders]
         _logger.debug("ORDER LINES")
@@ -29,7 +31,7 @@ class SaleOrderMapper(PrestashopImportMapper):
     def _get_discounts_lines(self, record):
         if record['total_discounts'] == '0.00':
             return []       
-        adapter = self.unit_for(GenericAdapter,'prestashop.sale.order.line.discount')
+        adapter = self.unit_for(BackendAdapter,'prestashop.sale.order.line.discount')
         discount_ids = adapter.search({'filter[id_order]': record['id']})
         _logger.debug(discount_ids)
         discount_mappers = []
@@ -60,7 +62,7 @@ class SaleOrderMapper(PrestashopImportMapper):
 
         children = []
         for child_record in child_records:
-            adapter = self.unit_for(GenericAdapter, model_name)
+            adapter = self.unit_for(BackendAdapter, model_name)
             detail_record = adapter.read(child_record['id'])
 
             mapper = self._get_map_child_unit(model_name)
@@ -74,7 +76,7 @@ class SaleOrderMapper(PrestashopImportMapper):
         if record['total_discounts'] == '0.00':
             return []
         adapter = self.unit_for(
-            GenericAdapter, 'prestashop.sale.order.line.discount')
+            BackendAdapter, 'prestashop.sale.order.line.discount')
         discount_ids = adapter.search({'filter[id_order]': record['id']})
         discount_mappers = []
         for discount_id in discount_ids:
@@ -160,6 +162,11 @@ class SaleOrderMapper(PrestashopImportMapper):
     @mapping
     def backend_id(self, record):
         return {'backend_id': self.backend_record.id}
+
+    @mapping
+    def payment_method(self,record):
+        return {'payment_method': record['payment']}
+
 
     # @mapping
     # def payment(self, record):
@@ -283,7 +290,7 @@ class SaleOrderLineMapper(PrestashopImportMapper):
                 unwrap=True
             )
             if product_id:
-                product_id = product_id.id
+                product_id = product_id
         else:
             template_id = self.get_openerp_id(
                 'prestashop.product.template',
@@ -319,7 +326,7 @@ class SaleOrderLineMapper(PrestashopImportMapper):
         compute the amount VAT included or excluded
         """
         taxes = record.get('associations', {}).get(
-            'taxes', {}).get('tax', [])
+            'taxes', {}).get('taxes', [])
         if not isinstance(taxes, list):
             taxes = [taxes]
         result = []

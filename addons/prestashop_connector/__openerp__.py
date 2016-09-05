@@ -24,6 +24,10 @@
         - Import Product Template
         
         - Import Product Variant
+
+        Version 0.3
+
+        - Import Sale Order
     """,
     'author': "Internal Development - PT. Social Bella Indonesia",
     'website': "http://www.sociolla.com",
