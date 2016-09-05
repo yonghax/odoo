@@ -204,4 +204,7 @@ class TemplateMapper(PrestashopImportMapper):
 
     @mapping
     def product_brand_id(self, record):
-        return {'product_brand_id': record['product_brand_id']}
+        if record['product_brand_id']:
+            return {'product_brand_id': record['product_brand_id']}   
+        
+        return {}
