@@ -31,6 +31,7 @@ class TemplateRecordImport(TranslatableRecordImport):
         
         manufacturer_name = record['manufacturer_name']['value']
         if not manufacturer_name:
+            self.prestashop_record['product_brand_id'] = False
             return
         
         brand = self.env['product.brand'].search([('name','=',manufacturer_name.strip())])
