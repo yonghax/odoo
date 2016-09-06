@@ -30,7 +30,7 @@ class sale_order(models.Model):
                     )
     
     @api.multi
-    def action_invoice_create(self, grouped=False, states=['confirmed', 'done', 'exception'], date_invoice = False, context=None):
+    def action_invoice_create(self, grouped=False, final=False):
         """In order to follow the invoice number of prestashop, 
         all the invoices generated from this workflow have to be tagged 
         with the prestashop_invoice_number
@@ -38,43 +38,41 @@ class sale_order(models.Model):
         the prestashop_invoice_number will be empty and won't cause troubles, 
         the usual invoice number associated to the journal will be used.
         """
-        res = super(sale_order,self).action_invoice_create(grouped=grouped, states=states, date_invoice = date_invoice, context=context)
+        res = super(sale_order,self).action_invoice_create(grouped=grouped, final=final)
         
             
-        if isinstance(res, int):       
-            #it can't be a grouped invoice creation so deal with that
-            inv_ids = self.env['account.invoice'].browse([res])
-            new_name = self.name
-            if self.prestashop_order_id and self.prestashop_order_id > 0 :
-                new_name = `self.prestashop_order_id` + '-'+  new_name                    
-            inv_ids.write({'internal_number' :self.prestashop_invoice_number,
-                            'origin' : new_name,
-                            })
+        #it can't be a grouped invoice creation so deal with that
+        inv_ids = self.env['account.invoice'].browse(res)
+        new_name = self.name
+        if self.prestashop_order_id and self.prestashop_order_id > 0 :
+            new_name = `self.prestashop_order_id` + '-'+  new_name                    
+        inv_ids.write({'internal_number' :self.prestashop_invoice_number,
+                        'origin' : new_name,
+                        })
         
         if len(self.prestashop_bind_ids) == 1 and self.prestashop_bind_ids[0].backend_id.journal_id.id :
             #we also have to set the journal for the invoicing only for 
             #orders coming from the connector
-            inv_ids.write({'journal_id':
-                        self.prestashop_bind_ids[0].backend_id.journal_id.id })
+            inv_ids.write({'journal_id': self.prestashop_bind_ids[0].backend_id.journal_id.id })
             
             
         return res
     
-    @api.v7
-    def _prepare_procurement_group(self, cr, uid, order, context=None):   
+    @api.model
+    def _prepare_procurement_group(self):   
         #Improve the origin of shipping and name of the procurement group for better tracability
-        new_name = order.name 
-        if order.prestashop_order_id > 0 :
-            new_name = `order.prestashop_order_id` + '-' + new_name        
-        return {'name': new_name , 'partner_id': order.partner_shipping_id.id}
+        new_name = self.name 
+        if self.prestashop_order_id > 0 :
+            new_name = `self.prestashop_order_id` + '-' + new_name        
+        return {'name': new_name , 'partner_id': self.partner_shipping_id.id}
     
-    @api.v7
-    def _prepare_order_line_procurement(self, cr, uid, order, line, group_id=False, context=None):
+    @api.multi
+    def _prepare_order_line_procurement(self):
         #Improve the origin of shipping and name of the procurement group for better tracability
-        new_name = order.name
-        if order.prestashop_order_id > 0 :
-            new_name = `order.prestashop_order_id` + '-'+  new_name
-        vals = super(sale_order, self)._prepare_order_line_procurement(cr, uid, order, line, group_id=group_id, context=context)        
+        new_name = self.name
+        if self.prestashop_order_id > 0 :
+            new_name = `self.prestashop_order_id` + '-'+  new_name
+        vals = super(sale_order, self)._prepare_order_line_procurement(group_id=group_id)        
         vals['origin'] = new_name
         return vals
         
@@ -192,7 +190,7 @@ class prestashop_sale_order_line(models.Model):
     
 
     @api.v7
-    def create(self, cr, uid, vals, context=None):      
+    def create(self, cr, uid, vals, context=None):
         prestashop_order_id = vals['prestashop_order_id']
         info = self.pool['prestashop.sale.order'].read(
             cr, uid,

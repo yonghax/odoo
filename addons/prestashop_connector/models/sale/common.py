@@ -66,7 +66,10 @@ class SaleOrderImport(PrestashopImportSynchronizer):
             erp_id.id,
         )
 
-        erp_order.openerp_id.recompute()
+        sale_order = erp_order.openerp_id 
+        sale_order.recompute()
+        sale_order.action_confirm()
+        sale_order.action_invoice_create()
         return True
 
     def _check_refunds(self, id_customer, id_order):

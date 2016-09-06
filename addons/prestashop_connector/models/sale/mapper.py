@@ -246,6 +246,7 @@ class SaleOrderLineMapper(PrestashopImportMapper):
         ('product_name', 'name'),
         ('id', 'sequence'),
         ('product_quantity', 'product_uom_qty'),
+        ('qty_to_invoice', 'product_uom_qty'),
         ('reduction_percent', 'discount'),
     ]
 
@@ -355,6 +356,10 @@ class SaleOrderLineDiscount(PrestashopImportMapper):
             'name': _('Discount %s') % (record['name']),
             'product_uom_qty': 1,
         }
+
+    @mapping
+    def qty_to_invoice(self, record):
+        return {'qty_to_invoice': record['product_quantity']}
 
     @mapping
     def price_unit(self, record):
