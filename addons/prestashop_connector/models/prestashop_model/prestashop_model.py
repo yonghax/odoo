@@ -16,7 +16,6 @@ from ...unit.import_synchronizer import (
     import_products,
     import_refunds,
     import_product_attribute,
-    import_suppliers,
     import_record,
     export_product_quantities,
 )
@@ -70,6 +69,9 @@ class prestashop_backend(orm.Model):
             'backend_id',
             'Languages'
         ),
+        'journal_id': fields.many2one('account.journal',
+                                'Main Journal for invoices', select=True,
+                                 required=False),
         'company_id': fields.many2one('res.company', 'Company', select=1, required=True),
         'discount_product_id': fields.many2one('product.product', 'Dicount Product', select=1, required=False),
         'shipping_product_id': fields.many2one('product.product', 'Shipping Product', select=1, required=False),
@@ -185,20 +187,13 @@ class prestashop_backend(orm.Model):
             since_date = self._date_as_user_tz(
                 cr, uid, backend_record.import_orders_since
             )
-            import_orders_since.delay(
+
+            import_orders_since(
                 session,
+                'prestashop.sale.order',
                 backend_record.id,
                 since_date,
-                priority=5,
             )
-        return True
-
-    def import_payment_methods(self, cr, uid, ids, context=None):
-        if not hasattr(ids, '__iter__'):
-            ids = [ids]
-        session = ConnectorSession(cr, uid, context=context)
-        for backend_record in self.browse(cr, uid, ids, context=context):
-            import_batch.delay(session, 'payment.method', backend_record.id)
         return True
 
     def import_refunds(self, cr, uid, ids, context=None):
@@ -237,16 +232,8 @@ class prestashop_backend(orm.Model):
         self._scheduler_launch(cr, uid, self.import_products, domain=domain,
                                context=context)
 
-    def _scheduler_import_payment_methods(self, cr, uid, domain=None, context=None):
-        self._scheduler_launch(cr, uid, self.import_payment_methods,
-                               domain=domain, context=context)
-
     def _scheduler_import_refunds(self, cr, uid, domain=None, context=None):
         self._scheduler_launch(cr, uid, self.import_refunds,
-                               domain=domain, context=context)
-
-    def _scheduler_import_suppliers(self, cr, uid, domain=None, context=None):
-        self._scheduler_launch(cr, uid, self.import_suppliers,
                                domain=domain, context=context)
 
     def import_record(self, cr, uid, backend_id, model_name, ext_id,
@@ -290,7 +277,6 @@ class prestashop_binding(orm.AbstractModel):
                 product.prestashop_id
             )
         return True
-
 
 # TODO remove external.shop.group from connector_ecommerce
 class prestashop_shop_group(orm.Model):
