@@ -59,13 +59,15 @@ class AccountInvoice(models.Model):
             diff_currency = inv.currency_id != company_currency
             # create one move line for the total and possibly adjust the other
             # lines amount
-            total, total_currency, total_discount, iml = inv.with_context(ctx).compute_invoice_totals(company_currency, iml)
-
+            total, total_currency, total_discount, total_discount_currency, iml = inv.with_context(ctx).compute_invoice_totals(company_currency, iml)
+            
             price_amount = total
+            price_amount_currency = total_currency
             if self.type in ('out_invoice', 'out_refund'):
                 price_amount -= total_discount
+                price_amount_currency -= total_discount_currency
 
-            name = inv.name or '/'
+            name = inv.name or "[%s] - payment method: %s" % (inv.origin, inv.payment_method)
             if inv.payment_term_id:
                 totlines = inv.with_context(ctx).payment_term_id.with_context(currency_id=inv.currency_id.id).compute(price_amount, date_invoice)[0]
                 res_amount_currency = total_currency
@@ -73,6 +75,7 @@ class AccountInvoice(models.Model):
                 for i, t in enumerate(totlines):
                     if inv.currency_id != company_currency:
                         amount_currency = company_currency.with_context(ctx).compute(t[1], inv.currency_id)
+                        discount_amount_currency = company_currency.with_context(ctx).compute(total_discount_currency, inv.currency_id)
                     else:
                         amount_currency = False
 
@@ -89,6 +92,7 @@ class AccountInvoice(models.Model):
                         'account_id': inv.account_id.id,
                         'date_maturity': t[0],
                         'amount_currency': diff_currency and amount_currency,
+                        'discount_amount_currency': diff_currency and discount_amount_currency,
                         'currency_id': diff_currency and inv.currency_id.id,
                         'invoice_id': inv.id
                     })
@@ -100,7 +104,8 @@ class AccountInvoice(models.Model):
                     'discount_amount': 0,
                     'account_id': inv.account_id.id,
                     'date_maturity': inv.date_due,
-                    'amount_currency': diff_currency and total_currency,
+                    'amount_currency': diff_currency and price_amount_currency,
+                    'discount_amount_currency': diff_currency and total_discount_currency,
                     'currency_id': diff_currency and inv.currency_id.id,
                     'invoice_id': inv.id
                 })
@@ -248,12 +253,15 @@ class AccountInvoice(models.Model):
         total = 0
         total_currency = 0
         total_discount = 0
+        total_discount_currency = 0
         for line in invoice_move_lines:
             if self.currency_id != company_currency:
                 currency = self.currency_id.with_context(date=self.date_invoice or fields.Date.context_today(self))
                 line['currency_id'] = currency.id
                 line['amount_currency'] = currency.round(line['price'])
+                line['discount_amount_currency'] = currency.round(line['discount_amount'])
                 line['price'] = currency.compute(line['price'], company_currency)
+                line['discount_amount'] = currency.compute(line['discount_amount'], company_currency)
             else:
                 line['currency_id'] = False
                 line['amount_currency'] = False
@@ -262,14 +270,16 @@ class AccountInvoice(models.Model):
             if self.type in ('out_invoice', 'in_refund'):
                 total += line['price']
                 total_discount += line['discount_amount']
+                total_discount_currency += line['discount_amount_currency']
                 total_currency += line['amount_currency'] or line['price']
                 line['price'] = - line['price']
             else:
                 total -= line['price']
                 total_discount -= line['discount_amount']
                 total_currency -= line['amount_currency'] or line['price']
+                total_discount_currency -= line['discount_amount_currency'] or line['discount_amount']
 
-        return total, total_currency, total_discount, invoice_move_lines
+        return total, total_currency, total_discount, total_discount_currency, invoice_move_lines
 
     @api.model
     def _refund_cleanup_lines(self, lines):

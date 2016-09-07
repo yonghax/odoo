@@ -34,3 +34,8 @@ class SaleOrderAdapter(GenericAdapter):
 class SaleOrderLineAdapter(GenericAdapter):
     _model_name = 'prestashop.sale.order.line'
     _prestashop_model = 'order_details'
+
+@prestashop
+class SaleOrderLineDiscountAdapter(GenericAdapter):
+    _model_name = 'prestashop.sale.order.line.discount'
+    _prestashop_model = 'order_discounts'

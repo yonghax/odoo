@@ -214,7 +214,7 @@ class BatchImportSynchronizer(Importer):
     items to import, then it can either import them directly or delay
     the import of each item separately.
     """
-    page_size = 5
+    page_size = 1000
 
     def run(self, filters=None,**kwargs):
         """ Run the synchronization """
@@ -227,11 +227,11 @@ class BatchImportSynchronizer(Importer):
         filters['limit'] = '%d,%d' % (
             page_number * self.page_size, self.page_size)
         record_ids = self._run_page(filters,**kwargs)
-        #while len(record_ids) == self.page_size:
-        #   page_number += 1
-        #   filters['limit'] = '%d,%d' % (
-        #       page_number * self.page_size, self.page_size)
-        #   record_ids = self._run_page(filters,**kwargs)
+        while len(record_ids) == self.page_size:
+           page_number += 1
+           filters['limit'] = '%d,%d' % (
+               page_number * self.page_size, self.page_size)
+           record_ids = self._run_page(filters,**kwargs)
 
     def _run_page(self, filters,**kwargs):
         record_ids = self.backend_adapter.search(filters)
@@ -483,9 +483,10 @@ def import_orders_since(session, model_name, backend_id, since_date=None):
     if since_date:
         date_str = since_date.strftime('%Y-%m-%d %H:%M:%S')
         filters = {'date': '1', 'filter[date_add]': '>[%s]' % (date_str), 'filter[id_order_state':'4'}
-        
+    
     now_fmt = datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
     import_batch(session, 'order.histories', backend_id, filters)
+    #import_batch(session, 'prestashop.sale.order', backend_id, filters)
     #import_batch(
     #    session, model_name, backend_id, filters
     #)

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from openerp.addons.connector.connector import ConnectorUnit
 from prestapyt import PrestaShopWebServiceError
 
@@ -5,7 +7,6 @@ from ...backend import prestashop
 from ...unit.import_synchronizer import PrestashopImportSynchronizer, BatchImportSynchronizer, import_record
 from ...unit.backend_adapter import GenericAdapter
 from ...connector import get_environment
-
 
 @prestashop
 class OrderHistoryImport(BatchImportSynchronizer):
@@ -66,11 +67,55 @@ class SaleOrderImport(PrestashopImportSynchronizer):
             erp_id.id,
         )
 
-        sale_order = erp_order.openerp_id 
+        sale_order = erp_order.openerp_id
+        self.calculate_discount_proportional(erp_order, sale_order)
         sale_order.recompute()
+
+        # Confirm sale.order and validate inventory out
         sale_order.action_confirm()
-        sale_order.action_invoice_create()
+
+        for pick in sale_order.picking_ids:
+            pick.write({'state':'assigned'})
+            for pack in pick.pack_operation_ids:
+                pack.write({'qty_done':pack.product_qty})
+            
+            pick.do_new_transfer()
+
+        # Create and validate direct account.invoice 
+        filters = {'filter[id_order]': erp_order.prestashop_id, 'filter[id_order_state':'4'}
+        order_history_adapter = self.unit_for(GenericAdapter, 'order.histories')
+        order_history = order_history_adapter.read(order_history_adapter.search(filters)[0])
+
+        sale_order.action_invoice_create(order_history['date_add'], grouped=False, final=False)
+        #if sale_order.invoice_status == 'invoiced':
+        for inv in sale_order.invoice_ids:
+            inv.action_move_create()
+
         return True
+    
+    def calculate_discount_proportional(self, erp_order, sale_order): 
+        """ Delete order line with product discount. and the amount will be split average per order line.
+        """
+        order_lines = sale_order.order_line
+        order_discounts = order_lines.filtered(lambda x: x.product_id == self.backend_record.discount_product_id)
+        order_products = order_lines.filtered(lambda x: x.product_id != self.backend_record.discount_product_id)
+        order_products = sorted(order_products, key=lambda x : x.price_subtotal, reverse=True)
+        
+        sum_discount_amount = sum([x.price_unit for x in order_discounts])
+        sum_total_amount_header = sum([x.product_uom_qty * x.price_unit for x in order_products])
+        if sum_discount_amount > 0:
+            for i in xrange(0, len(order_products)):
+                total_amount = order_products[i].product_uom_qty * order_products[i].price_unit
+                discount_amount = (total_amount / sum_total_amount_header) * sum_discount_amount
+                discount_percentage = (discount_amount / total_amount) * 100
+
+                order_products[i].write({
+                    'discount_amount' : discount_amount,
+                    'discount': discount_percentage
+                })
+                order_products[i].recompute()
+        
+            order_discounts.unlink()
 
     def _check_refunds(self, id_customer, id_order):
         backend_adapter = self.unit_for(

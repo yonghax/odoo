@@ -2,6 +2,14 @@
 import openerp.addons.decimal_precision as dp
 
 from openerp import models, fields, api, _
+from ...unit.backend_adapter import GenericAdapter
+
+class account_invoice(models.Model):
+    _inherit = 'account.invoice'
+
+    payment_method = fields.Char(
+        string='Payment Method',
+    )
 
 class sale_order(models.Model):
     _inherit = 'sale.order'
@@ -30,7 +38,7 @@ class sale_order(models.Model):
                     )
     
     @api.multi
-    def action_invoice_create(self, grouped=False, final=False):
+    def action_invoice_create(self, date_invoice, grouped=False, final=False):
         """In order to follow the invoice number of prestashop, 
         all the invoices generated from this workflow have to be tagged 
         with the prestashop_invoice_number
@@ -46,15 +54,21 @@ class sale_order(models.Model):
         new_name = self.name
         if self.prestashop_order_id and self.prestashop_order_id > 0 :
             new_name = `self.prestashop_order_id` + '-'+  new_name                    
-        inv_ids.write({'internal_number' :self.prestashop_invoice_number,
-                        'origin' : new_name,
-                        })
+
+        inv_ids.write({
+            'internal_number' :self.prestashop_invoice_number,
+            'origin' : new_name,
+        })
         
         if len(self.prestashop_bind_ids) == 1 and self.prestashop_bind_ids[0].backend_id.journal_id.id :
             #we also have to set the journal for the invoicing only for 
             #orders coming from the connector
-            inv_ids.write({'journal_id': self.prestashop_bind_ids[0].backend_id.journal_id.id })
-            
+            inv_ids.write({
+                'journal_id': self.prestashop_bind_ids[0].backend_id.journal_id.id,
+                'payment_method': self.payment_method,
+                'date_invoice': date_invoice, 
+                'state': 'open'
+            })
             
         return res
     
@@ -75,7 +89,6 @@ class sale_order(models.Model):
         vals = super(sale_order, self)._prepare_order_line_procurement(group_id=group_id)        
         vals['origin'] = new_name
         return vals
-        
 
 class prestashop_sale_order(models.Model):
     _name = 'prestashop.sale.order'
