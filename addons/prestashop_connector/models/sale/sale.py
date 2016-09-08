@@ -67,7 +67,8 @@ class sale_order(models.Model):
                 'journal_id': self.prestashop_bind_ids[0].backend_id.journal_id.id,
                 'payment_method': self.payment_method,
                 'date_invoice': date_invoice, 
-                'state': 'open'
+                'state': 'open',
+                'currency_id': self.currency_id.id
             })
             
         return res

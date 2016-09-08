@@ -106,6 +106,10 @@ class SaleOrderMapper(PrestashopImportMapper):
         return {"name": name}
 
     @mapping
+    def currency_id(self, record):
+        return {'currency_id': self.backend_record.company_id.currency_id.id}
+
+    @mapping
     def shop_id(self, record):
         if record['id_shop'] == '0':
             shop_ids = self.env['prestashop.shop'].search([
@@ -244,13 +248,13 @@ class SaleOrderLineMapper(PrestashopImportMapper):
     direct = [
         ('product_name', 'name'),
         ('id', 'sequence'),
-        ('product_uom_qty', 'product_quantity'),
+        #('product_uom_qty', 'product_quantity'),
         ('reduction_percent', 'discount'),
     ]
 
-    #@mapping
-    #def product_uom_qty(self, record):
-    #    return{'product_uom_qty': record['product_quantity']}
+    @mapping
+    def product_uom_qty(self, record):
+        return{'product_uom_qty': record['product_quantity']}
 
     @mapping
     def prestashop_id(self, record):

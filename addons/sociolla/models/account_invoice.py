@@ -1,4 +1,5 @@
 from openerp import api, fields, models, _
+from decimal import *
 
 # mapping invoice type to journal type
 TYPE2JOURNAL = {
@@ -66,8 +67,10 @@ class AccountInvoice(models.Model):
             if self.type in ('out_invoice', 'out_refund'):
                 price_amount -= total_discount
                 price_amount_currency -= total_discount_currency
-
-            name = inv.name or "[%s] - payment method: %s" % (inv.origin, inv.payment_method)
+                name = inv.name or "[%s] - payment method: %s" % (inv.origin, inv.payment_method)
+            else:
+                name = inv.name or "[%s]" % (inv.origin)
+            
             if inv.payment_term_id:
                 totlines = inv.with_context(ctx).payment_term_id.with_context(currency_id=inv.currency_id.id).compute(price_amount, date_invoice)[0]
                 res_amount_currency = total_currency
@@ -78,6 +81,7 @@ class AccountInvoice(models.Model):
                         discount_amount_currency = company_currency.with_context(ctx).compute(total_discount_currency, inv.currency_id)
                     else:
                         amount_currency = False
+                        discount_amount_currency = False
 
                     # last line: add the diff
                     res_amount_currency -= amount_currency or 0
@@ -250,22 +254,33 @@ class AccountInvoice(models.Model):
 
     @api.multi
     def compute_invoice_totals(self, company_currency, invoice_move_lines):
-        total = 0
-        total_currency = 0
-        total_discount = 0
-        total_discount_currency = 0
+        total = 0.0
+        total_currency = 0.0
+        total_discount = 0.0
+        total_discount_currency = 0.0
         for line in invoice_move_lines:
             if self.currency_id != company_currency:
                 currency = self.currency_id.with_context(date=self.date_invoice or fields.Date.context_today(self))
                 line['currency_id'] = currency.id
                 line['amount_currency'] = currency.round(line['price'])
-                line['discount_amount_currency'] = currency.round(line['discount_amount'])
+                
+                try:
+                    line['discount_amount_currency'] = currency.round(line['discount_amount'])
+                    line['discount_amount'] = currency.compute(line['discount_amount'], company_currency)
+                except:
+                    line['discount_amount_currency'] = 0
+                    line['discount_amount'] = 0
+                
                 line['price'] = currency.compute(line['price'], company_currency)
-                line['discount_amount'] = currency.compute(line['discount_amount'], company_currency)
             else:
                 line['currency_id'] = False
-                line['amount_currency'] = False
                 line['price'] = self.currency_id.round(line['price'])
+                line['amount_currency'] = False
+                line['discount_amount_currency'] = False
+                try:
+                    line['discount_amount'] = self.currency_id.round(line['discount_amount'])
+                except:
+                    line['discount_amount'] = 0
 
             if self.type in ('out_invoice', 'in_refund'):
                 total += line['price']

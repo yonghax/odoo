@@ -38,6 +38,9 @@ class AccountInvoice(models.Model):
         if not self.partner_id:
             self.partner_id = self.purchase_id.partner_id.id
 
+        if not self.currency_id:
+            self.currency_id = self.purchase_id.currency_id
+
         new_lines = self.env['account.invoice.line']
         for line in self.purchase_id.order_line:
             # Load a PO line only once
