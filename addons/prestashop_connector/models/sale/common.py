@@ -99,23 +99,14 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         order_lines = sale_order.order_line
         order_discounts = order_lines.filtered(lambda x: x.product_id == self.backend_record.discount_product_id)
         order_products = order_lines.filtered(lambda x: x.product_id != self.backend_record.discount_product_id)
-        order_products = sorted(order_products, key=lambda x : x.price_subtotal, reverse=True)
+        sum_discount_header_amount = sum([x.price_unit for x in order_discounts])
         
-        sum_discount_amount = sum([x.price_unit for x in order_discounts])
-        sum_total_amount_header = sum([x.product_uom_qty * x.price_unit for x in order_products])
-        if sum_discount_amount > 0:
-            for i in xrange(0, len(order_products)):
-                total_amount = order_products[i].product_uom_qty * order_products[i].price_unit
-                discount_amount = (total_amount / sum_total_amount_header) * sum_discount_amount
-                discount_percentage = (discount_amount / total_amount) * 100
-
-                order_products[i].write({
-                    'discount_amount' : discount_amount,
-                    'discount': discount_percentage
-                })
-                order_products[i].recompute()
-        
+        if sum_discount_header_amount > 0 or len(order_discounts) > 0:
             order_discounts.unlink()
+            sale_order.write({
+                'discount_amount': sum_discount_header_amount,
+            })
+            order_products._compute_amount()
 
     def _check_refunds(self, id_customer, id_order):
         backend_adapter = self.unit_for(

@@ -169,8 +169,8 @@ class AccountInvoice(models.Model):
 
             # Journal sales for account income the amount will be add discount_amount
             if self.type in ('out_invoice', 'out_refund'):
-                price_amount += line.discount_amount
-                discount_amount = line.discount_amount
+                price_amount += line.discount_amount + line.discount_header_amount
+                discount_amount = line.discount_amount + line.discount_header_amount
 
             move_line_dict = {
                 'invl_id': line.id,
@@ -226,11 +226,10 @@ class AccountInvoice(models.Model):
     def discount_line_move_line_get(self):
         res = []
         for line in self.invoice_line_ids:
-            if line.discount_amount > 0:
-                amount = line.discount_amount
-
+            if line.discount_amount > 0 or line.discount_header_amount > 0:
+                amount = line.discount_amount + line.discount_header_amount
                 if self.type == 'out_refund':
-                    amount = - line.discount_amount
+                    amount = - amount
 
                 move_line_dict = {
                     'invl_id': line.id,
@@ -331,6 +330,7 @@ class AccountInvoiceLine(models.Model):
     _inherit = "account.invoice.line"
 
     discount_amount = fields.Monetary(string='Discount Amount', store=True, readonly=True, compute='_compute_price')
+    discount_header_amount = fields.Monetary(string='Discount Header Amount', store=True, readonly=True, compute='_compute_price')
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_compute_price')
     discount_account_id = fields.Many2one('account.account', string='Discount Account', domain=[('deprecated', '=', False)])
 
@@ -338,8 +338,27 @@ class AccountInvoiceLine(models.Model):
     @api.depends('price_unit', 'discount', 'invoice_line_tax_ids', 'quantity',
         'product_id', 'invoice_id.partner_id', 'invoice_id.currency_id', 'invoice_id.company_id')
     def _compute_price(self):
-        self.price_undiscounted = self.price_unit * self.quantity
-        self.discount_amount = self.price_undiscounted * ((self.discount or 0.0) / 100.0)
+        total_price_after_discount = sum([x.quantity * (x.price_unit * (1 - (x.discount or 0.0) / 100.0)) for x in self.invoice_id.invoice_line_ids])
+        price = self.price_unit * (1 - (self.discount or 0.0) / 100.0)
+        price_undiscounted = round(self.quantity * self.price_unit) 
+        discount_amount = (round(self.quantity * self.price_unit) * self.discount) / 100
+        price_after_discount = round(self.quantity * price)
+        discount_header_proportional = 0
+        
+        if self.invoice_id.discount_amount > 0:
+            discount_header_proportional = (price_after_discount / total_price_after_discount) * self.invoice_id.discount_amount
+        
+        price = round((price_after_discount - discount_header_proportional) / self.quantity)
+
+        self.price_undiscounted = price_undiscounted
+        self.discount_amount = discount_amount
+        self.discount_header_amount = discount_header_proportional
+
+        self.update({
+            'price_undiscounted': price_undiscounted, 
+            'discount_amount': discount_amount, 
+            'discount_header_amount': discount_header_amount,
+        })
 
         super(AccountInvoiceLine,self)._compute_price()
 

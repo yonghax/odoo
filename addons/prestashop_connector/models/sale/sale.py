@@ -66,6 +66,7 @@ class sale_order(models.Model):
             inv_ids.write({
                 'journal_id': self.prestashop_bind_ids[0].backend_id.journal_id.id,
                 'payment_method': self.payment_method,
+                'discount_amount': self.discount_amount,
                 'date_invoice': date_invoice, 
                 'state': 'open',
                 'currency_id': self.currency_id.id

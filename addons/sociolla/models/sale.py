@@ -22,20 +22,18 @@ class SaleOrder(models.Model):
                 amount_untaxed += line.price_subtotal
                 amount_tax += line.price_tax
                 price_undiscounted += line.price_undiscounted
-                discount_amount += line.discount_amount
 
             order.update({
                 'amount_untaxed': order.pricelist_id.currency_id.round(amount_untaxed),
                 'amount_tax': order.pricelist_id.currency_id.round(amount_tax),
                 'amount_total': amount_untaxed + amount_tax,
-                'discount_amount': discount_amount,
-                'price_undiscounted': price_undiscounted,
             })
 
 class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
 
     discount_amount = fields.Monetary(string='Discount Amount', store=True, readonly=True, compute='_compute_amount', track_visibility='always')
+    discount_header_amount = fields.Monetary(string='Discount Header Amount', store=True, readonly=True, compute='_compute_amount', track_visibility='always')
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_compute_amount', track_visibility='always')
 
     @api.depends('product_uom_qty', 'discount', 'price_unit', 'tax_id')
@@ -44,14 +42,22 @@ class SaleOrderLine(models.Model):
         Override base function to add calculation for discount_amount
         """
         for line in self:
+            total_price_after_discount = sum([x.product_uom_qty * (x.price_unit * (1 - (x.discount or 0.0) / 100.0)) for x in line.order_id.order_line])
             price = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
             price_undiscounted = round(line.product_uom_qty * line.price_unit) 
-            discount_amount = price_undiscounted * ((line.discount or 0.0) / 100.0)
-
+            discount_amount = (round(line.product_uom_qty * line.price_unit) * line.discount) / 100
+            price_after_discount = round(line.product_uom_qty * price)
+            discount_header_proportional = 0
+            
+            if line.order_id.discount_amount > 0:
+                discount_header_proportional = (price_after_discount / total_price_after_discount) * line.order_id.discount_amount
+            
+            price = round((price_after_discount - discount_header_proportional) / line.product_uom_qty)
             taxes = line.tax_id.compute_all(price, line.order_id.currency_id, line.product_uom_qty, product=line.product_id, partner=line.order_id.partner_id)
             line.update({
                 'discount_amount': discount_amount,
                 'price_undiscounted': price_undiscounted,
+                'discount_header_amount': discount_header_proportional,
                 'price_tax': taxes['total_included'] - taxes['total_excluded'],
                 'price_total': taxes['total_included'],
                 'price_subtotal': taxes['total_excluded'],
@@ -77,4 +83,3 @@ class SaleOrderLine(models.Model):
             raise UserError(_('Configuration error!\nCould not find any account to create the discount, are you sure you have a chart of account installed?'))
         
         return res
-    
