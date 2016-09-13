@@ -522,7 +522,7 @@ class AccountInvoice(models.Model):
             report_invoice = self.env['report']._get_report_from_name('account.report_invoice')
         except IndexError:
             report_invoice = False
-        if report_invoice:
+        if report_invoice and report_invoice.attachment:
             for invoice in self:
                 with invoice.env.do_in_draft():
                     invoice.number, invoice.state = invoice.move_name, 'open'
@@ -1146,7 +1146,10 @@ class AccountInvoiceLine(models.Model):
             doc = etree.XML(res['arch'])
             for node in doc.xpath("//field[@name='product_id']"):
                 if self._context['type'] in ('in_invoice', 'in_refund'):
-                    node.set('domain', "[('purchase_ok', '=', True)]")
+                    # Hack to fix the stable version 8.0 -> saas-12
+                    # purchase_ok will be moved from purchase to product in master #13271
+                    if 'purchase_ok' in self.env['product.template']._fields:
+                        node.set('domain', "[('purchase_ok', '=', True)]")
                 else:
                     node.set('domain', "[('sale_ok', '=', True)]")
             res['arch'] = etree.tostring(doc)
@@ -1284,9 +1287,10 @@ class AccountInvoiceTax(models.Model):
             base = 0.0
             for line in tax.invoice_id.invoice_line_ids:
                 if tax.tax_id in line.invoice_line_tax_ids:
-                    base += line.price_subtotal
-                    # To add include base amount taxes
-                    base += sum((line.invoice_line_tax_ids.filtered(lambda t: t.include_base_amount) - tax.tax_id).mapped('amount'))
+                    price_unit = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
+                    base += (line.invoice_line_tax_ids - tax.tax_id).compute_all(
+                        price_unit, line.invoice_id.currency_id, line.quantity, line.product_id, line.invoice_id.partner_id
+                    )['base']
             tax.base = base
 
     invoice_id = fields.Many2one('account.invoice', string='Invoice', ondelete='cascade', index=True)
