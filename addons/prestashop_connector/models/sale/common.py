@@ -17,7 +17,8 @@ class OrderHistoryImport(BatchImportSynchronizer):
         
         for record_id in record_ids:
             order_history = self.backend_adapter.read(record_id)
-            self._import_record(order_history['id_order'],**kwargs)
+            if order_history['id_order_state'] == '4':
+                self._import_record(order_history['id_order'],**kwargs)
 
         return record_ids
 
