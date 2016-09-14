@@ -22,7 +22,7 @@ MAGIC_COLUMNS = ('id', 'create_uid', 'create_date', 'write_uid', 'write_date')
 class AccountInvoice(models.Model):
     _inherit = "account.invoice"
 
-    discount_amount = fields.Monetary(string='Discount Amount', store=True, readonly=True, compute='_compute_amount', track_visibility='always')
+    discount_amount = fields.Monetary(string='Discount Amount', store=True, readonly=True, track_visibility='always')
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_compute_amount', track_visibility='always')
 
     @api.one
@@ -30,7 +30,6 @@ class AccountInvoice(models.Model):
     def _compute_amount(self):
         super(AccountInvoice,self)._compute_amount()
         self.price_undiscounted = sum(line.price_undiscounted for line in self.invoice_line_ids)
-        self.discount_amount = sum(line.discount_amount for line in self.invoice_line_ids)
 
     @api.multi
     def action_move_create(self):
@@ -169,8 +168,8 @@ class AccountInvoice(models.Model):
 
             # Journal sales for account income the amount will be add discount_amount
             if self.type in ('out_invoice', 'out_refund'):
-                price_amount += line.discount_amount
-                discount_amount = line.discount_amount
+                price_amount += line.discount_amount + line.discount_header_amount
+                discount_amount = line.discount_amount + line.discount_header_amount
 
             move_line_dict = {
                 'invl_id': line.id,
@@ -226,11 +225,10 @@ class AccountInvoice(models.Model):
     def discount_line_move_line_get(self):
         res = []
         for line in self.invoice_line_ids:
-            if line.discount_amount > 0:
-                amount = line.discount_amount
-
+            if line.discount_amount > 0 or line.discount_header_amount > 0:
+                amount = line.discount_amount + line.discount_header_amount
                 if self.type == 'out_refund':
-                    amount = - line.discount_amount
+                    amount = - amount
 
                 move_line_dict = {
                     'invl_id': line.id,
@@ -327,21 +325,91 @@ class AccountInvoice(models.Model):
             result.append((0, 0, values))
         return result
 
+    @api.model
+    def calculate_discount_proportional(self, discount_amount):
+        currency = self.currency_id or None
+        gross_amount = sum([(x.quantity * (x.price_unit * (1 - (x.discount or 0.0) / 100.0))) for x in self.invoice_line_ids])
+
+        invoice_lines = self.env['account.invoice.line'].browse(self.invoice_line_ids.ids)
+        
+        for inv_line in invoice_lines:
+            price = inv_line.price_unit * (1 - (inv_line.discount or 0.0) / 100.0)
+            amount = inv_line.quantity * price
+            discount_proportional = amount / gross_amount * discount_amount
+            discount_proportional_unit = 0.0
+                
+            if discount_proportional > 0:
+                discount_proportional_unit = discount_proportional / inv_line.quantity
+                price -= discount_proportional_unit
+
+            taxes = False
+            if inv_line.invoice_line_tax_ids:
+                taxes = inv_line.invoice_line_tax_ids.compute_all(price, currency, inv_line.quantity, product=inv_line.product_id, partner=self.partner_id)
+
+            subtotal_amount = price_subtotal_signed = taxes['total_excluded'] if taxes else inv_line.quantity * price
+
+            if self.currency_id and self.currency_id != self.company_id.currency_id:
+                price_subtotal_signed = self.currency_id.compute(price_subtotal_signed, self.company_id.currency_id)
+            sign = self.type in ['in_refund', 'out_refund'] and -1 or 1
+            price_subtotal_signed = price_subtotal_signed * sign
+            
+            inv_line.update({
+                'price_subtotal': subtotal_amount,
+                'price_subtotal_signed': price_subtotal_signed,
+                'discount_header_amount': discount_proportional
+            })
+
+    @api.multi
+    def get_taxes_values(self):
+        tax_grouped = {}
+        for line in self.invoice_line_ids:
+            price_unit = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
+
+            if line.discount_header_amount:
+                discount_header_unit = round(line.discount_header_amount/line.quantity)
+                price_unit -= discount_header_unit
+            elif line.invoice_id.discount_amount > 0:
+                self.calculate_discount_proportional(self.discount_amount)
+                discount_header_unit = round(line.discount_header_amount/line.quantity)
+                price_unit -= discount_header_unit
+
+            taxes = line.invoice_line_tax_ids.compute_all(price_unit, self.currency_id, line.quantity, line.product_id, self.partner_id)['taxes']
+
+            for tax in taxes:
+                val = {
+                    'invoice_id': self.id,
+                    'name': tax['name'],
+                    'tax_id': tax['id'],
+                    'amount': tax['amount'],
+                    'manual': False,
+                    'sequence': tax['sequence'],
+                    'account_analytic_id': tax['analytic'] and line.account_analytic_id.id or False,
+                    'account_id': self.type in ('out_invoice', 'in_invoice') and (tax['account_id'] or line.account_id.id) or (tax['refund_account_id'] or line.account_id.id),
+                }
+
+                # If the taxes generate moves on the same financial account as the invoice line,
+                # propagate the analytic account from the invoice line to the tax line.
+                # This is necessary in situations were (part of) the taxes cannot be reclaimed,
+                # to ensure the tax move is allocated to the proper analytic account.
+                if not val.get('account_analytic_id') and line.account_analytic_id and val['account_id'] == line.account_id.id:
+                    val['account_analytic_id'] = line.account_analytic_id.id
+
+                key = self.env['account.tax'].browse(tax['id']).get_grouping_key(val)
+
+                if key not in tax_grouped:
+                    tax_grouped[key] = val
+                else:
+                    tax_grouped[key]['amount'] += val['amount']
+        return tax_grouped
+
+
 class AccountInvoiceLine(models.Model):
     _inherit = "account.invoice.line"
 
     discount_amount = fields.Monetary(string='Discount Amount', store=True, readonly=True, compute='_compute_price')
+    discount_header_amount = fields.Monetary(string='Discount Header Amount', store=True, readonly=True, compute='_compute_price')
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_compute_price')
     discount_account_id = fields.Many2one('account.account', string='Discount Account', domain=[('deprecated', '=', False)])
-
-    @api.one
-    @api.depends('price_unit', 'discount', 'invoice_line_tax_ids', 'quantity',
-        'product_id', 'invoice_id.partner_id', 'invoice_id.currency_id', 'invoice_id.company_id')
-    def _compute_price(self):
-        self.price_undiscounted = self.price_unit * self.quantity
-        self.discount_amount = self.price_undiscounted * ((self.discount or 0.0) / 100.0)
-
-        super(AccountInvoiceLine,self)._compute_price()
 
     @api.onchange('product_id')
     def _onchange_product_id(self):
@@ -360,6 +428,34 @@ class AccountInvoiceLine(models.Model):
                 self.discount_account_id = account['sales_discount']
             else:
                 raise UserError(_('Configuration error!\nCould not find any account to create the discount, are you sure you have a chart of account installed?'))
+
+    @api.one
+    @api.depends('price_unit', 'discount', 'invoice_line_tax_ids', 'quantity',
+        'product_id', 'invoice_id.partner_id', 'invoice_id.currency_id', 'invoice_id.company_id')
+    def _compute_price(self):
+        currency = self.invoice_id and self.invoice_id.currency_id or None
+        price = self.price_unit * (1 - (self.discount or 0.0) / 100.0)
+        price_undiscounted = self.price_unit * self.quantity
+        discount_amount = price_undiscounted * ((self.discount or 0.0) / 100.0)
+
+        if self.discount_header_amount:
+            discount_header_unit = round(self.discount_header_amount/self.quantity)
+            price -= discount_header_unit
+        elif self.invoice_id.discount_amount > 0:
+            self.invoice_id.calculate_discount_proportional(self.invoice_id.discount_amount)
+            discount_header_unit = round(self.discount_header_amount/self.quantity)
+            price -= discount_header_unit
+
+        taxes = False
+        if self.invoice_line_tax_ids:
+            taxes = self.invoice_line_tax_ids.compute_all(price, currency, self.quantity, product=self.product_id, partner=self.invoice_id.partner_id)
+        self.price_subtotal = price_subtotal_signed = taxes['total_excluded'] if taxes else self.quantity * price
+        if self.invoice_id.currency_id and self.invoice_id.currency_id != self.invoice_id.company_id.currency_id:
+            price_subtotal_signed = self.invoice_id.currency_id.compute(price_subtotal_signed, self.invoice_id.company_id.currency_id)
+        sign = self.invoice_id.type in ['in_refund', 'out_refund'] and -1 or 1
+        self.price_subtotal_signed = price_subtotal_signed * sign
+        self.price_undiscounted = price_undiscounted
+        self.discount_amount = discount_amount
 
     @api.v8
     def get_invoice_line_account(self, type, product, fpos, company):

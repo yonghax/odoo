@@ -47,7 +47,6 @@ class sale_order(models.Model):
         the usual invoice number associated to the journal will be used.
         """
         res = super(sale_order,self).action_invoice_create(grouped=grouped, final=final)
-        
             
         #it can't be a grouped invoice creation so deal with that
         inv_ids = self.env['account.invoice'].browse(res)
@@ -66,11 +65,16 @@ class sale_order(models.Model):
             inv_ids.write({
                 'journal_id': self.prestashop_bind_ids[0].backend_id.journal_id.id,
                 'payment_method': self.payment_method,
+                'discount_amount': self.discount_amount,
                 'date_invoice': date_invoice, 
                 'state': 'open',
                 'currency_id': self.currency_id.id
             })
-            
+            inv = inv_ids.ensure_one()
+            inv.calculate_discount_proportional(self.discount_amount)
+            inv.compute_taxes()
+            inv._compute_amount()
+
         return res
     
     @api.model
@@ -181,7 +185,6 @@ class sale_order_line(models.Model):
             inverse_name = 'openerp_id',
             string="PrestaShop Discount Bindings"
         )
-    
 
 class prestashop_sale_order_line(models.Model):
     _name = 'prestashop.sale.order.line'

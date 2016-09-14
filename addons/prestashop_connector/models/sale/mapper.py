@@ -221,26 +221,6 @@ class SaleOrderMapper(PrestashopImportMapper):
             order_line_ids = result['prestashop_order_line_ids']
         return onchange.play(result, order_line_ids)
 
-    # @mapping
-    # def get_workflow_datas(self, record):
-    #     payment = self.payment(record)
-        
-    #     payment = self.env['payment.method'].browse(payment['payment_method_id'])
-    #     _logger.debug("display payment_method_id")
-    #     _logger.debug(payment)
-        
-    #     automation_vals = {
-    #             'workflow_process_id' : payment.workflow_process_id.id,
-    #             'payment_term' : payment.payment_term_id.id,
-    #             'picking_policy' : payment.workflow_process_id.picking_policy,
-    #             'order_policy' : payment.workflow_process_id.order_policy
-    #     }
-        
-    #     _logger.debug("AUTOMATION")
-    #     _logger.debug(automation_vals)
-        
-    #     return automation_vals
-
 @prestashop
 class SaleOrderLineMapper(PrestashopImportMapper):
     _model_name = 'prestashop.sale.order.line'
@@ -248,13 +228,12 @@ class SaleOrderLineMapper(PrestashopImportMapper):
     direct = [
         ('product_name', 'name'),
         ('id', 'sequence'),
-        #('product_uom_qty', 'product_quantity'),
         ('reduction_percent', 'discount'),
     ]
 
     @mapping
-    def product_uom_qty(self, record):
-        return{'product_uom_qty': record['product_quantity']}
+    def product_uom_qty(self,record):
+        return  {'product_uom_qty': record['product_quantity']}
 
     @mapping
     def prestashop_id(self, record):

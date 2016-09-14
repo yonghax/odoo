@@ -493,6 +493,7 @@ def import_orders_since(session, model_name, backend_id, since_date=None):
 
     if since_date:
         filters = {'date': '1', 'filter[date_add]': '>[%s]' % date_str}
+
     try:
         import_batch(session, 'prestashop.mail.message', backend_id, filters)
     except:

@@ -88,9 +88,9 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         order_history = order_history_adapter.read(order_history_adapter.search(filters)[0])
 
         sale_order.action_invoice_create(order_history['date_add'], grouped=False, final=False)
-        #if sale_order.invoice_status == 'invoiced':
-        for inv in sale_order.invoice_ids:
-            inv.action_move_create()
+        if sale_order.invoice_status == 'invoiced':
+            for inv in sale_order.invoice_ids:
+                inv.action_move_create()
 
         return True
     
@@ -100,23 +100,22 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         order_lines = sale_order.order_line
         order_discounts = order_lines.filtered(lambda x: x.product_id == self.backend_record.discount_product_id)
         order_products = order_lines.filtered(lambda x: x.product_id != self.backend_record.discount_product_id)
-        order_products = sorted(order_products, key=lambda x : x.price_subtotal, reverse=True)
+        order_products = sorted(order_products, key=lambda x : x.price_total, reverse=True)
         
         sum_discount_amount = sum([x.price_unit for x in order_discounts])
-        sum_total_amount_header = sum([x.product_uom_qty * x.price_unit for x in order_products])
+        sum_total_amount_header = sum([x.price_total for x in order_products])
         if sum_discount_amount > 0:
             for i in xrange(0, len(order_products)):
-                total_amount = order_products[i].product_uom_qty * order_products[i].price_unit
-                discount_amount = (total_amount / sum_total_amount_header) * sum_discount_amount
-                discount_percentage = (discount_amount / total_amount) * 100
-
-                order_products[i].write({
-                    'discount_amount' : discount_amount,
-                    'discount': discount_percentage
-                })
-                order_products[i].recompute()
+                total_amount = order_products[i].price_total
+                discount_header_amount = (total_amount / sum_total_amount_header) * sum_discount_amount
+                order_products[i]._compute_proportional_amount(discount_header_amount)
         
             order_discounts.unlink()
+
+        sale_order.discount_amount = sum_discount_amount
+        sale_order.update({
+            'discount_amount':sum_discount_amount
+        })
 
     def _check_refunds(self, id_customer, id_order):
         backend_adapter = self.unit_for(
