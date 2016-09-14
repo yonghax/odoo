@@ -88,9 +88,9 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         order_history = order_history_adapter.read(order_history_adapter.search(filters)[0])
 
         sale_order.action_invoice_create(order_history['date_add'], grouped=False, final=False)
-        #if sale_order.invoice_status == 'invoiced':
-        for inv in sale_order.invoice_ids:
-            inv.action_move_create()
+        if sale_order.invoice_status == 'invoiced':
+            for inv in sale_order.invoice_ids:
+                inv.action_move_create()
 
         return True
     
@@ -100,14 +100,22 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         order_lines = sale_order.order_line
         order_discounts = order_lines.filtered(lambda x: x.product_id == self.backend_record.discount_product_id)
         order_products = order_lines.filtered(lambda x: x.product_id != self.backend_record.discount_product_id)
-        sum_discount_header_amount = sum([x.price_unit for x in order_discounts])
+        order_products = sorted(order_products, key=lambda x : x.price_total, reverse=True)
         
-        if sum_discount_header_amount > 0 or len(order_discounts) > 0:
+        sum_discount_amount = sum([x.price_unit for x in order_discounts])
+        sum_total_amount_header = sum([x.price_total for x in order_products])
+        if sum_discount_amount > 0:
+            for i in xrange(0, len(order_products)):
+                total_amount = order_products[i].price_total
+                discount_header_amount = (total_amount / sum_total_amount_header) * sum_discount_amount
+                order_products[i]._compute_proportional_amount(discount_header_amount)
+        
             order_discounts.unlink()
-            sale_order.write({
-                'discount_amount': sum_discount_header_amount,
-            })
-            order_products._compute_amount()
+
+        sale_order.discount_amount = sum_discount_amount
+        sale_order.update({
+            'discount_amount':sum_discount_amount
+        })
 
     def _check_refunds(self, id_customer, id_order):
         backend_adapter = self.unit_for(
