@@ -131,7 +131,10 @@ class TemplateMapper(PrestashopImportMapper):
     def active(self, record):
         _logger.debug('Active of product_template')
         _logger.debug(bool(int(record['active'])))
-        return {'always_available': bool(int(record['active']))}
+        return {
+            'always_available': bool(int(record['active'])), 
+            'active':bool(int(record['active']))
+        }
 
     @mapping
     def sale_ok(self, record):

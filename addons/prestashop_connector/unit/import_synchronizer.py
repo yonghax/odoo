@@ -511,10 +511,10 @@ def import_orders_since(session, model_name, backend_id, since_date=None):
 
 @job
 def import_products(session, model_name, backend_id, since_date):
-    filters = None
+    filters = {'filter[active]': 1}
     if since_date:
         date_str = since_date.strftime('%Y-%m-%d %H:%M:%S')
-        filters = {'date': '1', 'filter[date_upd]': '>[%s]' % (date_str)}
+        filters.update({'date': '1', 'filter[date_upd]': '>[%s]' % (date_str)})
     now_fmt = datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
     import_batch(
         session,
