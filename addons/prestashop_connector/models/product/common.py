@@ -1,6 +1,8 @@
 import logging
 from ...backend import prestashop
 from ...unit.import_synchronizer import TranslatableRecordImport,import_record
+from openerp.addons.connector.unit.synchronizer import Exporter
+from ...unit.backend_adapter import GenericAdapter
 
 _logger = logging.getLogger(__name__)
 
@@ -116,3 +118,54 @@ class TemplateRecordImport(TranslatableRecordImport):
                 self.backend_record.id,
                 combination['id'],                                       
             )
+
+@prestashop
+class StockAvailableExport(Exporter):
+    _model_name = ['prestashop.product.template']
+
+    def get_filter(self, product):
+        template_binder = self.binder_for('prestashop.product.template')
+        combination_binder = self.binder_for('prestashop.product.combination')
+        id_product_attribute = id_product = 0
+
+        ps_prod_combination = combination_binder.to_backend(product.id, True)
+        if ps_prod_combination:
+            id_product_attribute = ps_prod_combination 
+
+        ps_prod_template = template_binder.to_backend(product.product_tmpl_id, True)
+        if ps_prod_template:
+            id_product = ps_prod_template
+
+        return {
+            'filter[id_product]': id_product,
+            'filter[id_product_attribute]': id_product_attribute
+        }
+    
+    def run(self, openerp_id):
+        """ Export the product inventory to Prestashop """
+
+        product = self.env['product.product'].browse([openerp_id])
+        product.ensure_one();
+
+        adapter = self.unit_for(GenericAdapter, '_import_stock_available')
+        filter = self.get_filter(product)
+        adapter.export_quantity(filter, self.get_theoretical_qty(product))
+
+    def get_theoretical_qty(self, product):
+        quant_obj = self.env["stock.quant"]
+        uom_obj = self.env["product.uom"]
+        res = {'value': {}}
+        uom_id = product.uom_id.id
+
+        dom = [
+            ('company_id', '=', self.backend_record.company_id.id), 
+            ('location_id', '=', self.backend_record.warehouse_id.lot_stock_id.id), 
+            ('product_id','=', product.id), 
+        ]
+
+        quants = quant_obj.search(dom)
+        th_qty = sum([x.qty for x in quant_obj.browse(quants.ids)])
+        if product.id and uom_id and product.uom_id.id != uom_id:
+            th_qty = uom_obj._compute_qty(cr, uid, product.uom_id.id, th_qty, uom_id)
+        
+        return th_qty

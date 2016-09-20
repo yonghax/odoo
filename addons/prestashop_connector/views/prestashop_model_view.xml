@@ -106,7 +106,7 @@
                                 class="oe_highlight"
                                 string="Import in background"/>
                         </group>
-                        <group>
+                        <!--<group>
                             <div>
                                <label string="Import refunds" class="oe_inline"/>
                                <field name="import_refunds_since"
@@ -117,7 +117,7 @@
                                 type="object"
                                 class="oe_highlight"
                                 string="Import in background"/>
-                        </group>
+                        </group>-->
                         <!--<group>
                             <div>
                                <label string="Import suppliers" class="oe_inline"/>

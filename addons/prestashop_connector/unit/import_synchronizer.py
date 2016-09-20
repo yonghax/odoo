@@ -6,7 +6,7 @@ from datetime import timedelta
 from openerp import fields, _
 from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT
 from openerp.addons.connector.queue.job import job, related_action
-from openerp.addons.connector.unit.synchronizer import Importer
+from openerp.addons.connector.unit.synchronizer import Importer, Exporter
 from openerp.addons.connector.connector import ConnectorUnit
 from ..backend import prestashop
 from ..connector import get_environment
@@ -449,6 +449,13 @@ def import_record(session, model_name, backend_id, prestashop_id, force=False):
     importer = env.get_connector_unit(PrestashopImportSynchronizer)
     importer.run(prestashop_id, force=force)
 
+@job(default_channel='root')
+def export_record(session, model_name, backend_id, openerp_id, force=False):
+    """ Export a record to Prestashop """
+    env = get_environment(session, model_name, backend_id)
+    exporter = env.get_connector_unit(Exporter)
+    exporter.run(openerp_id)
+
 @job
 def import_product_attribute(session, model_name, backend_id):
     import_batch(session, model_name, backend_id, None)
@@ -485,21 +492,9 @@ def import_orders_since(session, model_name, backend_id, since_date=None):
         filters = {'date': '1', 'filter[date_add]': '>[%s]' % (date_str), 'filter[id_order_state]':'4'}
     
     now_fmt = datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
-    import_batch(session, 'order.histories', backend_id, filters)
-    #import_batch(session, 'prestashop.sale.order', backend_id, filters)
-    #import_batch(
-    #    session, model_name, backend_id, filters
-    #)
+    #import_batch(session, 'order.histories', backend_id, filters)
+    import_record(session, 'prestashop.sale.order', backend_id, 33559, force=False)
 
-    if since_date:
-        filters = {'date': '1', 'filter[date_add]': '>[%s]' % date_str}
-
-    try:
-        import_batch(session, 'prestashop.mail.message', backend_id, filters)
-    except:
-        pass
-
-    now_fmt = datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
     session.pool.get('prestashop.backend').write(
         session.cr,
         session.uid,
@@ -547,17 +542,12 @@ def import_refunds(session, backend_id, since_date):
         context=session.context
     )
 
-
 @job
-def export_product_quantities(session, ids):
-    for model in ['product', 'combination']:
-        model_obj = session.pool['prestashop.product.' + model]
-        model_ids = model_obj.search(
-            session.cr,
-            session.uid,
-            [('backend_id', 'in', ids)],
-            context=session.context
-        )
-        model_obj.recompute_prestashop_qty(
-            session.cr, session.uid, model_ids, context=session.context
-        )
+def export_product_quantities(session, model_name, backend_id, product=None):
+    export_record.delay(
+        session,
+        'prestashop.product.template',
+        backend_id,
+        product.id,
+        priority=20,
+    )

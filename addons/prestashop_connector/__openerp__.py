@@ -28,11 +28,15 @@
         Version 0.3
 
         - Import Sale Order
+
+        Version 0.4
+
+        - Export Stock Available
     """,
     'author': "Internal Development - PT. Social Bella Indonesia",
     'website': "http://www.sociolla.com",
     'category': 'Addon Sociolla',
-    'version': '0.2',
+    'version': '0.4',
 
     'depends': [
         'base',

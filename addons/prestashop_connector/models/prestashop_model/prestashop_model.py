@@ -165,11 +165,14 @@ class prestashop_backend(orm.Model):
             import_products(session, 'prestashop.product.template', backend_record.id, since_date)
         return True
 
-    def update_product_stock_qty(self, cr, uid, ids, context=None):
+    def update_product_stock_qty(self, cr, uid, ids, context=None, product=None):
         if not hasattr(ids, '__iter__'):
             ids = [ids]
         session = ConnectorSession(cr, uid, context=context)
-        export_product_quantities.delay(session, ids)
+
+        for backend_record in self.browse(cr, uid, ids, context=context):
+            export_product_quantities(session, 'prestashop.product.template', backend_record.id, product)
+        
         return True
 
     def import_stock_qty(self, cr, uid, ids, context=None):
@@ -214,11 +217,6 @@ class prestashop_backend(orm.Model):
         ids = self.search(cr, uid, domain, context=context)
         if ids:
             callback(cr, uid, ids, context=context)
-
-    def _scheduler_update_product_stock_qty(self, cr, uid, domain=None,
-                                            context=None):
-        self._scheduler_launch(cr, uid, self.update_product_stock_qty,
-                               domain=domain, context=context)
 
     def _scheduler_import_sale_orders(self, cr, uid, domain=None, context=None):
         self._scheduler_launch(cr, uid, self.import_sale_orders, domain=domain,

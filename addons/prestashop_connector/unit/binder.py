@@ -39,7 +39,8 @@ class PrestashopModelBinder(PrestashopBinder):
         'prestashop.mail.message',
         'prestashop.groups.pricelist',
         'prestashop.product.attribute',
-        'prestashop.product.attribute.value'
+        'prestashop.product.attribute.value',
+        'export.stock.available'
     ]
 
     def to_openerp(self, external_id, unwrap=False, browse=False):
