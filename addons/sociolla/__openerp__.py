@@ -11,12 +11,15 @@
         
         Version 0.2:
             - Add Connector Odoo - Prestashop 
+        
+        Version 0.3:
+            - Add Discount Purchase Order
     """,
 
     'author': "Internal Development - PT. Social Bella Indonesia",
     'website': "http://www.sociolla.com",
     'category': 'Addon Sociolla',
-    'version': '0.2 beta',
+    'version': '0.3',
     'installable': True,
     'application': True,
 
@@ -26,10 +29,11 @@
         'product', 
         'sale', 
         'product_brand',
+        'purchase',
     ],
 
     'data': [
         'views/product_view.xml',
-
+        'views/purchase_view.xml',
     ],
 }
