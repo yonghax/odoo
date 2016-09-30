@@ -80,7 +80,7 @@ class SaleOrderImport(PrestashopImportSynchronizer):
             for pack in pick.pack_operation_ids:
                 pack.write({'qty_done':pack.product_qty})
             
-            pick.process_transfer_imported()
+            pick.do_new_transfer()
 
         # Create and validate direct account.invoice 
         filters = {'filter[id_order]': erp_order.prestashop_id, 'filter[id_order_state':'4'}

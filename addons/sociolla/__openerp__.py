@@ -8,6 +8,7 @@
         Version 0.1:
             - Add posting journal Sales Discount
             - Add posting journal Sales Return
+            - Add grouping brand on report sales analytic
         
         Version 0.2:
             - Add Connector Odoo - Prestashop 

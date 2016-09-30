@@ -171,7 +171,7 @@ class prestashop_backend(orm.Model):
         session = ConnectorSession(cr, uid, context=context)
 
         for backend_record in self.browse(cr, uid, ids, context=context):
-            export_product_quantities(session, 'prestashop.product.template', backend_record.id, product)
+            export_product_quantities(session, 'prestashop.product.template', backend_record.id, product=product)
         
         return True
 
@@ -232,6 +232,10 @@ class prestashop_backend(orm.Model):
 
     def _scheduler_import_refunds(self, cr, uid, domain=None, context=None):
         self._scheduler_launch(cr, uid, self.import_refunds,
+                               domain=domain, context=context)
+
+    def _scheduler_update_product_stock_qty(self, cr, uid, domain=None, context=None):
+        self._scheduler_launch(cr, uid, self.update_product_stock_qty,
                                domain=domain, context=context)
 
     def import_record(self, cr, uid, backend_id, model_name, ext_id,
