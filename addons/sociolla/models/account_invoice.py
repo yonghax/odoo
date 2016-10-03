@@ -189,7 +189,10 @@ class AccountInvoice(models.Model):
             if line['account_analytic_id']:
                 move_line_dict['analytic_line_ids'] = [(0, 0, line._get_analytic_line())]
             res.append(move_line_dict)
-            
+
+            if self.company_id.anglo_saxon_accounting and self.type in ('out_invoice','out_refund'):
+                res.extend(self._anglo_saxon_sale_move_lines(line))
+        
         return res
 
     @api.model

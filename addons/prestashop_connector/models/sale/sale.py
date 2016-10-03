@@ -38,7 +38,7 @@ class sale_order(models.Model):
                     )
     
     @api.multi
-    def action_invoice_create(self, date_invoice, grouped=False, final=False):
+    def create_account_invoice(self, date_invoice, grouped=False, final=False):
         """In order to follow the invoice number of prestashop, 
         all the invoices generated from this workflow have to be tagged 
         with the prestashop_invoice_number
