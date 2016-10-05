@@ -492,8 +492,8 @@ def import_orders_since(session, model_name, backend_id, since_date=None):
         filters = {'date': '1', 'filter[date_add]': '>[%s]' % (date_str), 'filter[id_order_state]':'4'}
     
     now_fmt = datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
-    #import_batch(session, 'order.histories', backend_id, filters)
-    import_record(session, 'prestashop.sale.order', backend_id, 33559, force=False)
+    import_batch(session, 'order.histories', backend_id, filters)
+    # import_record(session, 'prestashop.sale.order', backend_id, 33559, force=False)
 
     session.pool.get('prestashop.backend').write(
         session.cr,

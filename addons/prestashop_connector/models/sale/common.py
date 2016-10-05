@@ -129,10 +129,10 @@ class SaleOrderImport(PrestashopImportSynchronizer):
                 continue
             self._check_dependency(refund_id, 'prestashop.refund')
 
-    # def _has_to_skip(self):
-    #     """ Return True if the import can be skipped """
-    #     if self._get_openerp_id():
-    #         return True
+    def _has_to_skip(self):
+        """ Return True if the import can be skipped """
+        if self._get_openerp_id():
+            return True
     #     rules = self.unit_for(SaleImportRule)
     #     return rules.check(self.prestashop_record)
 
