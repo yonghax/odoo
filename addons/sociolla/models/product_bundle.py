@@ -6,32 +6,29 @@ class ProductTemplate(models.Model):
     _inherit = 'product.template'
     
     is_product_bundle = fields.Boolean(
-        string='Product Bundle',
+        string='Is Product Bundle',
         required=False,
         default=False,
         help="Specify if the product is pack bundle"
     )
 
-class ProductProduct(models.Model):
-    _inherit = 'product.product'
-    
-    product_bundle = fields.One2many(
+    product_bundles = fields.One2many(
         'product.bundle', 
-        'parent_product_id', 
-        string='Parent Product', 
+        'product_tmpl_id', 
+        string='Product Template', 
         copy=True
     )
 
 class ProductBundle(models.Model):
     _name = 'product.bundle'
 
-    parent_product_id = fields.Many2one(
-        'product.product', 
-        string='Parent Product', 
+    product_tmpl_id = fields.Many2one(
+        'product.template', 
+        string='Parent Template', 
         required=True, 
         ondelete='cascade', 
-        index=True, 
-        copy=False
+        select=True, 
+        auto_join=True
     )
 
     product_id = fields.Many2one(
