@@ -36,5 +36,6 @@
     'data': [
         'views/product_view.xml',
         'views/purchase_view.xml',
+        'views/product_brand_view.xml',
     ],
 }
