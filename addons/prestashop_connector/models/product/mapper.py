@@ -85,10 +85,15 @@ class TemplateMapper(PrestashopImportMapper):
             return {'date_upd': datetime.datetime.now()}
         return {'date_upd': record['date_upd']}
 
+    def has_bundles(self,record):
+        bundles = record.get('associations', {}).get(
+            'product_bundle', {}).get('product_bundle', [])
+        return len(bundles) > 0
+
     def has_combinations(self, record):
         combinations = record.get('associations', {}).get(
             'combinations', {}).get('combinations', [])
-        return len(combinations) != 0
+        return len(combinations) > 0
 
     def _template_code_exists(self, code):
         model = self.session.pool.get('product.template')
@@ -135,6 +140,10 @@ class TemplateMapper(PrestashopImportMapper):
             'always_available': bool(int(record['active'])), 
             'active':bool(int(record['active']))
         }
+    
+    @mapping
+    def is_product_bundle(self,record):
+        return {'is_product_bundle': self.has_bundles(record)}
 
     @mapping
     def sale_ok(self, record):

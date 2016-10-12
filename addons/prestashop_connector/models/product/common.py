@@ -48,6 +48,7 @@ class TemplateRecordImport(TranslatableRecordImport):
 
     def _after_import(self, erp_id):
         self.import_combinations()
+        self.import_bundle(erp_id)
         self.attribute_line(erp_id.id)
         self.deactivate_default_product(erp_id.id)
 
@@ -118,6 +119,34 @@ class TemplateRecordImport(TranslatableRecordImport):
                 self.backend_record.id,
                 combination['id'],                                       
             )
+
+    def import_bundle(self, erp_id):
+        associations = self.prestashop_record.get('associations', {})
+
+        product_bundles = associations.get('product_bundle', {}).get(
+            'product_bundle', [])
+        if not isinstance(product_bundles, list):
+            product_bundles = [product_bundles]
+        
+        model = self.session.pool.get('prestashop.product.template')
+        erp_order = model.browse(
+            self.session.cr,
+            self.session.uid,
+            erp_id.id,
+        )
+        product_tpl = erp_order.openerp_id
+
+        if product_tpl:
+            for bundle in product_bundles:            
+                template_binder = self.binder_for('prestashop.product.template')
+                product = template_binder.to_openerp(bundle['id'], browse=True)
+                
+                bundle_set = {
+                    'product_id': product.id,
+                    'product_tmpl_id': product_tpl.id,
+                    'qty' : bundle['quantity']
+                }
+                self.env['product.bundle'].with_context(self.session.context).create(bundle_set)
 
 @prestashop
 class StockAvailableExport(Exporter):
