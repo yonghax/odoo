@@ -23,7 +23,8 @@
     'version': '0.3',
     'installable': True,
     'application': True,
-
+    'sequence': 1,
+    
     'depends': [
         'base', 
         'account', 
