@@ -23,7 +23,8 @@
     'version': '0.3',
     'installable': True,
     'application': True,
-
+    'sequence': 1,
+    
     'depends': [
         'base', 
         'account', 
@@ -36,5 +37,6 @@
     'data': [
         'views/product_view.xml',
         'views/purchase_view.xml',
+        'views/product_brand_view.xml',
     ],
 }

@@ -5,6 +5,22 @@ from ...unit.mapper import PrestashopImportMapper, mapping
 
 _logger = logging.getLogger(__name__)
 
+categoryEnum = {
+    'BB': 'Bath & Body',
+    'BT': 'Beauty Tools',
+    'MU': 'Cosmetic',
+    'FG': 'Fragrance',
+    'HC': 'Haircare',
+    'NL': 'Nailcare',
+    'SC': 'Skincare',
+}
+
+nonStockableProducts = [
+    'sample',
+    'Sample',
+    'MARI',
+]
+
 @prestashop
 class TemplateMapper(PrestashopImportMapper):
     _model_name = 'prestashop.product.template'
@@ -146,8 +162,48 @@ class TemplateMapper(PrestashopImportMapper):
 
     @mapping
     def categ_id(self, record):
-        return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+        code = record.get('reference')
+        if not code or not record['categ_id']:
+            return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+        
+        categ_obj = self.session.pool.get('product.category')
+        if any(ext in record['name'] for ext in nonStockableProducts):
+            sample = categ_obj.browse(
+                self.session.cr,
+                SUPERUSER_ID,
+                categ_obj.search(self.session.cr, SUPERUSER_ID, [('name', '=', 'Sample')])
+            )
+            if not sample:
+                return {'categ_id': sample.id}
+            else:
+                return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+        else:
+            strSplittedDash = code.split('-')
+            strSplitted = strSplittedDash[0].split('.')
 
+            if len(strSplitted) > 1:
+                try:
+                    categ_search = categ_obj.search(
+                        self.session.cr,
+                        SUPERUSER_ID, 
+                        [
+                            ('parent_id', '=', record['categ_id']),
+                            ('name', '=', categoryEnum[strSplitted[1]])
+                        ]
+                    )
+                    categ = categ_obj.browse(
+                        self.session.cr,
+                        SUPERUSER_ID,
+                        categ_search
+                    )
+                    if not categ:
+                        return {'categ_id': categ.id}
+                    else:
+                        return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+                except:
+                    return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+            else:
+                return {'categ_id': self.backend_record.unrealized_product_category_id.id}
     @mapping
     def backend_id(self, record):
         return {'backend_id': self.backend_record.id}
