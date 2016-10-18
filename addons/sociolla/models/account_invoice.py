@@ -189,7 +189,10 @@ class AccountInvoice(models.Model):
             if line['account_analytic_id']:
                 move_line_dict['analytic_line_ids'] = [(0, 0, line._get_analytic_line())]
             res.append(move_line_dict)
-            
+
+            if self.company_id.anglo_saxon_accounting and self.type in ('out_invoice','out_refund'):
+                res.extend(self._anglo_saxon_sale_move_lines(line))
+        
         return res
 
     @api.model
@@ -416,18 +419,58 @@ class AccountInvoiceLine(models.Model):
         if not self.invoice_id:
             return
 
-        domain = super(AccountInvoiceLine, self)._onchange_product_id()
+        domain = {}
+        if not self.invoice_id:
+            return
+
+        part = self.invoice_id.partner_id
+        fpos = self.invoice_id.fiscal_position_id
+        company = self.invoice_id.company_id
+        currency = self.invoice_id.currency_id
+        type = self.invoice_id.type
+
+        if not part:
+            warning = {
+                    'title': _('Warning!'),
+                    'message': _('You must first select a partner!'),
+                }
+            return {'warning': warning}
 
         if not self.product_id:
             if type not in ('in_invoice', 'in_refund'):
                 self.price_unit = 0.0
             domain['uom_id'] = []
         else:
-            account = product.product_tmpl_id.get_product_accounts()
+            if part.lang:
+                product = self.product_id.with_context(lang=part.lang)
+            else:
+                product = self.product_id
+
+            self.name = product.partner_ref
+            account = self.get_invoice_line_account(type, product, fpos, company)
+            if account:
+                self.account_id = account.id
+            self._set_taxes()
+
+            account = self.product_id.product_tmpl_id.get_product_accounts()
             if account:
                 self.discount_account_id = account['sales_discount']
             else:
                 raise UserError(_('Configuration error!\nCould not find any account to create the discount, are you sure you have a chart of account installed?'))
+
+            if not self.uom_id or product.uom_id.category_id.id != self.uom_id.category_id.id:
+                self.uom_id = product.uom_id.id
+            domain['uom_id'] = [('category_id', '=', product.uom_id.category_id.id)]
+
+            if company and currency:
+                if company.currency_id != currency:
+                    self.price_unit = self.price_unit * currency.with_context(dict(self._context or {}, date=self.invoice_id.date_invoice)).rate
+
+                if self.uom_id and self.uom_id.id != product.uom_id.id:
+                    self.price_unit = self.env['product.uom']._compute_price(
+                        product.uom_id.id, self.price_unit, self.uom_id.id)
+
+        return {'domain': domain}
 
     @api.one
     @api.depends('price_unit', 'discount', 'invoice_line_tax_ids', 'quantity',

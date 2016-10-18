@@ -260,18 +260,31 @@ class SaleOrderLineMapper(PrestashopImportMapper):
         return not product_id
 
     @mapping
+    def discount_amount(self, record):
+        qty =  int(record['product_quantity'])
+        price_unit = Decimal(record['original_product_price'])
+        final_price = Decimal(record['unit_price_tax_incl'])
+        price_undiscounted = qty * price_unit
+        discount_amount = qty * (price_unit-final_price)
+
+        return {
+            'discount_amount' : discount_amount,
+            'price_undiscounted': price_undiscounted
+        }
+
+    @mapping
     def price_unit(self, record):
-        if self.backend_record.taxes_included:
-            key = 'unit_price_tax_incl'
-        else:
-            key = 'unit_price_tax_excl'
-        if record['reduction_percent']:
-            reduction = Decimal(record['reduction_percent'])
-            price = Decimal(record[key])
-            price_unit = price / ((100 - reduction) / 100)
-        else:
-            price_unit = record[key]
-        return {'price_unit': price_unit}
+        #if self.backend_record.taxes_included:
+        #    key = 'unit_price_tax_incl'
+        #else:
+        #    key = 'unit_price_tax_excl'
+        #if record['reduction_percent']:
+        #    reduction = Decimal(record['reduction_percent'])
+        #    price = Decimal(record[key])
+        #    price_unit = price / ((100 - reduction) / 100)
+        #else:
+        #    price_unit = record[key]
+        return {'price_unit': Decimal(record['original_product_price'])}
 
     @mapping
     def product_id(self, record):

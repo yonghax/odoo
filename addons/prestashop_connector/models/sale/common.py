@@ -80,14 +80,14 @@ class SaleOrderImport(PrestashopImportSynchronizer):
             for pack in pick.pack_operation_ids:
                 pack.write({'qty_done':pack.product_qty})
             
-            pick.process_transfer_imported()
+            pick.do_new_transfer()
 
         # Create and validate direct account.invoice 
         filters = {'filter[id_order]': erp_order.prestashop_id, 'filter[id_order_state':'4'}
         order_history_adapter = self.unit_for(GenericAdapter, 'order.histories')
         order_history = order_history_adapter.read(order_history_adapter.search(filters)[0])
 
-        sale_order.action_invoice_create(order_history['date_add'], grouped=False, final=False)
+        sale_order.create_account_invoice(order_history['date_add'])
         if sale_order.invoice_status == 'invoiced':
             for inv in sale_order.invoice_ids:
                 inv.action_move_create()

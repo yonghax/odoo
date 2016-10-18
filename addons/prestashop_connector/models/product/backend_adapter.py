@@ -12,6 +12,16 @@ class ProductTemplateAdapter(GenericAdapter):
     _prestashop_model = 'products'
     _export_node_name = 'product'
 
+    def read(self, id, attributes=None):
+        """ Returns the information of a record
+
+        :rtype: dict
+        """
+        api = self.connect()
+        res = api.get('%s/%d?price[base_price][use_reduction]=0' % (self._prestashop_model, id),options=attributes)
+        first_key = res.keys()[0]
+        return res[first_key]
+
 @prestashop
 class StockAvailableAdapter(GenericAdapter):
     _model_name = '_import_stock_available'

@@ -123,4 +123,23 @@ class SaleOrderLine(models.Model):
             'account_analytic_id': self.order_id.project_id.id,
         }
         return res
-    
+
+    @api.multi
+    @api.onchange('product_id')
+    def product_id_change(self):
+        if not self.product_id:
+            return {'domain': {'product_uom': []}}
+            
+        super(SaleOrderLine, self).product_id_change()
+        product = self.product_id.with_context(
+            lang=self.order_id.partner_id.lang,
+            partner=self.order_id.partner_id.id,
+            quantity=self.product_uom_qty,
+            date=self.order_id.date_order,
+            pricelist=self.order_id.pricelist_id.id,
+            uom=self.product_uom.id
+        )
+        name = product.name_get()[0][1]
+        self.update({
+            'name': name,
+        })

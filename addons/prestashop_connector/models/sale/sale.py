@@ -38,7 +38,7 @@ class sale_order(models.Model):
                     )
     
     @api.multi
-    def action_invoice_create(self, date_invoice, grouped=False, final=False):
+    def create_account_invoice(self, date_invoice):
         """In order to follow the invoice number of prestashop, 
         all the invoices generated from this workflow have to be tagged 
         with the prestashop_invoice_number
@@ -46,7 +46,7 @@ class sale_order(models.Model):
         the prestashop_invoice_number will be empty and won't cause troubles, 
         the usual invoice number associated to the journal will be used.
         """
-        res = super(sale_order,self).action_invoice_create(grouped=grouped, final=final)
+        res = super(sale_order,self).action_invoice_create()
             
         #it can't be a grouped invoice creation so deal with that
         inv_ids = self.env['account.invoice'].browse(res)
