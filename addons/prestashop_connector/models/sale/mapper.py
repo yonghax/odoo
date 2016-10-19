@@ -235,7 +235,7 @@ class SaleOrderLineMapper(PrestashopImportMapper):
     direct = [
         ('product_name', 'name'),
         ('id', 'sequence'),
-        ('reduction_percent', 'discount'),
+        # ('reduction_percent', 'discount'),
     ]
 
     @mapping
@@ -263,13 +263,16 @@ class SaleOrderLineMapper(PrestashopImportMapper):
     def discount_amount(self, record):
         qty =  int(record['product_quantity'])
         price_unit = Decimal(record['original_product_price'])
-        final_price = Decimal(record['unit_price_tax_incl'])
+        final_price = Decimal(record['unit_price_tax_incl']) 
         price_undiscounted = qty * price_unit
         discount_amount = qty * (price_unit-final_price)
+        reduction_percent = Decimal(record['reduction_percent'])
+        discount = reduction_percent if reduction_percent > 0 else ((discount_amount/price_undiscounted) * 100)
 
         return {
             'discount_amount' : discount_amount,
-            'price_undiscounted': price_undiscounted
+            'price_undiscounted': price_undiscounted,
+            'discount': discount
         }
 
     @mapping
