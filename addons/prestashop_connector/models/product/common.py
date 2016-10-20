@@ -45,6 +45,7 @@ class TemplateRecordImport(TranslatableRecordImport):
             brand = self.env['product.brand'].with_context(self.session.context).create(brand_set)
             
         self.prestashop_record['product_brand_id'] = brand.id
+        self.prestashop_record['categ_id'] = brand.categ_id.id
 
     def _after_import(self, erp_id):
         self.import_combinations()

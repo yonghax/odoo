@@ -12,6 +12,9 @@ from openerp.tools.misc import formatLang
 from openerp.exceptions import UserError, RedirectWarning, ValidationError
 
 import openerp.addons.decimal_precision as dp
+import logging
+
+_logger = logging.getLogger(__name__)
 
 # mapping invoice type to journal type
 TYPE2JOURNAL = {
@@ -39,7 +42,7 @@ class AccountInvoice(models.Model):
     _order = "date_invoice desc, number desc, id desc"
 
     @api.one
-    @api.depends('invoice_line_ids.price_subtotal', 'tax_line_ids.amount', 'currency_id', 'company_id')
+    @api.depends('invoice_line_ids.price_subtotal', 'tax_line_ids.amount', 'currency_id', 'company_id', 'date_invoice')
     def _compute_amount(self):
         self.amount_untaxed = sum(line.price_subtotal for line in self.invoice_line_ids)
         self.amount_tax = sum(line.amount for line in self.tax_line_ids)
@@ -47,8 +50,9 @@ class AccountInvoice(models.Model):
         amount_total_company_signed = self.amount_total
         amount_untaxed_signed = self.amount_untaxed
         if self.currency_id and self.currency_id != self.company_id.currency_id:
-            amount_total_company_signed = self.currency_id.compute(self.amount_total, self.company_id.currency_id)
-            amount_untaxed_signed = self.currency_id.compute(self.amount_untaxed, self.company_id.currency_id)
+            currency_id = self.currency_id.with_context(date=self.date_invoice)
+            amount_total_company_signed = currency_id.compute(self.amount_total, self.company_id.currency_id)
+            amount_untaxed_signed = currency_id.compute(self.amount_untaxed, self.company_id.currency_id)
         sign = self.type in ['in_refund', 'out_refund'] and -1 or 1
         self.amount_total_company_signed = amount_total_company_signed * sign
         self.amount_total_signed = self.amount_total * sign
@@ -539,6 +543,25 @@ class AccountInvoice(models.Model):
         else:
             return self.env.ref('account.invoice_form').id
 
+    def _prepare_tax_line_vals(self, line, tax):
+        """ Prepare values to create an account.invoice.tax line
+
+        The line parameter is an account.invoice.line, and the
+        tax parameter is the output of account.tax.compute_all().
+        """
+        vals = {
+            'invoice_id': self.id,
+            'name': tax['name'],
+            'tax_id': tax['id'],
+            'amount': tax['amount'],
+            'base': tax['base'],
+            'manual': False,
+            'sequence': tax['sequence'],
+            'account_analytic_id': tax['analytic'] and line.account_analytic_id.id or False,
+            'account_id': self.type in ('out_invoice', 'in_invoice') and (tax['account_id'] or line.account_id.id) or (tax['refund_account_id'] or line.account_id.id),
+        }
+        return vals
+
     @api.multi
     def get_taxes_values(self):
         tax_grouped = {}
@@ -546,16 +569,7 @@ class AccountInvoice(models.Model):
             price_unit = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
             taxes = line.invoice_line_tax_ids.compute_all(price_unit, self.currency_id, line.quantity, line.product_id, self.partner_id)['taxes']
             for tax in taxes:
-                val = {
-                    'invoice_id': self.id,
-                    'name': tax['name'],
-                    'tax_id': tax['id'],
-                    'amount': tax['amount'],
-                    'manual': False,
-                    'sequence': tax['sequence'],
-                    'account_analytic_id': tax['analytic'] and line.account_analytic_id.id or False,
-                    'account_id': self.type in ('out_invoice', 'in_invoice') and (tax['account_id'] or line.account_id.id) or (tax['refund_account_id'] or line.account_id.id),
-                }
+                val = self._prepare_tax_line_vals(line, tax)
 
                 # If the taxes generate moves on the same financial account as the invoice line,
                 # propagate the analytic account from the invoice line to the tax line.
@@ -570,6 +584,7 @@ class AccountInvoice(models.Model):
                     tax_grouped[key] = val
                 else:
                     tax_grouped[key]['amount'] += val['amount']
+                    tax_grouped[key]['base'] += val['base']
         return tax_grouped
 
     @api.multi
@@ -1283,15 +1298,19 @@ class AccountInvoiceTax(models.Model):
     _order = 'sequence'
 
     def _compute_base_amount(self):
+        tax_grouped = {}
+        for invoice in self.mapped('invoice_id'):
+            tax_grouped[invoice.id] = invoice.get_taxes_values()
         for tax in self:
-            base = 0.0
-            for line in tax.invoice_id.invoice_line_ids:
-                if tax.tax_id in line.invoice_line_tax_ids:
-                    price_unit = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
-                    base += (line.invoice_line_tax_ids - tax.tax_id).compute_all(
-                        price_unit, line.invoice_id.currency_id, line.quantity, line.product_id, line.invoice_id.partner_id
-                    )['base']
-            tax.base = base
+            key = self.env['account.tax'].browse(tax.tax_id.id).get_grouping_key({
+                'tax_id': tax.tax_id.id,
+                'account_id': tax.account_id.id,
+                'account_analytic_id': tax.account_analytic_id.id,
+            })
+            if tax.invoice_id and key in tax_grouped[tax.invoice_id.id]:
+                tax.base = tax_grouped[tax.invoice_id.id][key]['base']
+            else:
+                _logger.warning('Tax Base Amount not computable probably due to a change in an underlying tax (%s).', tax.tax_id.name)
 
     invoice_id = fields.Many2one('account.invoice', string='Invoice', ondelete='cascade', index=True)
     name = fields.Char(string='Tax Description', required=True)
@@ -1373,7 +1392,7 @@ class AccountPaymentTerm(models.Model):
 class AccountPaymentTermLine(models.Model):
     _name = "account.payment.term.line"
     _description = "Payment Term Line"
-    _order = "sequence"
+    _order = "sequence, id"
 
     value = fields.Selection([
             ('balance', 'Balance'),

@@ -14,8 +14,8 @@ msgstr ""
 "Project-Id-Version: Odoo 9.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2016-06-22 07:25+0000\n"
-"PO-Revision-Date: 2016-09-23 09:41+0000\n"
-"Last-Translator: Martin Trigaux\n"
+"PO-Revision-Date: 2016-10-14 04:30+0000\n"
+"Last-Translator: Yoshi Tashiro <tashiro@roomsfor.hk>\n"
 "Language-Team: Japanese (http://www.transifex.com/odoo/odoo-9/language/ja/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -2982,7 +2982,7 @@ msgid ""
 "-------------------------------\n"
 "* Planned Revenue by Stage and User (graph)\n"
 "* Opportunities by Stage (graph)\n"
-msgstr ""
+msgstr "\nThe generic OpenERP Customer Relationship Management\n====================================================\n\nThis application enables a group of people to intelligently and efficiently manage leads, opportunities, meetings and activities.\n\nIt manages key tasks such as communication, identification, prioritization, assignment, resolution and notification.\n\nOpenERP ensures that all cases are successfully tracked by users, customers and vendors. It can automatically send reminders, trigger specific methods and many other actions based on your own enterprise rules.\n\nThe greatest thing about this system is that users don't need to do anything special. The CRM module has an email gateway for the synchronization interface between mails and OpenERP. That way, users can just send emails to the request tracker.\n\nOpenERP will take care of thanking them for their message, automatically routing it to the appropriate staff and make sure all future correspondence gets to the right place.\n\n\nDashboard for CRM will include:\n-------------------------------\n* Planned Revenue by Stage and User (graph)\n* Opportunities by Stage (graph)\n"
 
 #. module: base
 #: model:ir.module.module,description:base.module_base
@@ -4425,7 +4425,7 @@ msgstr ""
 #. module: base
 #: model:ir.ui.view,arch_db:base.view_company_form
 msgid "(reload fonts)"
-msgstr ""
+msgstr "(フォント再読込)"
 
 #. module: base
 #: model:ir.module.module,description:base.module_mrp_repair
@@ -4589,7 +4589,7 @@ msgstr ""
 #. module: base
 #: model:ir.actions.act_window,help:base.open_module_tree
 msgid "<b>No module found!</b>"
-msgstr ""
+msgstr "<b>モジュールが見つかりません！</b>"
 
 #. module: base
 #: model:ir.ui.view,arch_db:base.view_server_action_form
@@ -4657,7 +4657,7 @@ msgstr ""
 #. module: base
 #: model:ir.ui.view,arch_db:base.report_irmodeloverview
 msgid "<strong>Label</strong>"
-msgstr ""
+msgstr "<strong>ラベル</strong>"
 
 #. module: base
 #: model:ir.ui.view,arch_db:base.report_irmodulereference
@@ -5933,7 +5933,7 @@ msgstr ""
 #. module: base
 #: model:ir.module.module,shortdesc:base.module_account_batch_deposit
 msgid "Batch Deposit"
-msgstr ""
+msgstr "一括預入"
 
 #. module: base
 #: selection:res.currency,position:0
@@ -6931,7 +6931,7 @@ msgstr "設定"
 #. module: base
 #: model:ir.ui.view,arch_db:base.view_company_form
 msgid "Configuration (RML)"
-msgstr ""
+msgstr "設定 (RML)"
 
 #. module: base
 #: model:ir.ui.view,arch_db:base.res_config_installer
@@ -7576,7 +7576,7 @@ msgstr "カスタム項目"
 #. module: base
 #: model:ir.model.fields,field_description:base.field_res_company_custom_footer
 msgid "Custom Footer"
-msgstr "フッターのカスタマイズ"
+msgstr "カスタムフッタ"
 
 #. module: base
 #: selection:ir.model,state:0
@@ -8970,7 +8970,7 @@ msgstr ""
 #. module: base
 #: model:ir.module.category,name:base.module_category_financial_management
 msgid "Financial Management"
-msgstr ""
+msgstr "財務管理"
 
 #. module: base
 #: model:ir.module.module,summary:base.module_account_accountant
@@ -9023,7 +9023,7 @@ msgstr ""
 #. module: base
 #: model:ir.model.fields,field_description:base.field_res_company_font
 msgid "Font"
-msgstr ""
+msgstr "フォント"
 
 #. module: base
 #: model:ir.model.fields,field_description:base.field_res_font_name
@@ -9033,17 +9033,17 @@ msgstr "フォント名"
 #. module: base
 #: model:ir.model.fields,field_description:base.field_res_font_family
 msgid "Font family"
-msgstr ""
+msgstr "フォントファミリー"
 
 #. module: base
 #: model:ir.model,name:base.model_res_font
 msgid "Fonts available"
-msgstr ""
+msgstr "利用可能フォント"
 
 #. module: base
 #: model:ir.model.fields,help:base.field_res_company_rml_footer
 msgid "Footer text displayed at the bottom of all reports."
-msgstr ""
+msgstr "各種レポートの底に表示されるフッタテキスト"
 
 #. module: base
 #: model:ir.model.fields,help:base.field_ir_act_report_xml_report_name
@@ -9255,7 +9255,7 @@ msgstr ""
 #. module: base
 #: model:ir.module.module,shortdesc:base.module_gamification
 msgid "Gamification"
-msgstr ""
+msgstr "ゲーミフィケーション"
 
 #. module: base
 #: selection:ir.actions.act_window.view,view_mode:0
@@ -11210,7 +11210,7 @@ msgstr "リード & 案件"
 #. module: base
 #: model:ir.module.module,summary:base.module_crm
 msgid "Leads, Opportunities, Activities"
-msgstr ""
+msgstr "リード、案件、活動"
 
 #. module: base
 #: model:ir.module.module,shortdesc:base.module_hr_holidays
@@ -11494,7 +11494,7 @@ msgstr ""
 #. module: base
 #: model:ir.model.fields,field_description:base.field_ir_module_module_maintainer
 msgid "Maintainer"
-msgstr ""
+msgstr "保守担当者"
 
 #. module: base
 #: model:res.country,name:base.mw
@@ -11870,7 +11870,7 @@ msgstr "携帯電話:"
 #. module: base
 #: model:ir.model.fields,field_description:base.field_res_font_mode
 msgid "Mode"
-msgstr ""
+msgstr "モード"
 
 #. module: base
 #: model:ir.model.fields,field_description:base.field_ir_act_report_xml_model
@@ -11890,7 +11890,7 @@ msgstr "モデル"
 #: code:addons/base/ir/ir_model.py:454
 #, python-format
 msgid "Model %s does not exist!"
-msgstr ""
+msgstr "モデル %s は存在しません。"
 
 #. module: base
 #: code:addons/base/ir/ir_model.py:143
@@ -11958,7 +11958,7 @@ msgstr ""
 #: code:addons/base/ir/ir_ui_view.py:685 code:addons/base/ir/ir_ui_view.py:863
 #, python-format
 msgid "Model not found: %(model)s"
-msgstr ""
+msgstr "モデルが見つかりません: %(model)s"
 
 #. module: base
 #: model:ir.model.fields,help:base.field_ir_values_model
@@ -12654,7 +12654,7 @@ msgstr "管理者のみ設定変更が可能です。"
 #: code:addons/base/ir/ir_attachment.py:108
 #, python-format
 msgid "Only administrators can execute this action."
-msgstr ""
+msgstr "管理者のみこのアクションを実行できます。"
 
 #. module: base
 #: model:ir.model.fields,help:base.field_ir_ui_view_mode
@@ -13379,7 +13379,7 @@ msgstr ""
 #: model:ir.actions.report.xml,name:base.preview_rml_report
 #: model:ir.ui.view,arch_db:base.view_company_form
 msgid "Preview RML Report"
-msgstr ""
+msgstr "RMLレポートプレビュー"
 
 #. module: base
 #: model:ir.ui.view,arch_db:base.view_currency_form
@@ -13689,7 +13689,7 @@ msgstr "RML内容"
 #. module: base
 #: model:ir.model.fields,field_description:base.field_res_company_rml_header
 msgid "RML Header"
-msgstr ""
+msgstr "RMLヘッダ"
 
 #. module: base
 #: model:ir.model.fields,field_description:base.field_res_company_rml_header2
@@ -13961,12 +13961,12 @@ msgstr "レポートファイル"
 #: model:ir.model.fields,field_description:base.field_res_company_rml_footer
 #: model:ir.model.fields,field_description:base.field_res_company_rml_footer_readonly
 msgid "Report Footer"
-msgstr ""
+msgstr "レポートフッタ"
 
 #. module: base
 #: model:ir.ui.view,arch_db:base.act_report_xml_search_view
 msgid "Report Model"
-msgstr ""
+msgstr "レポートモデル"
 
 #. module: base
 #: model:ir.model.fields,field_description:base.field_ir_act_report_xml_report_type
@@ -14153,7 +14153,7 @@ msgstr ""
 #: model:ir.model.fields,field_description:base.field_res_groups_rule_groups
 #: model:ir.ui.view,arch_db:base.view_groups_form
 msgid "Rules"
-msgstr ""
+msgstr "規則"
 
 #. module: base
 #: constraint:ir.rule:0
@@ -14856,7 +14856,7 @@ msgstr ""
 #. module: base
 #: model:ir.ui.view,arch_db:base.res_config_installer
 msgid "Skip"
-msgstr ""
+msgstr "スキップ"
 
 #. module: base
 #: model:ir.module.module,shortdesc:base.module_website_slides
@@ -14968,7 +14968,7 @@ msgstr "ソース活動"
 #. module: base
 #: model:ir.model.fields,field_description:base.field_ir_act_window_src_model
 msgid "Source Model"
-msgstr ""
+msgstr "ソースモデル"
 
 #. module: base
 #: model:ir.ui.view,arch_db:base.view_window_action_form
@@ -15774,7 +15774,7 @@ msgstr ""
 #. module: base
 #: sql_constraint:res.currency:0
 msgid "The currency code must be unique!"
-msgstr ""
+msgstr "通貨コードは一意にしてください。"
 
 #. module: base
 #: model:ir.model.fields,help:base.field_ir_attachment_res_model
@@ -15834,7 +15834,7 @@ msgstr ""
 #. module: base
 #: model:ir.model.fields,help:base.field_res_country_name
 msgid "The full name of the country."
-msgstr ""
+msgstr "国のフルネーム"
 
 #. module: base
 #: model:ir.model.fields,help:base.field_wkf_transition_group_id
@@ -17012,7 +17012,7 @@ msgstr "ベネズエラ"
 #. module: base
 #: model:ir.module.module,shortdesc:base.module_l10n_ve
 msgid "Venezuela - Accounting"
-msgstr ""
+msgstr "ベネズエラ - 会計"
 
 #. module: base
 #: model:ir.ui.view,arch_db:base.report_irmodulereference
@@ -17027,12 +17027,12 @@ msgstr "ベトナム"
 #. module: base
 #: model:ir.module.module,shortdesc:base.module_l10n_vn
 msgid "Vietnam - Accounting"
-msgstr ""
+msgstr "ベトナム - 会計"
 
 #. module: base
 #: model:ir.module.module,shortdesc:base.module_l10n_vn_reports
 msgid "Vietnam - Accounting Reports"
-msgstr ""
+msgstr "ベトナム - 会計レポート"
 
 #. module: base
 #: selection:base.language.install,lang:0
@@ -17727,7 +17727,7 @@ msgstr ""
 #. module: base
 #: model:ir.actions.act_window,help:base.open_module_tree
 msgid "You should try others search criteria."
-msgstr ""
+msgstr "別の検索条件をお試しください。"
 
 #. module: base
 #: code:addons/base/module/module.py:380
@@ -18026,7 +18026,7 @@ msgstr ""
 #: model:ir.model,name:base.model_ir_actions_client
 #: selection:ir.ui.menu,action:0
 msgid "ir.actions.client"
-msgstr ""
+msgstr "ir.actions.client"
 
 #. module: base
 #: model:ir.model,name:base.model_ir_actions_report_xml
@@ -18053,7 +18053,7 @@ msgstr ""
 #. module: base
 #: model:ir.model,name:base.model_ir_autovacuum
 msgid "ir.autovacuum"
-msgstr ""
+msgstr "ir.autovacuum"
 
 #. module: base
 #: model:ir.model,name:base.model_ir_config_parameter
@@ -18405,7 +18405,7 @@ msgstr ""
 #. module: base
 #: model:ir.module.module,shortdesc:base.module_test_convert
 msgid "test_convert"
-msgstr ""
+msgstr "test_convert"
 
 #. module: base
 #: model:res.groups,comment:base.group_hr_user
@@ -18492,27 +18492,27 @@ msgstr ""
 #. module: base
 #: model:ir.model,name:base.model_workflow_activity
 msgid "workflow.activity"
-msgstr ""
+msgstr "workflow.activity"
 
 #. module: base
 #: model:ir.model,name:base.model_workflow_instance
 msgid "workflow.instance"
-msgstr ""
+msgstr "workflow.instance"
 
 #. module: base
 #: model:ir.model,name:base.model_workflow_transition
 msgid "workflow.transition"
-msgstr ""
+msgstr "workflow.transition"
 
 #. module: base
 #: model:ir.model,name:base.model_workflow_triggers
 msgid "workflow.triggers"
-msgstr ""
+msgstr "workflow.triggers"
 
 #. module: base
 #: model:ir.model,name:base.model_workflow_workitem
 msgid "workflow.workitem"
-msgstr ""
+msgstr "workflow.workitem"
 
 #. module: base
 #: model:ir.ui.view,arch_db:base.view_server_action_form

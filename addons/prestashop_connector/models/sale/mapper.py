@@ -1,8 +1,11 @@
 import logging
+from datetime import datetime
+import pytz
 from decimal import Decimal
 from ...backend import prestashop
 from ...unit.mapper import PrestashopImportMapper, mapping
 from openerp.addons.connector.unit.backend_adapter import BackendAdapter
+from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT
 
 _logger = logging.getLogger(__name__)
 
@@ -11,7 +14,6 @@ class SaleOrderMapper(PrestashopImportMapper):
     _model_name = 'prestashop.sale.order'
 
     direct = [
-        ('date_add', 'date_order'),
         ('invoice_number', 'prestashop_invoice_number'),
         ('delivery_number', 'prestashop_delivery_number'),
         ('total_paid', 'total_amount'),
@@ -92,6 +94,11 @@ class SaleOrderMapper(PrestashopImportMapper):
             ('company_id', '=', self.backend_record.company_id.id),
         ])
         return len(ids) == 1
+
+    @mapping
+    def date_order(self, record):
+        date_order = datetime.strptime(record['date_add'], DEFAULT_SERVER_DATETIME_FORMAT)
+        return {'date_order': pytz.timezone('Asia/Jakarta').localize(date_order).astimezone(pytz.utc)}
 
     @mapping
     def name(self, record):
@@ -228,7 +235,7 @@ class SaleOrderLineMapper(PrestashopImportMapper):
     direct = [
         ('product_name', 'name'),
         ('id', 'sequence'),
-        ('reduction_percent', 'discount'),
+        # ('reduction_percent', 'discount'),
     ]
 
     @mapping
@@ -254,15 +261,17 @@ class SaleOrderLineMapper(PrestashopImportMapper):
 
     @mapping
     def discount_amount(self, record):
-        qty =  int(record['product_quantity'])
+        qty = int(record['product_quantity'])
         price_unit = Decimal(record['original_product_price'])
-        final_price = Decimal(record['unit_price_tax_incl'])
+        final_price = Decimal(record['unit_price_tax_incl']) 
         price_undiscounted = qty * price_unit
-        discount_amount = qty * (price_unit-final_price)
+        discount_amount = qty * (price_unit - final_price)
+        discount = ((discount_amount / price_undiscounted) * 100) if discount_amount > 0.00 else 0.00 
 
         return {
             'discount_amount' : discount_amount,
-            'price_undiscounted': price_undiscounted
+            'price_undiscounted': price_undiscounted,
+            'discount': discount
         }
 
     @mapping

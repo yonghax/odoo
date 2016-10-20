@@ -1,5 +1,6 @@
 from openerp import api, fields, models, _, SUPERUSER_ID
 import openerp.addons.decimal_precision as dp
+from openerp.tools.float_utils import float_compare
 
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'

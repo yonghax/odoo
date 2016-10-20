@@ -5,6 +5,33 @@ from ...unit.mapper import PrestashopImportMapper, mapping
 
 _logger = logging.getLogger(__name__)
 
+categoryEnum = {
+    'BB': 'Bath & Body',
+    'BT': 'Beauty Tools',
+    'MU': 'Cosmetic',
+    'FG': 'Fragrance',
+    'HC': 'Haircare',
+    'NL': 'Nailcare',
+    'SC': 'Skincare',
+}
+
+nonStockableProducts = [
+    'sample',
+    'Sample',
+    'MARI',
+    'GWP',
+    'gwp'
+
+]
+
+hardcodedPSSampleCategory = [
+    375, # Sociolla Box GWP
+    381, # Masami Shouko GWP
+    444, # GWP Product
+    279, # Sample-1 
+    280, # Sample-2
+]
+
 @prestashop
 class TemplateMapper(PrestashopImportMapper):
     _model_name = 'prestashop.product.template'
@@ -155,8 +182,50 @@ class TemplateMapper(PrestashopImportMapper):
 
     @mapping
     def categ_id(self, record):
-        return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+        code = record.get('reference')
+        id_category_default = int(record['id_category_default'])
+        if not code or not record['categ_id']:  
+            return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+        
+        categ_obj = self.session.pool.get('product.category')
+        if any(ext in record['name'] for ext in nonStockableProducts) or \
+            id_category_default in hardcodedPSSampleCategory:
+            sample = categ_obj.browse(
+                self.session.cr,
+                SUPERUSER_ID,
+                categ_obj.search(self.session.cr, SUPERUSER_ID, [('name', '=', 'Sample')])
+            )
+            if sample:
+                return {'categ_id': sample.id}
+            else:
+                return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+        else:
+            strSplittedDash = code.split('-')
+            strSplitted = strSplittedDash[0].split('.')
 
+            if len(strSplitted) > 1:
+                try:
+                    categ_search = categ_obj.search(
+                        self.session.cr,
+                        SUPERUSER_ID, 
+                        [
+                            ('parent_id', '=', record['categ_id']),
+                            ('name', '=', categoryEnum[strSplitted[1]])
+                        ]
+                    )
+                    categ = categ_obj.browse(
+                        self.session.cr,
+                        SUPERUSER_ID,
+                        categ_search
+                    )
+                    if categ:
+                        return {'categ_id': categ.id}
+                    else:
+                        return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+                except:
+                    return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+            else:
+                return {'categ_id': self.backend_record.unrealized_product_category_id.id}
     @mapping
     def backend_id(self, record):
         return {'backend_id': self.backend_record.id}

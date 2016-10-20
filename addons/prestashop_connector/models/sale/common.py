@@ -87,7 +87,7 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         order_history_adapter = self.unit_for(GenericAdapter, 'order.histories')
         order_history = order_history_adapter.read(order_history_adapter.search(filters)[0])
 
-        sale_order.create_account_invoice(order_history['date_add'], grouped=False, final=False)
+        sale_order.create_account_invoice(order_history['date_add'])
         if sale_order.invoice_status == 'invoiced':
             for inv in sale_order.invoice_ids:
                 inv.action_move_create()
@@ -129,10 +129,10 @@ class SaleOrderImport(PrestashopImportSynchronizer):
                 continue
             self._check_dependency(refund_id, 'prestashop.refund')
 
-    # def _has_to_skip(self):
-    #     """ Return True if the import can be skipped """
-    #     if self._get_openerp_id():
-    #         return True
+    def _has_to_skip(self):
+        """ Return True if the import can be skipped """
+        if self._get_openerp_id():
+            return True
     #     rules = self.unit_for(SaleImportRule)
     #     return rules.check(self.prestashop_record)
 
