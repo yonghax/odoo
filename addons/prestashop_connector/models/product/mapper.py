@@ -15,10 +15,12 @@ categoryEnum = {
     'SC': 'Skincare',
 }
 
-nonStockableProducts = [
-    'sample',
-    'Sample',
-    'MARI',
+hardcodedPSSampleCategory = [
+    375, # Sociolla Box GWP
+    381, # Masami Shouko GWP
+    444, # GWP Product
+    279, # Sample-1 
+    280, # Sample-2
 ]
 
 @prestashop
@@ -101,10 +103,15 @@ class TemplateMapper(PrestashopImportMapper):
             return {'date_upd': datetime.datetime.now()}
         return {'date_upd': record['date_upd']}
 
+    def has_bundles(self,record):
+        bundles = record.get('associations', {}).get(
+            'product_bundle', {}).get('product_bundle', [])
+        return len(bundles) > 0
+
     def has_combinations(self, record):
         combinations = record.get('associations', {}).get(
             'combinations', {}).get('combinations', [])
-        return len(combinations) != 0
+        return len(combinations) > 0
 
     def _template_code_exists(self, code):
         model = self.session.pool.get('product.template')
@@ -151,6 +158,10 @@ class TemplateMapper(PrestashopImportMapper):
             'always_available': bool(int(record['active'])), 
             'active':bool(int(record['active']))
         }
+    
+    @mapping
+    def is_product_bundle(self,record):
+        return {'is_product_bundle': self.has_bundles(record)}
 
     @mapping
     def sale_ok(self, record):
@@ -163,17 +174,18 @@ class TemplateMapper(PrestashopImportMapper):
     @mapping
     def categ_id(self, record):
         code = record.get('reference')
-        if not code or not record['categ_id']:
+        id_category_default = int(record['id_category_default'])
+        if not code or not record['categ_id']:  
             return {'categ_id': self.backend_record.unrealized_product_category_id.id}
         
         categ_obj = self.session.pool.get('product.category')
-        if any(ext in record['name'] for ext in nonStockableProducts):
+        if id_category_default in hardcodedPSSampleCategory:
             sample = categ_obj.browse(
                 self.session.cr,
                 SUPERUSER_ID,
                 categ_obj.search(self.session.cr, SUPERUSER_ID, [('name', '=', 'Sample')])
             )
-            if not sample:
+            if sample:
                 return {'categ_id': sample.id}
             else:
                 return {'categ_id': self.backend_record.unrealized_product_category_id.id}
@@ -196,7 +208,7 @@ class TemplateMapper(PrestashopImportMapper):
                         SUPERUSER_ID,
                         categ_search
                     )
-                    if not categ:
+                    if categ:
                         return {'categ_id': categ.id}
                     else:
                         return {'categ_id': self.backend_record.unrealized_product_category_id.id}

@@ -5,4 +5,5 @@ import sale
 import account_invoice
 import purchase
 import sale_report
+import product_bundle
 import product_brand

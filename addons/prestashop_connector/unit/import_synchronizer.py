@@ -493,7 +493,7 @@ def import_orders_since(session, model_name, backend_id, since_date=None):
     
     now_fmt = datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
     import_batch(session, 'order.histories', backend_id, filters)
-    # import_record(session, 'prestashop.sale.order', backend_id, 33559, force=False)
+    # import_record(session, 'prestashop.sale.order', backend_id, 70734, force=False)
 
     session.pool.get('prestashop.backend').write(
         session.cr,
@@ -524,6 +524,11 @@ def import_products(session, model_name, backend_id, since_date):
         {'import_products_since': now_fmt},
         context=session.context
     )
+
+    # import_record(session, model_name, backend_id, 4235, force=False)
+    # import_record(session, model_name, backend_id, 1483, force=False)
+    # import_record(session, model_name, backend_id, 1489, force=False)
+    # import_record(session, model_name, backend_id, 1487, force=False)
 
 
 @job
