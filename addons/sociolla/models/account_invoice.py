@@ -500,6 +500,8 @@ class AccountInvoiceLine(models.Model):
         else:
             discount_amount = self.discount_amount or 0.0
 
+        discount_header_unit = 0.0
+
         if self.discount_header_amount:
             discount_header_unit = round(self.discount_header_amount/self.quantity)
             price -= discount_header_unit
