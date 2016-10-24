@@ -89,10 +89,10 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         order_history_adapter = self.unit_for(GenericAdapter, 'order.histories')
         order_history = order_history_adapter.read(order_history_adapter.search(filters)[0])
 
-        # sale_order.create_account_invoice(order_history['date_add'])
-        # if sale_order.invoice_status == 'invoiced':
-        #     for inv in sale_order.invoice_ids:
-        #         inv.action_move_create()
+        sale_order.create_account_invoice(order_history['date_add'])
+        if sale_order.invoice_status == 'invoiced':
+            for inv in sale_order.invoice_ids:
+                inv.action_move_create()
 
         return True
 
