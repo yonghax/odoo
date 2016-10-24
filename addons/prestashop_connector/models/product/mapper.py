@@ -15,15 +15,6 @@ categoryEnum = {
     'SC': 'Skincare',
 }
 
-nonStockableProducts = [
-    'sample',
-    'Sample',
-    'MARI',
-    'GWP',
-    'gwp'
-
-]
-
 hardcodedPSSampleCategory = [
     375, # Sociolla Box GWP
     381, # Masami Shouko GWP
@@ -179,8 +170,7 @@ class TemplateMapper(PrestashopImportMapper):
             return {'categ_id': self.backend_record.unrealized_product_category_id.id}
         
         categ_obj = self.session.pool.get('product.category')
-        if any(ext in record['name'] for ext in nonStockableProducts) or \
-            id_category_default in hardcodedPSSampleCategory:
+        if id_category_default in hardcodedPSSampleCategory:
             sample = categ_obj.browse(
                 self.session.cr,
                 SUPERUSER_ID,
