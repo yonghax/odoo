@@ -42,7 +42,7 @@ class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
 
     discount_amount = fields.Float(string='Discount Amount',  readonly=True, default=0.0)
-    discount_header_amount = fields.Monetary(string='Discount Header Amount', store=True, readonly=True, compute='_compute_amount', track_visibility='always')
+    discount_header_amount = fields.Float(string='Discount Header Amount',  readonly=True, default=0.0)
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_compute_amount', track_visibility='always')
     is_from_product_bundle = fields.Boolean(string='Flag from Product Bundle',default=False)
     
@@ -81,9 +81,18 @@ class SaleOrderLine(models.Model):
             })
 
     def _compute_proportional_amount(self, amount):
-        price = self.price_unit * (1 - (self.discount or 0.0) / 100.0)
+        if not self.is_from_product_bundle:
+            price = self.price_unit * (1 - (self.discount or 0.0) / 100.0)
+        else:
+            price = self.price_unit - self.discount_amount
+
         price_undiscounted = round(self.product_uom_qty * self.price_unit) 
-        discount_amount = price_undiscounted * ((self.discount or 0.0) / 100.0)
+
+        if not self.is_from_product_bundle:
+            discount_amount = price_undiscounted * ((self.discount or 0.0) / 100.0)
+        else:
+            discount_amount = self.discount_amount or 0.0
+
         discount_header_amount = amount or 0.0
 
         if discount_header_amount > 0:

@@ -161,7 +161,7 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         if sum_discount_amount > 0:
             for i in xrange(0, len(order_products)):
                 total_amount = order_products[i].price_total
-                discount_header_amount = (total_amount / sum_total_amount_header) * sum_discount_amount
+                discount_header_amount = round((total_amount / sum_total_amount_header) * sum_discount_amount)
                 order_products[i]._compute_proportional_amount(discount_header_amount)
         
             order_discounts.unlink()
