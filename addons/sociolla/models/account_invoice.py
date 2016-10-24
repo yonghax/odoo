@@ -1,6 +1,8 @@
 from openerp import api, fields, models, _
 from decimal import *
 
+import openerp.addons.decimal_precision as dp
+
 # mapping invoice type to journal type
 TYPE2JOURNAL = {
     'out_invoice': 'sale',
@@ -366,7 +368,10 @@ class AccountInvoice(models.Model):
     def get_taxes_values(self):
         tax_grouped = {}
         for line in self.invoice_line_ids:
-            price_unit = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
+            if not line.is_from_product_bundle:
+                price_unit = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
+            else:
+                price_unit = line.price_unit - line.discount_amount
 
             if line.discount_header_amount:
                 discount_header_unit = round(line.discount_header_amount/line.quantity)
@@ -409,10 +414,11 @@ class AccountInvoice(models.Model):
 class AccountInvoiceLine(models.Model):
     _inherit = "account.invoice.line"
 
-    discount_amount = fields.Monetary(string='Discount Amount', store=True, readonly=True, compute='_compute_price')
+    discount_amount = fields.Float(string='Discount Amount', readonly=True,  default=0.0)
     discount_header_amount = fields.Monetary(string='Discount Header Amount', store=True, readonly=True, compute='_compute_price')
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_compute_price')
     discount_account_id = fields.Many2one('account.account', string='Discount Account', domain=[('deprecated', '=', False)])
+    is_from_product_bundle = fields.Boolean(string='Flag from Product Bundle',default=False)
 
     @api.onchange('product_id')
     def _onchange_product_id(self):
@@ -473,13 +479,22 @@ class AccountInvoiceLine(models.Model):
         return {'domain': domain}
 
     @api.one
-    @api.depends('price_unit', 'discount', 'invoice_line_tax_ids', 'quantity',
+    @api.depends('price_unit', 'discount', 'invoice_line_tax_ids', 'quantity', 'discount_amount',
         'product_id', 'invoice_id.partner_id', 'invoice_id.currency_id', 'invoice_id.company_id')
     def _compute_price(self):
         currency = self.invoice_id and self.invoice_id.currency_id or None
-        price = self.price_unit * (1 - (self.discount or 0.0) / 100.0)
+
+        if not self.is_from_product_bundle:
+            price = self.price_unit * (1 - (self.discount or 0.0) / 100.0)
+        else:
+            price = self.price_unit - self.discount_amount
+
         price_undiscounted = self.price_unit * self.quantity
-        discount_amount = price_undiscounted * ((self.discount or 0.0) / 100.0)
+        
+        if not self.is_from_product_bundle:
+            discount_amount = price_undiscounted * ((self.discount or 0.0) / 100.0)
+        else:
+            discount_amount = self.discount_amount or 0.0
 
         if self.discount_header_amount:
             discount_header_unit = round(self.discount_header_amount/self.quantity)

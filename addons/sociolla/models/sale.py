@@ -41,9 +41,11 @@ class SaleOrder(models.Model):
 class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
 
-    discount_amount = fields.Monetary(string='Discount Amount', store=True, readonly=True, compute='_compute_amount', track_visibility='always')
+    discount_amount = fields.Float(string='Discount Amount',  readonly=True, default=0.0)
     discount_header_amount = fields.Monetary(string='Discount Header Amount', store=True, readonly=True, compute='_compute_amount', track_visibility='always')
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_compute_amount', track_visibility='always')
+    is_from_product_bundle = fields.Boolean(string='Flag from Product Bundle',default=False)
+    
 
     @api.depends('product_uom_qty', 'discount', 'price_unit', 'tax_id', 'discount_amount')
     def _compute_amount(self):
@@ -51,15 +53,15 @@ class SaleOrderLine(models.Model):
         Override base function to add calculation for discount_amount
         """
         for line in self:
-            if not line.order_id.has_product_bundle() and (not line.discount_amount or line.discount_amount == 0.0):
+            if not line.is_from_product_bundle:
                 price = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
             else:
-                price = line.price_unit - line.discount_amount or 0.0
+                price = line.price_unit - line.discount_amount
 
             price_undiscounted = round(line.product_uom_qty * line.price_unit) 
             discount_header_amount = line.discount_header_amount or 0.0
 
-            if not line.discount_amount or line.discount_amount == 0.0:
+            if not line.is_from_product_bundle:
                 discount_amount = price_undiscounted * ((line.discount or 0.0) / 100.0)
             else:
                 discount_amount = line.discount_amount or 0.0
@@ -142,6 +144,7 @@ class SaleOrderLine(models.Model):
             'product_id': self.product_id.id or False,
             'invoice_line_tax_ids': [(6, 0, self.tax_id.ids)],
             'account_analytic_id': self.order_id.project_id.id,
+            'is_from_product_bundle': self.is_from_product_bundle,
         }
         return res
 

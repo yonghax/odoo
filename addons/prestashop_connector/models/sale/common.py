@@ -89,10 +89,10 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         order_history_adapter = self.unit_for(GenericAdapter, 'order.histories')
         order_history = order_history_adapter.read(order_history_adapter.search(filters)[0])
 
-        sale_order.create_account_invoice(order_history['date_add'])
-        if sale_order.invoice_status == 'invoiced':
-            for inv in sale_order.invoice_ids:
-                inv.action_move_create()
+        # sale_order.create_account_invoice(order_history['date_add'])
+        # if sale_order.invoice_status == 'invoiced':
+        #     for inv in sale_order.invoice_ids:
+        #         inv.action_move_create()
 
         return True
 
@@ -113,9 +113,9 @@ class SaleOrderImport(PrestashopImportSynchronizer):
                 product = product_bundle.product_id
                 qty = product_bundle.qty
                 unit_price = product.list_price
-                price = (((qty * unit_price) / sum_bundle_unit_price) * line.price_total) / qty
-                discount_amount = (qty * unit_price) - (price * qty)
-                discount = (discount_amount / (qty * unit_price)) * 100
+                price = round((((qty * unit_price) / sum_bundle_unit_price) * line.price_total) / qty, 0)
+                discount_amount = round((qty * unit_price) - (price * qty), 0)
+                discount = round((discount_amount / (qty * unit_price)) * 100, 0)
 
                 taxes = line.tax_id.compute_all(price, line.order_id.currency_id, qty, product=product, partner=line.order_id.partner_id)
                 price_undiscounted = qty * unit_price
@@ -139,7 +139,9 @@ class SaleOrderImport(PrestashopImportSynchronizer):
                     'price_undiscounted': price_undiscounted,
                     'price_tax': taxes['total_included'] - taxes['total_excluded'],
                     'price_total': taxes['total_included'],
-                    'price_subtotal': taxes['total_excluded']
+                    'price_subtotal': taxes['total_excluded'],
+                    'discount': discount,
+                    'is_from_product_bundle': True,
                 }
                 
                 self.env['sale.order.line'].with_context(self.session.context).create(vals)

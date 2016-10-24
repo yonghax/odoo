@@ -32,11 +32,15 @@
         Version 0.4
 
         - Export Stock Available
+
+        Version 0.5
+
+        - Import Order Product Bundle
     """,
     'author': "Internal Development - PT. Social Bella Indonesia",
     'website': "http://www.sociolla.com",
     'category': 'Addon Sociolla',
-    'version': '0.4',
+    'version': '0.5',
 
     'depends': [
         'base',
