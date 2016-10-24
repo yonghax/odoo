@@ -15,12 +15,15 @@
         
         Version 0.3:
             - Add Discount Purchase Order
+            
+        Version 0.4:
+            - Add Product Bundle
     """,
 
     'author': "Internal Development - PT. Social Bella Indonesia",
     'website': "http://www.sociolla.com",
     'category': 'Addon Sociolla',
-    'version': '0.3',
+    'version': '0.4',
     'installable': True,
     'application': True,
     'sequence': 1,

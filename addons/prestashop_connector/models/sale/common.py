@@ -69,7 +69,9 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         )
 
         sale_order = erp_order.openerp_id
-        self.calculate_discount_proportional(erp_order, sale_order)
+
+        self.work_with_product_bundle(sale_order)
+        self.calculate_discount_proportional(sale_order)
         sale_order.recompute()
 
         # Confirm sale.order and validate inventory out
@@ -87,14 +89,66 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         order_history_adapter = self.unit_for(GenericAdapter, 'order.histories')
         order_history = order_history_adapter.read(order_history_adapter.search(filters)[0])
 
-        sale_order.create_account_invoice(order_history['date_add'])
-        if sale_order.invoice_status == 'invoiced':
-            for inv in sale_order.invoice_ids:
-                inv.action_move_create()
+        # sale_order.create_account_invoice(order_history['date_add'])
+        # if sale_order.invoice_status == 'invoiced':
+        #     for inv in sale_order.invoice_ids:
+        #         inv.action_move_create()
 
         return True
-    
-    def calculate_discount_proportional(self, erp_order, sale_order): 
+
+    def work_with_product_bundle(self, sale_order):
+        """ 
+            if sale.order.has_product_bundle:
+                Delete all product bundle, and change to products involved
+        """
+        if not sale_order.has_product_bundle():
+            return
+
+        bundle_order_lines = sale_order.order_line.filtered(lambda x: x.product_id.is_product_bundle)
+
+        for line in bundle_order_lines:
+            sum_bundle_unit_price = sum([x.qty * x.product_id.list_price for x in line.product_id.product_bundles])
+            
+            for product_bundle in line.product_id.product_bundles:
+                product = product_bundle.product_id
+                qty = product_bundle.qty
+                unit_price = product.list_price
+                price = round((((qty * unit_price) / sum_bundle_unit_price) * line.price_total) / qty, 0)
+                discount_amount = round((qty * unit_price) - (price * qty), 0)
+                discount = round((discount_amount / (qty * unit_price)) * 100, 0)
+
+                taxes = line.tax_id.compute_all(price, line.order_id.currency_id, qty, product=product, partner=line.order_id.partner_id)
+                price_undiscounted = qty * unit_price
+
+                vals = {
+                    'sequence': line.sequence,
+                    'price_unit': unit_price,
+                    'product_id': product.id,
+                    'name': ('[%s] - (product:%s)' % (line.name, product.default_code)),
+                    'product_uom_qty': qty,
+                    'customer_lead': line.customer_lead,
+                    'product_uom': line.product_uom.id,
+                    'company_id': line.company_id.id,
+                    'state': line.state,
+                    'order_id': line.order_id.id,
+                    'qty_invoiced': qty,
+                    'currency_id':line.currency_id.id,
+                    'prestashop_id': line.prestashop_bind_ids.id,
+                    'tax_id': [(6, 0, line.tax_id.ids)],
+                    'discount_amount': discount_amount,
+                    'price_undiscounted': price_undiscounted,
+                    'price_tax': taxes['total_included'] - taxes['total_excluded'],
+                    'price_total': taxes['total_included'],
+                    'price_subtotal': taxes['total_excluded'],
+                    'discount': discount,
+                    'is_from_product_bundle': True,
+                }
+                
+                self.env['sale.order.line'].with_context(self.session.context).create(vals)
+
+            line.unlink()
+            
+    def calculate_discount_proportional(self, sale_order): 
         """ Delete order line with product discount. and the amount will be split average per order line.
         """
         order_lines = sale_order.order_line
