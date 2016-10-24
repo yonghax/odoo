@@ -11,12 +11,13 @@ class ProductTemplate(models.Model):
         default=False,
         help="Specify if the product is pack bundle"
     )
-
+    
     product_bundles = fields.One2many(
         'product.bundle', 
         'product_tmpl_id', 
-        string='Product Template', 
-        copy=True
+        string='Product Template',
+        copy=True,
+        auto_join=True,
     )
 
 class ProductBundle(models.Model):

@@ -10,6 +10,13 @@ class SaleOrder(models.Model):
 
     discount_amount = fields.Monetary(string='Discount Amount', store=True, readonly=True, compute='_amount_all', track_visibility='always')
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_amount_all', track_visibility='always')
+    
+    def has_product_bundle(self):
+        order_lines = self.order_line
+        for line in order_lines:
+            if line.product_id.is_product_bundle:
+                return True
+        return False
 
     @api.depends('order_line.price_total')
     def _amount_all(self):
@@ -38,16 +45,24 @@ class SaleOrderLine(models.Model):
     discount_header_amount = fields.Monetary(string='Discount Header Amount', store=True, readonly=True, compute='_compute_amount', track_visibility='always')
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_compute_amount', track_visibility='always')
 
-    @api.depends('product_uom_qty', 'discount', 'price_unit', 'tax_id')
+    @api.depends('product_uom_qty', 'discount', 'price_unit', 'tax_id', 'discount_amount')
     def _compute_amount(self):
         """
         Override base function to add calculation for discount_amount
         """
         for line in self:
-            price = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
+            if not line.order_id.has_product_bundle() and (not line.discount_amount or line.discount_amount == 0.0):
+                price = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
+            else:
+                price = line.price_unit - line.discount_amount or 0.0
+
             price_undiscounted = round(line.product_uom_qty * line.price_unit) 
-            discount_amount = price_undiscounted * ((line.discount or 0.0) / 100.0)
             discount_header_amount = line.discount_header_amount or 0.0
+
+            if not line.discount_amount or line.discount_amount == 0.0:
+                discount_amount = price_undiscounted * ((line.discount or 0.0) / 100.0)
+            else:
+                discount_amount = line.discount_amount or 0.0
 
             if discount_header_amount > 0:
                 discount_unit = round(discount_header_amount / line.product_uom_qty)
@@ -94,12 +109,18 @@ class SaleOrderLine(models.Model):
         res = {}
         account = self.product_id.property_account_income_id or self.product_id.categ_id.property_account_income_categ_id
         discount_account = self.product_id.property_account_sales_discount_id or self.product_id.categ_id.property_account_sales_discount_categ_id
-
-        if not discount_account:
-            raise UserError(_('Configuration error!\nCould not find any account to create the discount, are you sure you have a chart of account installed?'))
+        return_account = self.product_id.property_account_sales_return_id or self.product_id.categ_id.property_account_sales_return_categ_id
 
         if not account:
             raise UserError(_('Please define income account for this product: "%s" (id:%d) - or for its category: "%s".') % \
+                            (self.product_id.name, self.product_id.id, self.product_id.categ_id.name))
+
+        if not discount_account:
+            raise UserError(_('Please define discount account for this product: "%s" (id:%d) - or for its category: "%s".') % \
+                            (self.product_id.name, self.product_id.id, self.product_id.categ_id.name))
+
+        if not return_account:
+            raise UserError(_('Please define return account for this product: "%s" (id:%d) - or for its category: "%s".') % \
                             (self.product_id.name, self.product_id.id, self.product_id.categ_id.name))
 
         fpos = self.order_id.fiscal_position_id or self.order_id.partner_id.property_account_position_id
