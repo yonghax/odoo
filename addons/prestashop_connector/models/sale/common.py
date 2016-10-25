@@ -107,15 +107,17 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         bundle_order_lines = sale_order.order_line.filtered(lambda x: x.product_id.is_product_bundle)
 
         for line in bundle_order_lines:
-            sum_bundle_unit_price = sum([x.qty * x.product_id.list_price for x in line.product_id.product_bundles])
+            sum_bundle_unit_price = sum([x.qty * x.product_id.list_price for x in line.product_id.product_bundles]) * line.product_uom_qty
             
             for product_bundle in line.product_id.product_bundles:
                 product = product_bundle.product_id
-                qty = product_bundle.qty
+                qty = product_bundle.qty * line.product_uom_qty
                 unit_price = product.list_price
-                price = round((((qty * unit_price) / sum_bundle_unit_price) * line.price_total) / qty, 0)
-                discount_amount = round((qty * unit_price) - (price * qty), 0)
-                discount = round((discount_amount / (qty * unit_price)) * 100, 0)
+                sub_total = qty * unit_price
+                final_price = round((sub_total / sum_bundle_unit_price) * line.price_total)
+                price = round(final_price / qty)
+                discount_amount = round((qty * unit_price) - (price * qty))
+                discount = round((discount_amount / (qty * unit_price)) * 100, 4)
 
                 taxes = line.tax_id.compute_all(price, line.order_id.currency_id, qty, product=product, partner=line.order_id.partner_id)
                 price_undiscounted = qty * unit_price

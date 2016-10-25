@@ -316,16 +316,17 @@ class SaleOrderLineMapper(PrestashopImportMapper):
             template_id = self.get_openerp_id(
                 'prestashop.product.template',
                 record['product_id'])
-            product_id = self.env['product.product'].search([
+
+            product = self.env['product.product'].search([
                 ('product_tmpl_id', '=', template_id),
                 ('company_id', '=', self.backend_record.company_id.id)])[0]
-            if isinstance(product_id, int):
-                product_id= [product_id]    
-            if product_id:
-                product_id = product_id.id
-            if product_id is None:
-                return self.tax_id(record)
-        return {'product_id': product_id}
+
+            product_id = product.id
+
+        return {
+            'product_id': product_id, 
+            'is_from_product_bundle': product.is_product_bundle
+        }
 
     def _find_tax(self, ps_tax_id):
         tax = self.session.read(
