@@ -24,8 +24,8 @@ MAGIC_COLUMNS = ('id', 'create_uid', 'create_date', 'write_uid', 'write_date')
 class AccountInvoice(models.Model):
     _inherit = "account.invoice"
 
-    discount_amount = fields.Float(string='Discount Amount',  readonly=True, default=0.0)
-    price_undiscounted = fields.Float(string='Undiscount Amount', compute='_compute_amount', default=0.0)
+    discount_amount = fields.Monetary(string='Discount Amount',  readonly=True, default=0.0)
+    price_undiscounted = fields.Monetary(string='Undiscount Amount', compute='_compute_amount', default=0.0)
 
     @api.one
     @api.depends('invoice_line_ids.price_subtotal', 'tax_line_ids.amount', 'currency_id', 'company_id')
@@ -341,7 +341,7 @@ class AccountInvoice(models.Model):
             if not inv_line.is_from_product_bundle:
                 price = inv_line.price_unit * (1 - (inv_line.discount or 0.0) / 100.0)
             else:
-                price = inv_line.price_unit - inv_line.discount_amount
+                price = inv_line.price_unit - (inv_line.discount_amount / inv_line.quantity)
             
             amount = inv_line.quantity * price
             discount_proportional = round(amount / gross_amount * discount_amount)
@@ -375,7 +375,7 @@ class AccountInvoice(models.Model):
             if not line.is_from_product_bundle:
                 price_unit = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
             else:
-                price_unit = line.price_unit - line.discount_amount
+                price_unit = line.price_unit - (line.discount_amount /line.quantity)
 
             if line.discount_header_amount:
                 discount_header_unit = round(line.discount_header_amount/line.quantity)
@@ -418,9 +418,9 @@ class AccountInvoice(models.Model):
 class AccountInvoiceLine(models.Model):
     _inherit = "account.invoice.line"
 
-    discount_amount = fields.Float(string='Discount Amount', readonly=True, default=0.0)
-    discount_header_amount = fields.Float(string='Discount Amount', readonly=True, default=0.0)
-    price_undiscounted = fields.Float(string='Undiscount Amount', compute='_compute_price', default=0.0)
+    discount_amount = fields.Monetary(string='Discount Amount', readonly=True, default=0.0)
+    discount_header_amount = fields.Monetary(string='Discount Amount', readonly=True, default=0.0)
+    price_undiscounted = fields.Monetary(string='Undiscount Amount', compute='_compute_price', default=0.0)
     discount_account_id = fields.Many2one('account.account', string='Discount Account', domain=[('deprecated', '=', False)])
     is_from_product_bundle = fields.Boolean(string='Flag from Product Bundle',default=False)
 
@@ -491,7 +491,7 @@ class AccountInvoiceLine(models.Model):
         if not self.is_from_product_bundle:
             price = self.price_unit * (1 - (self.discount or 0.0) / 100.0)
         else:
-            price = self.price_unit - self.discount_amount
+            price = self.price_unit - (self.discount_amount / self.quantity)
 
         price_undiscounted = self.price_unit * self.quantity
         
