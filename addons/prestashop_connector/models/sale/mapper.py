@@ -303,6 +303,7 @@ class SaleOrderLineMapper(PrestashopImportMapper):
 
     @mapping
     def product_id(self, record):
+        is_from_product_bundle = False
         if int(record.get('product_attribute_id', 0)):
             combination_binder = self.binder_for(
                 'prestashop.product.combination')
@@ -322,10 +323,11 @@ class SaleOrderLineMapper(PrestashopImportMapper):
                 ('company_id', '=', self.backend_record.company_id.id)])[0]
 
             product_id = product.id
+            is_from_product_bundle = product.is_product_bundle
 
         return {
             'product_id': product_id, 
-            'is_from_product_bundle': product.is_product_bundle
+            'is_from_product_bundle': is_from_product_bundle
         }
 
     def _find_tax(self, ps_tax_id):
