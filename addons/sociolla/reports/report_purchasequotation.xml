@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <openerp>
 <data>
-<template id="report_purchasequotation_document">
+<template id="report_purchasequotation_document" inherit_id="purchase.report_purchasequotation_document">
     <t t-call="report.external_layout">
         <t t-set="o" t-value="o.with_context({'lang':o.partner_id.lang})"/>
         <div class="page">
@@ -72,13 +72,6 @@
     </t>
 </template>
 
-<template id="report_purchasequotation">
-    <t t-call="report.html_container">
-        <t t-foreach="docs" t-as="o">
-            <t t-call="purchase.report_purchasequotation_document" t-lang="o.partner_id.lang"/>
-        </t>
-    </t>
-</template>
 </data>
 </openerp>
     

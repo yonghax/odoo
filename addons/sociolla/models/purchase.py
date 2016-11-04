@@ -1,11 +1,31 @@
+from datetime import datetime
+
 from openerp import api, fields, models, _, SUPERUSER_ID
-import openerp.addons.decimal_precision as dp
+from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT
 from openerp.tools.float_utils import float_compare
+
+import openerp.addons.decimal_precision as dp
+
+class PurchaseOrder(models.Model):
+    _inherit = ['purchase.order']
+
+    approved_uid = fields.Many2one('res.users', 'Approved By', copy=False)
+    approved_date = fields.Datetime('Approved Date',copy=False)
+
+    @api.multi
+    def button_approve(self):
+        self.write({
+            'state': 'purchase',
+            'approved_uid': self.env.uid,
+            'approved_date': datetime.today().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
+        })
+        self._create_picking()
+        return {}
 
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'
 
-    discount = fields.Monetary(string='Disc %')
+    discount = fields.Float(string='Disc %')
     discount_amount = fields.Monetary(compute='_compute_amount', string='Disc. Amt', store=True)
     discount_header_amount = fields.Monetary(compute='_compute_amount', string='Disc. Header Amount', readonly = True, store=True)
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_compute_amount')
