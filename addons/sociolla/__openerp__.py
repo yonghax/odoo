@@ -18,12 +18,15 @@
             
         Version 0.4:
             - Add Product Bundle
+
+        Version 0.5:
+            - Add e-signature users
     """,
 
     'author': "Internal Development - PT. Social Bella Indonesia",
     'website': "http://www.sociolla.com",
     'category': 'Addon Sociolla',
-    'version': '0.4',
+    'version': '0.5',
     'installable': True,
     'application': True,
     'sequence': 1,
@@ -41,5 +44,8 @@
         'views/product_view.xml',
         'views/purchase_view.xml',
         'views/product_brand_view.xml',
+        'views/res_users_view.xml',
+        # 'reports/report_purchaseorder.xml',
+        # 'reports/report_purchasequotation.xml',
     ],
 }
