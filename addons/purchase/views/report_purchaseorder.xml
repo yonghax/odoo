@@ -76,7 +76,7 @@
                             <span t-field="line.price_unit"/>
                         </td>
                         <td class="text-right">
-                            <span t-field="order_line.discount"/>
+                            <span t-field="line.discount"/>
                         </td>
                         <td class="text-right">
                             <span t-field="line.price_subtotal"
@@ -94,8 +94,8 @@
                         <div class="text-center mb8" style="border-bottom:1px solid #000000;">
                             Approved:
                         </div>
-                        <div style="height: 64px; max-width:200px; vertical-align:middle;">
-                            <img t-if="o.approved_uid.esignature" t-att-src="'data:image/png;base64,%s' % o.approved_uid.esignature" style="margin:0 auto; display: block;"/>
+                        <div style="vertical-align:middle;">
+                            <img t-if="o.approved_uid.esignature" t-att-src="'data:image/png;base64,%s' % o.approved_uid.esignature" style="height: 64px; max-width:190px; margin:0 auto; display: block;"/>
                         </div>
                         <div class="text-center" t-field="o.approved_uid.partner_id.name"/>
                     </div>
