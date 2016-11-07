@@ -50,9 +50,8 @@
 
     'data': [
         'data/cron.xml',
-
+        
         'views/prestashop_model_view.xml',
         'views/prestashoperpconnect_menu.xml',
-        'views/partner_view.xml',
     ],
 }
