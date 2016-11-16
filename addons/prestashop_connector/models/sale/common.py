@@ -114,11 +114,18 @@ class SaleOrderImport(PrestashopImportSynchronizer):
                 qty = product_bundle.qty * line.product_uom_qty
                 unit_price = product.list_price
                 sub_total = qty * unit_price
-                final_price = round((sub_total / sum_bundle_unit_price) * line.price_total)
-                price = round(final_price / qty)
-                discount_amount = round((qty * unit_price) - (price * qty))
-                discount = round((discount_amount / (qty * unit_price)) * 100, 4)
-
+                
+                if sub_total != 0:
+                    final_price = round((sub_total / sum_bundle_unit_price) * line.price_total)
+                    price = round(final_price / qty)
+                    discount_amount = round((qty * unit_price) - (price * qty))
+                    discount = round((discount_amount / (qty * unit_price)) * 100, 4)
+                else:
+                    final_price = 0
+                    price = 0
+                    discount_amount = 0
+                    discount = 0
+                
                 taxes = line.tax_id.compute_all(price, line.order_id.currency_id, qty, product=product, partner=line.order_id.partner_id)
                 price_undiscounted = qty * unit_price
 
