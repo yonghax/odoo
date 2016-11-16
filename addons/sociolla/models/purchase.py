@@ -11,6 +11,10 @@ class PurchaseOrder(models.Model):
 
     approved_uid = fields.Many2one('res.users', 'Approved By', copy=False)
     approved_date = fields.Datetime('Approved Date',copy=False)
+    
+    last_send_mail = fields.Datetime(string='Last send mail')
+    has_send_mail = fields.Boolean(string='Has send mail')
+    retry_send_mail = fields.Integer(string='Retry send mail')
 
     @api.multi
     def button_approve(self):
@@ -21,6 +25,86 @@ class PurchaseOrder(models.Model):
         })
         self._create_picking()
         return {}
+
+    @api.multi
+    def button_confirm(self):
+        for order in self:
+            if order.state not in ['draft', 'sent']:
+                continue
+            order._add_supplier_to_product()
+            # Deal with double validation process
+            if order.company_id.po_double_validation == 'one_step'\
+                    or (order.company_id.po_double_validation == 'two_step'\
+                        and order.amount_total < self.env.user.company_id.currency_id.compute(order.company_id.po_double_validation_amount, order.currency_id))\
+                    or order.user_has_groups('purchase.group_purchase_manager'):
+                order.button_approve()
+                order.write
+                (
+                    {
+                        'last_send_mail': datetime.today().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
+                        'has_send_mail': True,
+                        'retry_send_mail': 0
+                    }
+                )
+            else:
+                order.write
+                (
+                    {
+                        'state': 'to approve',
+                        'has_send_mail': False,
+                    }
+                )
+        return {}
+
+    @api.multi
+    def mail_waiting_approval_purchase(self):
+        message_obj = self.pool.get('mail.message')
+        mail_obj = self.pool.get('mail.mail')
+        email_template_obj = self.pool.get('mail.template')
+        email_compose_message_obj = self.pool.get('mail.compose.message')
+        email_template_ids = email_template_obj.search(cr, uid, [('name', '=', 'Pending Approval Purchase - Send Mail')])
+        
+        if not email_template_ids:
+            return False
+
+        email_templates = email_template_obj.browse(cr, uid, email_template_ids)
+        mail_ids = []
+
+        pending_approvals = self.env['purchase.order'].browse(self.env['purchase.order'].search([('state', '=', 'to approve'), ('has_send_mail', '=', False)]))
+        split_count = 0
+        str_concate_order = ''
+
+        for order in pending_approvals:
+            if split_count < 10:
+                str_concate_order += order.name +', '
+            else:
+                split_count = '\n' + order.name + ', '
+
+            order.write
+            (
+                {
+                    'last_send_mail': datetime.today().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
+                    'has_send_mail': True,
+                    'retry_send_mail': order.retry_send_mail + 1
+                }
+            )
+            
+        message_id = message_obj.create(cr, uid, {
+            'type' : 'email',
+            'subject' : 'RFQ ',
+        })
+
+        mail_id = mail_obj.create(cr, uid, {
+                'mail_message_id' : message_id,
+                'mail_server_id' : template.mail_server_id and template.mail_server_id.id or False,
+                'state' : 'outgoing',
+                'auto_delete' : template.auto_delete,
+                'email_from' : mail_from,
+                'email_to' : mail_to,
+                'reply_to' : reply_to,
+                'body_html' : mail_body,
+                })
+
 
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'
