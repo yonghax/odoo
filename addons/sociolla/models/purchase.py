@@ -24,11 +24,13 @@ class PurchaseOrder(models.Model):
             'approved_date': datetime.today().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
         })
         self._create_picking()
+
+        self.send_notification_approved()
         return {}
 
     @api.multi
     def button_confirm(self):
-        for order in self:
+         for order in self:
             if order.state not in ['draft', 'sent']:
                 continue
             order._add_supplier_to_product()
@@ -38,47 +40,42 @@ class PurchaseOrder(models.Model):
                         and order.amount_total < self.env.user.company_id.currency_id.compute(order.company_id.po_double_validation_amount, order.currency_id))\
                     or order.user_has_groups('purchase.group_purchase_manager'):
                 order.button_approve()
-                order.write
-                (
-                    {
-                        'last_send_mail': datetime.today().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
-                        'has_send_mail': True,
-                        'retry_send_mail': 0
-                    }
-                )
             else:
-                order.write
-                (
-                    {
-                        'state': 'to approve',
-                        'has_send_mail': False,
-                    }
-                )
-        return {}
+                order.write({
+                    'state': 'to approve', 
+                    'has_send_mail': False,
+                })
 
-    @api.multi
-    def mail_waiting_approval_purchase(self):
-        message_obj = self.pool.get('mail.message')
-        mail_obj = self.pool.get('mail.mail')
-        email_template_obj = self.pool.get('mail.template')
-        email_compose_message_obj = self.pool.get('mail.compose.message')
-        email_template_ids = email_template_obj.search(cr, uid, [('name', '=', 'Pending Approval Purchase - Send Mail')])
-        
-        if not email_template_ids:
+         return {}
+
+    def mail_waiting_approval_purchase(self, cr, uid, domain=None, context=None):
+
+        user_obj = self.pool.get('res.users')
+        group_obj = self.pool.get('res.groups')
+        module_category_obj = self.pool.get('ir.module.category')
+
+        user_purchase_managers = user_obj.browse(cr, SUPERUSER_ID,
+            user_obj.search(cr, SUPERUSER_ID, [
+                ('groups_id', 'in', group_obj.search(cr, SUPERUSER_ID, [
+                    ('category_id', 'in', module_category_obj.search(cr, SUPERUSER_ID,[
+                        ('name', '=', 'Purchases')
+                    ])),
+                    ('name','=','Manager')
+                ]))
+            ])) 
+
+        pending_approvals = self.browse(cr, SUPERUSER_ID, self.search(cr, SUPERUSER_ID, [('state', '=', 'to approve'), ('has_send_mail', '=', False)]))
+
+        if len(user_purchase_managers) < 1 or len(pending_approvals) < 1:
             return False
 
-        email_templates = email_template_obj.browse(cr, uid, email_template_ids)
-        mail_ids = []
+        list_html = ''
 
-        pending_approvals = self.env['purchase.order'].browse(self.env['purchase.order'].search([('state', '=', 'to approve'), ('has_send_mail', '=', False)]))
-        split_count = 0
-        str_concate_order = ''
+        message_obj = self.pool.get('mail.message')
+        mail_obj = self.pool.get('mail.mail')
 
         for order in pending_approvals:
-            if split_count < 10:
-                str_concate_order += order.name +', '
-            else:
-                split_count = '\n' + order.name + ', '
+            list_html += self.generate_list_html(order.name, order.date_order, order.partner_id.name, format(order.amount_total, '0,.2f'))
 
             order.write
             (
@@ -88,23 +85,95 @@ class PurchaseOrder(models.Model):
                     'retry_send_mail': order.retry_send_mail + 1
                 }
             )
-            
-        message_id = message_obj.create(cr, uid, {
-            'type' : 'email',
-            'subject' : 'RFQ ',
-        })
 
-        mail_id = mail_obj.create(cr, uid, {
+        message_id = message_obj.create(cr, SUPERUSER_ID, {
+            'type' : 'email',
+            'subject' : 'Pending RFQ needs your approval (%s)' % datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
+        })
+        mail_ids = []
+        for user in user_purchase_managers:
+            if not user.partner_id.email:
+                continue
+
+            mail_body = self.generate_mail_body_html(user.partner_id.name, list_html)
+
+            mail_id = mail_obj.create(cr, SUPERUSER_ID, {
                 'mail_message_id' : message_id,
-                'mail_server_id' : template.mail_server_id and template.mail_server_id.id or False,
+                'mail_server_id' : 5,
                 'state' : 'outgoing',
-                'auto_delete' : template.auto_delete,
-                'email_from' : mail_from,
-                'email_to' : mail_to,
-                'reply_to' : reply_to,
-                'body_html' : mail_body,
+                'auto_delete' : True,
+                'email_from' : 'christa.alycia@sociolla.com',
+                'email_to' : user.partner_id.email,
+                'reply_to' : 'christa.alycia@sociolla.com',
+                'body_html' : mail_body
                 })
 
+            mail_ids += [mail_id,]
+
+        mail_obj.send(cr, SUPERUSER_ID, mail_ids)
+    
+    def generate_mail_body_html(self, user_name, list_purchase_html):
+        return """
+<p style="margin:0px 0px 10px 0px;"></p>
+<div style="font-family: 'Lucida Grande', Ubuntu, Arial, Verdana, sans-serif; font-size: 12px; color: rgb(34, 34, 34); background-color: #FFF; ">
+    <p style="margin:0px 0px 10px 0px;">Hello Mr / Mrs %s,</p>
+    <p style="margin:0px 0px 10px 0px;">Here is the waiting request for quotation: </p>
+    <ul style="margin:0px 0 10px 0;">%s
+    </ul>
+    <p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>Kindly review the RFQ.</p>
+    <p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>Thank you.</p>
+</div>
+        """ % (user_name, list_purchase_html)
+    
+    def generate_list_html(self, name, date, partner_name, amount):
+        return """
+        <li>
+            <p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>
+                %s | %s | %s | Rp. %s
+            </p>
+        </li>
+        """ % (name, date, partner_name, amount)
+
+    def send_notification_approved(self):
+        mail_ids = []
+        for order in self:
+            subtype_id = self.env['mail.message.subtype'].sudo().browse(
+                self.env['mail.message.subtype'].sudo().search([
+                    ('res_model', '=', 'purchase.order'), 
+                    ('name', '=', 'RFQ Approved')
+                ]).ids
+            )
+
+            user_approved = self.env['res.users'].sudo().browse([self.env.uid])
+
+            msg = self.env['mail.message'].sudo().create({
+                'type' : 'comment',
+                'subject' : 'Approved PO: ' + order.name,
+                'subtype_id': subtype_id.id,
+                'res_id': order.id,
+                'body': """<p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>RFQ Number: %s; has been Approved</p>""" % (order.name),
+                'email_from': user_approved.partner_id.email,
+                'model': 'purchase.order',
+                'partner_ids': [(6, 0, [order.create_uid.partner_id.id])],
+                'needaction_partner_ids': [(6, 0, [order.create_uid.partner_id.id])],
+            })
+
+            mail = self.env['mail.mail'].sudo().create({
+                'mail_message_id' : msg.id,
+                'mail_server_id' : 5,
+                'message_type': 'comment',
+                'notification': True,
+                'state' : 'outgoing',
+                'auto_delete' : False,
+                'email_from' : msg.email_from,
+                'email_to' : order.create_uid.partner_id.email,
+                'reply_to' : msg.email_from,
+                'body_html' : msg.body
+            })
+
+            mail_ids += [mail.id,]
+
+        self.env['mail.mail'].sudo().send(mail_ids)
 
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'
