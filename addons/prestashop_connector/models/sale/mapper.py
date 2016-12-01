@@ -278,7 +278,8 @@ class SaleOrderLineMapper(PrestashopImportMapper):
         return {
             'discount_amount' : discount_amount,
             'price_undiscounted': price_undiscounted,
-            'discount': discount
+            'discount': discount,
+            'flag_disc': 'value',
         }
 
     @mapping
