@@ -49,7 +49,7 @@
       </field>
     </record>
 
-    <record id="view_product_for_bundle_conf" model="ir.ui.view">
+    <record id="view_product_template_for_bundle_conf" model="ir.ui.view">
       <field name="name">product.template.bundle.conf</field>
       <field name="model">product.template</field>
       <field name="priority" eval="20" />
@@ -63,5 +63,36 @@
         </div>
       </field>
     </record>
+
+    <record id="view_product_product_for_bundle_conf" model="ir.ui.view">
+      <field name="name">product.product.bundle.conf</field>
+      <field name="model">product.product</field>
+      <field name="priority" eval="20" />
+      <field name="inherit_id" ref="product.product_variant_easy_edit_view"/>
+      <field name="arch" type="xml">
+        <field name="active" position="after">
+            <field name="is_product_bundle"/>
+        </field>
+      </field>
+    </record>
+
+    <record id="product_variant_bundle_view" model="ir.ui.view">
+      <field name="name">product.product.view.form.easy</field>
+      <field name="model">product.product</field>
+      <field name="inherit_id" ref="product.product_variant_easy_edit_view" />
+      <field name="arch" type="xml">
+        <sheet position="inside">
+          <group name="bundles" attrs="{'invisible':[('is_product_bundle','=',False)]}">
+            <field name="product_bundles">
+              <tree editable="top">
+                <field name="product_id"/>
+                <field name="qty"/>
+              </tree>
+            </field>
+          </group>
+        </sheet>
+      </field>
+    </record>
+
   </data>
 </openerp>

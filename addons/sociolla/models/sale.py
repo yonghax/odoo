@@ -14,8 +14,9 @@ class SaleOrder(models.Model):
     def has_product_bundle(self):
         order_lines = self.order_line
         for line in order_lines:
-            if line.product_id.is_product_bundle:
+            if line.product_id.is_product_bundle or line.product_id.product_tmpl_id.is_product_bundle:
                 return True
+
         return False
 
     @api.depends('order_line.price_total')
@@ -45,23 +46,24 @@ class SaleOrderLine(models.Model):
     discount_header_amount = fields.Monetary(string='Discount Header Amount',  readonly=True, default=0.0)
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_compute_amount', track_visibility='always')
     is_from_product_bundle = fields.Boolean(string='Flag from Product Bundle',default=False)
+    flag_disc = fields.Char(string='Discount Flag',size=50,)
     
-
-    @api.depends('product_uom_qty', 'discount', 'price_unit', 'tax_id', 'discount_amount')
+    
+    @api.depends('product_uom_qty', 'discount', 'price_unit', 'tax_id', 'discount_amount','flag_disc')
     def _compute_amount(self):
         """
         Override base function to add calculation for discount_amount
         """
         for line in self:
-            if not line.is_from_product_bundle:
-                price = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
-            else:
+            if line.flag_disc == 'value':
                 price = line.price_unit - (line.discount_amount / line.product_uom_qty)
+            else:
+                price = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
 
             price_undiscounted = round(line.product_uom_qty * line.price_unit) 
             discount_header_amount = line.discount_header_amount or 0.0
 
-            if not line.is_from_product_bundle:
+            if line.flag_disc == 'percentage':
                 discount_amount = price_undiscounted * ((line.discount or 0.0) / 100.0)
             else:
                 discount_amount = line.discount_amount or 0.0
@@ -81,14 +83,14 @@ class SaleOrderLine(models.Model):
             })
 
     def _compute_proportional_amount(self, amount):
-        if not self.is_from_product_bundle:
+        if not line.flag_disc == 'percentage':
             price = self.price_unit * (1 - (self.discount or 0.0) / 100.0)
         else:
             price = self.price_unit - (self.discount_amount / self.product_uom_qty)
 
         price_undiscounted = round(self.product_uom_qty * self.price_unit) 
 
-        if not self.is_from_product_bundle:
+        if not line.flag_disc == 'percentage':
             discount_amount = price_undiscounted * ((self.discount or 0.0) / 100.0)
         else:
             discount_amount = self.discount_amount or 0.0
@@ -154,6 +156,7 @@ class SaleOrderLine(models.Model):
             'invoice_line_tax_ids': [(6, 0, self.tax_id.ids)],
             'account_analytic_id': self.order_id.project_id.id,
             'is_from_product_bundle': self.is_from_product_bundle,
+            'flag_disc': self.flag_disc,
         }
         return res
 
