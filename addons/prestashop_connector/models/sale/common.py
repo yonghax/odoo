@@ -70,6 +70,9 @@ class SaleOrderImport(PrestashopImportSynchronizer):
 
         sale_order = erp_order.openerp_id
 
+        if sale_order.amount_total <= self.backend_record.ship_free_order_amount:
+            self.add_shipping_cost(sale_order, erp_order)
+
         self.work_with_product_bundle(sale_order)
         self.calculate_discount_proportional(sale_order)
         sale_order.recompute()
@@ -95,6 +98,32 @@ class SaleOrderImport(PrestashopImportSynchronizer):
                 inv.action_move_create()
 
         return True
+    
+    def add_shipping_cost(self, sale_order, erp_order):
+        order_adapter = self.unit_for(GenericAdapter, 'prestashop.sale.order')
+        ps_order = order_adapter.read(erp_order.prestashop_id)
+        total_shipping_amount = Decimal(ps_order['total_shipping']) if Decimal(ps_order['total_shipping']) > 0.0 else Decimal(ps_order['total_paid']) - Decimal(sale_order.amount_total)
+
+        vals = {
+            'sequence': 9999999,
+            'price_unit': total_shipping_amount,
+            'product_id': self.backend_record.shipping_product_id.id,
+            'name': ('[%s] - %s' % (self.backend_record.shipping_product_id.default_code, self.backend_record.shipping_product_id.name)),
+            'product_uom_qty': 1,
+            'customer_lead': 0,
+            'product_uom': 1,
+            'company_id': self.backend_record.company_id.id,
+            'state': 'sale',
+            'order_id': sale_order.id,
+            'qty_invoiced': 1,
+            'currency_id': self.backend_record.company_id.currency_id.id,
+            'price_undiscounted': total_shipping_amount,
+            'price_total': total_shipping_amount,
+            'price_subtotal': total_shipping_amount,
+        }
+
+        self.env['sale.order.line'].with_context(self.session.context).create(vals)
+
 
     def work_with_product_bundle(self, sale_order):
         """ 
@@ -104,17 +133,20 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         if not sale_order.has_product_bundle():
             return
 
-        bundle_order_lines = sale_order.order_line.filtered(lambda x: x.product_id.is_product_bundle)
+        bundle_order_lines = sale_order.order_line.filtered(lambda x: x.product_id.is_product_bundle or x.product_id.product_tmpl_id.is_product_bundle)
 
         for line in bundle_order_lines:
-            sum_bundle_unit_price = sum([x.qty * x.product_id.list_price for x in line.product_id.product_bundles]) * line.product_uom_qty
-            
-            for product_bundle in line.product_id.product_bundles:
+            bundles = line.product_id.product_bundles
+            if len(bundles) < 1:
+                bundles = line.product_id.product_tmpl_id.product_bundles
+
+            sum_bundle_unit_price = sum([x.qty * x.product_id.list_price for x in bundles]) * line.product_uom_qty
+
+            for product_bundle in bundles:
                 product = product_bundle.product_id
                 qty = product_bundle.qty * line.product_uom_qty
                 unit_price = product.list_price
                 sub_total = qty * unit_price
-                
                 if sub_total != 0:
                     final_price = round((sub_total / sum_bundle_unit_price) * line.price_total)
                     price = round(final_price / qty)
@@ -125,7 +157,7 @@ class SaleOrderImport(PrestashopImportSynchronizer):
                     price = 0
                     discount_amount = 0
                     discount = 0
-                
+                    
                 taxes = line.tax_id.compute_all(price, line.order_id.currency_id, qty, product=product, partner=line.order_id.partner_id)
                 price_undiscounted = qty * unit_price
 
@@ -151,6 +183,7 @@ class SaleOrderImport(PrestashopImportSynchronizer):
                     'price_subtotal': taxes['total_excluded'],
                     'discount': discount,
                     'is_from_product_bundle': True,
+                    'flag_disc': 'value',
                 }
                 
                 self.env['sale.order.line'].with_context(self.session.context).create(vals)
@@ -177,7 +210,7 @@ class SaleOrderImport(PrestashopImportSynchronizer):
 
         sale_order.discount_amount = sum_discount_amount
         sale_order.update({
-            'discount_amount':sum_discount_amount
+            'discount_amount': sum_discount_amount
         })
 
     def _check_refunds(self, id_customer, id_order):

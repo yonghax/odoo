@@ -125,10 +125,10 @@ class AccountInvoice(models.Model):
 
             journal = inv.journal_id.with_context(ctx)
             line = inv.finalize_invoice_move_lines(line)
-
+        
             date = inv.date or date_invoice
             move_vals = {
-                'ref': inv.reference,
+                'ref': inv.reference if inv.reference else inv.origin,
                 'line_ids': line,
                 'journal_id': journal.id,
                 'date': date,
@@ -338,7 +338,7 @@ class AccountInvoice(models.Model):
         invoice_lines = self.env['account.invoice.line'].browse(self.invoice_line_ids.ids)
         
         for inv_line in invoice_lines:
-            if not inv_line.is_from_product_bundle:
+            if not inv_line.flag_disc:
                 price = inv_line.price_unit * (1 - (inv_line.discount or 0.0) / 100.0)
             else:
                 price = inv_line.price_unit - (inv_line.discount_amount / inv_line.quantity)
@@ -372,7 +372,7 @@ class AccountInvoice(models.Model):
     def get_taxes_values(self):
         tax_grouped = {}
         for line in self.invoice_line_ids:
-            if not line.is_from_product_bundle:
+            if not line.flag_disc:
                 price_unit = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
             else:
                 price_unit = line.price_unit - (line.discount_amount /line.quantity)
@@ -423,6 +423,7 @@ class AccountInvoiceLine(models.Model):
     price_undiscounted = fields.Monetary(string='Undiscount Amount', compute='_compute_price', default=0.0)
     discount_account_id = fields.Many2one('account.account', string='Discount Account', domain=[('deprecated', '=', False)])
     is_from_product_bundle = fields.Boolean(string='Flag from Product Bundle',default=False)
+    flag_disc = fields.Char(string='Discount Flag',size=50,)
 
     @api.onchange('product_id')
     def _onchange_product_id(self):
@@ -484,18 +485,19 @@ class AccountInvoiceLine(models.Model):
 
     @api.one
     @api.depends('price_unit', 'discount', 'invoice_line_tax_ids', 'quantity', 'discount_amount',
-        'product_id', 'invoice_id.partner_id', 'invoice_id.currency_id', 'invoice_id.company_id')
+        'product_id', 'invoice_id.partner_id', 'invoice_id.currency_id', 'invoice_id.company_id', 
+        'flag_disc')
     def _compute_price(self):
         currency = self.invoice_id and self.invoice_id.currency_id or None
 
-        if not self.is_from_product_bundle:
+        if not self.flag_disc:
             price = self.price_unit * (1 - (self.discount or 0.0) / 100.0)
         else:
             price = self.price_unit - (self.discount_amount / self.quantity)
 
         price_undiscounted = self.price_unit * self.quantity
         
-        if not self.is_from_product_bundle:
+        if not self.flag_disc:
             discount_amount = price_undiscounted * ((self.discount or 0.0) / 100.0)
         else:
             discount_amount = self.discount_amount or 0.0

@@ -79,6 +79,7 @@ class prestashop_backend(orm.Model):
         'property_account_payable_id': fields.many2one('account.account', 'Account Payable', select=1, required=True),
         'unrealized_product_category_id': fields.many2one('product.category', 'Unrealized Product Category', select=1, required=True),
         'tax_out_id': fields.many2one('account.tax', 'Tax Out', select=1, required=True),
+        'ship_free_order_amount': fields.float(string='Ship free if Order more than', default=0.0)
     }
 
     _defaults = {
