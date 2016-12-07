@@ -15,6 +15,16 @@ class PurchaseOrder(models.Model):
     last_send_mail = fields.Datetime(string='Last send mail')
     has_send_mail = fields.Boolean(string='Has send mail')
     retry_send_mail = fields.Integer(string='Retry send mail')
+    state = fields.Selection([
+        ('draft', 'Draft PO'),
+        ('sent', 'RFQ Sent'),
+        ('to approve', 'To Approve'),
+        ('purchase', 'Purchase Order'),
+        ('done', 'Done'),
+        ('received', 'Full Received'),
+        ('receiving', 'Receiving'),
+        ('cancel', 'Cancelled')
+        ], string='Status', readonly=True, index=True, copy=False, default='draft', track_visibility='onchange')
 
     @api.multi
     def button_approve(self):
@@ -182,6 +192,8 @@ class PurchaseOrderLine(models.Model):
     discount_amount = fields.Monetary(compute='_compute_amount', string='Disc. Amt', store=True)
     discount_header_amount = fields.Monetary(compute='_compute_amount', string='Disc. Header Amount', readonly = True, store=True)
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_compute_amount')
+    is_full_received = fields.Boolean(string='Is Full Receved')
+    
 
     @api.depends('product_qty', 'price_unit', 'taxes_id', 'discount')
     def _compute_amount(self):
@@ -232,6 +244,32 @@ class PurchaseOrderLine(models.Model):
         if order.currency_id != order.company_id.currency_id:
             price_unit = order.currency_id.compute(price_unit, order.company_id.currency_id, round=False)
         return price_unit
+
+    @api.depends('order_id.state', 'move_ids.state')
+    def _compute_qty_received(self):
+        productuom = self.env['product.uom']
+        for line in self:
+            if line.order_id.state not in ['purchase', 'done', 'received', 'receiving']:
+                line.qty_received = 0.0
+                continue
+            if line.product_id.type not in ['consu', 'product']:
+                line.qty_received = line.product_qty
+                continue
+            bom_delivered = self.sudo()._get_bom_delivered(line.sudo())
+            if bom_delivered and any(bom_delivered.values()):
+                total = line.product_qty
+            elif bom_delivered:
+                total = 0.0
+            else:
+                total = 0.0
+                for move in line.move_ids:
+                    if move.state == 'done':
+                        if move.product_uom != line.product_uom:
+                            total += productuom._compute_qty_obj(move.product_uom, move.product_uom_qty, line.product_uom)
+                        else:
+                            total += move.product_uom_qty
+            line.qty_received = total
+            # line.is_full_received = not any(move.state != 'done' for move in self.move_ids)
 
 class AccountInvoice(models.Model):
     _inherit = 'account.invoice'
