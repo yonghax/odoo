@@ -113,7 +113,6 @@ class PurchaseOrder(models.Model):
 
             mail_id = mail_obj.create(cr, SUPERUSER_ID, {
                 'mail_message_id' : message_id,
-                'mail_server_id' : 5,
                 'state' : 'outgoing',
                 'auto_delete' : True,
                 'email_from' : 'christa.alycia@sociolla.com',
@@ -177,7 +176,6 @@ class PurchaseOrder(models.Model):
 
             mail = self.env['mail.mail'].sudo().create({
                 'mail_message_id' : msg.id,
-                'mail_server_id' : 5,
                 'message_type': 'comment',
                 'notification': True,
                 'state' : 'outgoing',
