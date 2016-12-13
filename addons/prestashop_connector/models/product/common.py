@@ -57,11 +57,9 @@ class TemplateRecordImport(TranslatableRecordImport):
         template = self.env['prestashop.product.template'].browse(erp_id)
                 
         if template.product_variant_count != 1:
-            for product in template.product_variant_ids:                
-                if not product.attribute_value_ids:
-                    # self.session.write('product.product', [product.id],
-                    #                    {'active': False})
-                    product.write({'active': False})
+            for product in template.product_variant_ids:
+                if len(product.attribute_value_ids) < 1:
+                    product.unlink()
 
     def attribute_line(self, erp_id):
         _logger.debug("GET ATTRIBUTES LINE")

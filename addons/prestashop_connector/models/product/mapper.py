@@ -156,7 +156,7 @@ class TemplateMapper(PrestashopImportMapper):
         _logger.debug(bool(int(record['active'])))
         return {
             'always_available': bool(int(record['active'])), 
-            'active':bool(int(record['active']))
+            'active':True
         }
     
     @mapping
