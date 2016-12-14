@@ -33,6 +33,7 @@
     
     'depends': [
         'base', 
+        'mail',
         'account', 
         'product', 
         'sale', 

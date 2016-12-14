@@ -9,3 +9,4 @@ import product_bundle
 import product_brand
 import res_users
 import stock
+import mail
