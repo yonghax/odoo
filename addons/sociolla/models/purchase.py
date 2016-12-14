@@ -16,6 +16,29 @@ class PurchaseOrder(models.Model):
     has_send_mail = fields.Boolean(string='Has send mail')
     retry_send_mail = fields.Integer(string='Retry send mail')
 
+    picking_status = fields.Selection([
+        ('no', 'Not receive'),
+        ('receiving', 'Receive in Progress'),
+        ('received', 'Close Received'),
+        ], string='Receive Status', compute='_get_receive', store=True, readonly=True, copy=False, default='no')
+    
+    @api.depends('state', 'order_line.qty_received', 'order_line.product_qty')
+    def _get_receive(self):
+        precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
+        for order in self:
+            if order.state != 'purchase':
+                order.picking_status = 'no'
+                continue
+
+            if any(float_compare(line.qty_received, line.product_qty, precision_digits=precision) == -1 and line.qty_received > 0 \
+                for line in order.order_line):
+                order.picking_status = 'receiving'
+            elif all(float_compare(line.qty_received, line.product_qty, precision_digits=precision) >= 0 \
+                for line in order.order_line):
+                order.picking_status = 'received'
+            else:
+                order.picking_status = 'no'
+
     @api.multi
     def button_approve(self):
         self.write({
@@ -78,6 +101,8 @@ class PurchaseOrder(models.Model):
                 ]))
             ])) 
 
+        su = user_obj.browse(cr, SUPERUSER_ID, [SUPERUSER_ID])
+
         pending_approvals = self.browse(cr, SUPERUSER_ID, self.search(cr, SUPERUSER_ID, [('state', '=', 'to approve'), ('has_send_mail', '=', False)]))
 
         if len(user_purchase_managers) < 1 or len(pending_approvals) < 1:
@@ -105,23 +130,21 @@ class PurchaseOrder(models.Model):
             'subject' : 'Pending RFQ needs your approval (%s)' % datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
         })
         mail_ids = []
-        for user in user_purchase_managers:
-            if not user.partner_id.email:
-                continue
 
-            mail_body = self.generate_mail_body_html(user.partner_id.name, list_html)
+        mail_body = self.generate_mail_body_html('John Marco', list_html)
 
-            mail_id = mail_obj.create(cr, SUPERUSER_ID, {
-                'mail_message_id' : message_id,
-                'state' : 'outgoing',
-                'auto_delete' : True,
-                'email_from' : 'christa.alycia@sociolla.com',
-                'email_to' : user.partner_id.email,
-                'reply_to' : 'christa.alycia@sociolla.com',
-                'body_html' : mail_body
-                })
+        mail_id = mail_obj.create(cr, SUPERUSER_ID, {
+            'mail_message_id' : message_id,
+            'state' : 'outgoing',
+            'auto_delete' : True,
+            'mail_server_id': su.mail_server.id,
+            'email_from' : 'christa.alycia@sociolla.com',
+            'email_to' : 'john@sociolla.com',
+            'reply_to' : 'christa.alycia@sociolla.com',
+            'body_html' : mail_body
+            })
 
-            mail_ids += [mail_id,]
+        mail_ids += [mail_id,]
 
         mail_obj.send(cr, SUPERUSER_ID, mail_ids)
     
@@ -197,6 +220,12 @@ class PurchaseOrderLine(models.Model):
     discount_amount = fields.Monetary(compute='_compute_amount', string='Disc. Amt', store=True)
     discount_header_amount = fields.Monetary(compute='_compute_amount', string='Disc. Header Amount', readonly = True, store=True)
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_compute_amount')
+    is_full_received = fields.Boolean(string='Is Full Receved', compute='_check_full_received', store=True)
+    
+    @api.depends('move_ids.state')
+    def _check_full_received(self):
+        for line in self:
+            line.is_full_received = (line.qty_received >= line.product_qty)
 
     @api.depends('product_qty', 'price_unit', 'taxes_id', 'discount')
     def _compute_amount(self):
