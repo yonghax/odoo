@@ -17,7 +17,7 @@ class PurchaseOrder(models.Model):
     retry_send_mail = fields.Integer(string='Retry send mail')
 
     picking_status = fields.Selection([
-        ('no', 'Not receive'),
+        ('no', 'Not yet Receive'),
         ('receiving', 'Receive in Progress'),
         ('received', 'Close Received'),
         ], string='Receive Status', compute='_get_receive', store=True, readonly=True, copy=False, default='no')
