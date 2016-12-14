@@ -70,6 +70,9 @@ class SaleOrderImport(PrestashopImportSynchronizer):
 
         sale_order = erp_order.openerp_id
 
+        if sale_order.amount_total <= self.backend_record.ship_free_order_amount:
+            self.add_shipping_cost(sale_order, erp_order)
+
         self.work_with_product_bundle(sale_order)
         self.calculate_discount_proportional(sale_order)
         sale_order.recompute()
@@ -95,6 +98,32 @@ class SaleOrderImport(PrestashopImportSynchronizer):
                 inv.action_move_create()
 
         return True
+    
+    def add_shipping_cost(self, sale_order, erp_order):
+        order_adapter = self.unit_for(GenericAdapter, 'prestashop.sale.order')
+        ps_order = order_adapter.read(erp_order.prestashop_id)
+        total_shipping_amount = Decimal(ps_order['total_shipping']) if Decimal(ps_order['total_shipping']) > 0.0 else Decimal(ps_order['total_paid']) - Decimal(sale_order.amount_total)
+
+        vals = {
+            'sequence': 9999999,
+            'price_unit': total_shipping_amount,
+            'product_id': self.backend_record.shipping_product_id.id,
+            'name': ('[%s] - %s' % (self.backend_record.shipping_product_id.default_code, self.backend_record.shipping_product_id.name)),
+            'product_uom_qty': 1,
+            'customer_lead': 0,
+            'product_uom': 1,
+            'company_id': self.backend_record.company_id.id,
+            'state': 'sale',
+            'order_id': sale_order.id,
+            'qty_invoiced': 1,
+            'currency_id': self.backend_record.company_id.currency_id.id,
+            'price_undiscounted': total_shipping_amount,
+            'price_total': total_shipping_amount,
+            'price_subtotal': total_shipping_amount,
+        }
+
+        self.env['sale.order.line'].with_context(self.session.context).create(vals)
+
 
     def work_with_product_bundle(self, sale_order):
         """ 

@@ -128,7 +128,7 @@ class SaleOrderLine(models.Model):
             raise UserError(_('Please define income account for this product: "%s" (id:%d) - or for its category: "%s".') % \
                             (self.product_id.name, self.product_id.id, self.product_id.categ_id.name))
 
-        if not discount_account:
+        if not discount_account and self.product_id.type != 'service':
             raise UserError(_('Please define discount account for this product: "%s" (id:%d) - or for its category: "%s".') % \
                             (self.product_id.name, self.product_id.id, self.product_id.categ_id.name))
 
@@ -145,7 +145,7 @@ class SaleOrderLine(models.Model):
             'sequence': self.sequence,
             'origin': self.order_id.name,
             'account_id': account.id,
-            'discount_account_id': discount_account.id,
+            'discount_account_id': discount_account.id if discount_account else False,
             'price_unit': self.price_unit,
             'quantity': qty,
             'discount': self.discount,

@@ -49,6 +49,7 @@
                     <field name="tax_out_id" />
                     <field name="discount_product_id" />
                     <field name="shipping_product_id" />
+                    <field name="ship_free_order_amount" />
                 </group>
                 <notebook>
                     <page name="import" string="Imports">

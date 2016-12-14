@@ -39,6 +39,20 @@ class PurchaseOrder(models.Model):
         return {}
 
     @api.multi
+    def _create_picking(self):
+        for order in self:
+            if any([ptype in ['product', 'consu'] for ptype in order.order_line.mapped('product_id.type')]):
+                res = order._prepare_picking()
+                res['vendor_id'] = order.partner_id.id
+                
+                picking = self.env['stock.picking'].create(res)
+                moves = order.order_line.filtered(lambda r: r.product_id.type in ['product', 'consu'])._create_stock_moves(picking)
+                move_ids = moves.action_confirm()
+                moves = self.env['stock.move'].browse(move_ids)
+                moves.force_assign()
+        return True
+
+    @api.multi
     def button_confirm(self):
          for order in self:
             if order.state not in ['draft', 'sent']:
@@ -147,6 +161,9 @@ class PurchaseOrder(models.Model):
     def send_notification_approved(self):
         mail_ids = []
         for order in self:
+            if order.approved_uid == order.create_uid:
+                continue
+
             subtype_id = self.env['mail.message.subtype'].sudo().browse(
                 self.env['mail.message.subtype'].sudo().search([
                     ('res_model', '=', 'purchase.order'), 
