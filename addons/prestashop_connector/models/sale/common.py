@@ -120,6 +120,8 @@ class SaleOrderImport(PrestashopImportSynchronizer):
             'price_undiscounted': total_shipping_amount,
             'price_total': total_shipping_amount,
             'price_subtotal': total_shipping_amount,
+            'discount_amount': 0.0,
+            'discount_header_amount': 0.0,
         }
 
         self.env['sale.order.line'].with_context(self.session.context).create(vals)
@@ -195,7 +197,7 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         """
         order_lines = sale_order.order_line
         order_discounts = order_lines.filtered(lambda x: x.product_id == self.backend_record.discount_product_id)
-        order_products = order_lines.filtered(lambda x: x.product_id != self.backend_record.discount_product_id)
+        order_products = order_lines.filtered(lambda x: x.product_id != self.backend_record.discount_product_id and x.product_id.type == 'product')
         order_products = sorted(order_products, key=lambda x : x.price_total, reverse=True)
         
         sum_discount_amount = sum([x.price_unit for x in order_discounts])
@@ -204,6 +206,9 @@ class SaleOrderImport(PrestashopImportSynchronizer):
             for i in xrange(0, len(order_products)):
                 total_amount = order_products[i].price_total
                 discount_header_amount = round((total_amount / sum_total_amount_header) * sum_discount_amount)
+                if discount_header_amount > total_amount:
+                     discount_header_amount = total_amount
+
                 order_products[i]._compute_proportional_amount(discount_header_amount)
         
             order_discounts.unlink()

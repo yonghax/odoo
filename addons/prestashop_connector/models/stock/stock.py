@@ -14,9 +14,9 @@ class stock_move(models.Model):
             backend_record = backend_obj.browse(cr,SUPERUSER_ID, backend_record, context=context)
 
             if backend_record:
-                for move in self.browse(cr, SUPERUSER_ID, ids, context=context):
+                for move in self.browse(cr, uid, ids, context=context):
                     pick = move.picking_id
-                    if not pick or (pick and pick.state == 'done' and pick.date_done and pick.picking_type_code == 'incoming'):
+                    if move.state == 'done' and (pick and (pick.picking_type_code == 'incoming' or (pick.picking_type_code == 'outgoing' and move.origin_returned_move_id))):
                         backend_record.update_product_stock_qty(context=context, product=move.product_id)
 
 class stock_quant(models.Model):
