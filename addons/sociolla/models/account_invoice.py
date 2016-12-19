@@ -230,7 +230,7 @@ class AccountInvoice(models.Model):
     def discount_line_move_line_get(self):
         res = []
         for line in self.invoice_line_ids:
-            if line.discount_amount > 0 or line.discount_header_amount > 0:
+            if (line.discount_amount > 0 or line.discount_header_amount > 0):
                 amount = line.discount_amount + line.discount_header_amount
                 if self.type == 'out_refund':
                     amount = - amount
@@ -238,7 +238,7 @@ class AccountInvoice(models.Model):
                 move_line_dict = {
                     'invl_id': line.id,
                     'type': 'disc',
-                    'name': 'Sales Discount ' + line.name.split('\n')[0][:64],
+                    'name': line.name.split('\n')[0][:64],
                     'price_unit': line.price_unit,
                     'quantity': line.quantity,
                     'price':amount,
@@ -333,9 +333,10 @@ class AccountInvoice(models.Model):
     @api.model
     def calculate_discount_proportional(self, discount_amount):
         currency = self.currency_id or None
-        gross_amount = sum([(x.quantity * (x.price_unit * (1 - (x.discount or 0.0) / 100.0))) for x in self.invoice_line_ids])
 
-        invoice_lines = self.env['account.invoice.line'].browse(self.invoice_line_ids.ids)
+        gross_amount = sum([(x.quantity * (x.price_unit * (1 - (x.discount or 0.0) / 100.0))) for x in self.invoice_line_ids.filtered(lambda x: x.product_id.type == 'product')])
+
+        invoice_lines = self.env['account.invoice.line'].browse(self.invoice_line_ids.ids).filtered(lambda x: x.product_id.type == 'product')
         
         for inv_line in invoice_lines:
             if not inv_line.flag_disc:
@@ -345,6 +346,10 @@ class AccountInvoice(models.Model):
             
             amount = inv_line.quantity * price
             discount_proportional = round(amount / gross_amount * discount_amount)
+
+            if discount_proportional > price:
+                discount_proportional = price
+
             discount_proportional_unit = 0.0
                 
             if discount_proportional > 0:
