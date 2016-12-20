@@ -7,6 +7,11 @@ except ImportError, e:
     from xml.etree import ElementTree
 
 @prestashop
+class ProductBrandAdapter(GenericAdapter):
+    _model_name = 'prestashop.product.brand'
+    _prestashop_model = 'manufacturers'
+
+@prestashop
 class ProductTemplateAdapter(GenericAdapter):
     _model_name = 'prestashop.product.template'
     _prestashop_model = 'products'

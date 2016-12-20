@@ -83,14 +83,14 @@ class SaleOrderLine(models.Model):
             })
 
     def _compute_proportional_amount(self, amount):
-        if not line.flag_disc == 'percentage':
+        if not self.flag_disc == 'percentage':
             price = self.price_unit * (1 - (self.discount or 0.0) / 100.0)
         else:
             price = self.price_unit - (self.discount_amount / self.product_uom_qty)
 
         price_undiscounted = round(self.product_uom_qty * self.price_unit) 
 
-        if not line.flag_disc == 'percentage':
+        if not self.flag_disc == 'percentage':
             discount_amount = price_undiscounted * ((self.discount or 0.0) / 100.0)
         else:
             discount_amount = self.discount_amount or 0.0

@@ -19,7 +19,7 @@ class PurchaseOrder(models.Model):
     picking_status = fields.Selection([
         ('no', 'Not yet Receive'),
         ('receiving', 'Receive in Progress'),
-        ('received', 'Close Received'),
+        ('received', 'Full Received'),
         ], string='Receive Status', compute='_get_receive', store=True, readonly=True, copy=False, default='no')
     
     @api.depends('state', 'order_line.qty_received', 'order_line.product_qty')
