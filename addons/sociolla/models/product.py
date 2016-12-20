@@ -50,3 +50,9 @@ class product_template(osv.osv):
             'sales_return': res['sales_return'] or self.property_account_sales_return_id or self.categ_id.property_account_sales_return_categ_id,
         })
         return accounts
+
+class ProductSupplierInfo(models.Model):
+    _inherit='product.supplierinfo'
+    
+    discount = fields.Float(string='Disc(%)',default=0.0)
+    
