@@ -240,6 +240,19 @@ class PurchaseOrder(models.Model):
                     line.product_id.write(vals)
                 except AccessError:  # no write access rights -> just ignore
                     break
+            elif partner in line.product_id.seller_ids.mapped('name'):
+                supplierinfos = line.product_id.seller_ids.filtered(lambda x: x.name == partner)
+                for supplierinfo in supplierinfos:
+                    currency = partner.property_purchase_currency_id or self.env.user.company_id.currency_id
+                    vals = {
+                        'price': self.currency_id.compute(line.price_unit, currency),
+                        'discount': line.discount,
+                    }
+                    try:
+                        supplierinfo.write(vals)
+                    except AccessError:  # no write access rights -> just ignore
+                        break
+                
 
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'
@@ -282,7 +295,7 @@ class PurchaseOrderLine(models.Model):
     
     @api.onchange('product_qty', 'product_uom')
     def _onchange_quantity(self):
-        if not self.product_id:
+        if not self.product_id or self.price_unit > 0 or self.discount > 0:
             return
 
         seller = self.product_id._select_seller(
