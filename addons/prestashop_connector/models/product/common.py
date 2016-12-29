@@ -176,7 +176,7 @@ class StockAvailableExport(Exporter):
         """ Export the product inventory to Prestashop """
 
         product = self.env['product.product'].browse([openerp_id])
-        product.ensure_one();
+        product.ensure_one()
 
         adapter = self.unit_for(GenericAdapter, '_import_stock_available')
         filter = self.get_filter(product)

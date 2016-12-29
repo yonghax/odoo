@@ -377,7 +377,7 @@ class sale_shop(orm.Model):
             'prestashop.shop', 'openerp_id',
             string='PrestaShop Bindings',
             readonly=True),
-        'company_id': fields.many2one('res.company', 'Company', select=1, required=True),
+        'company_id': fields.many2one('res.company', 'Company', select=1, required=True, default=lambda self: self.env.user.company_id),
         'warehouse_id': fields.many2one(
             'stock.warehouse',
             'Warehouse',

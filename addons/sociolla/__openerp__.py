@@ -39,7 +39,8 @@
         'sale', 
         'product_brand',
         'purchase',
-        'stock'
+        'stock',
+        'sale_shop'
     ],
 
     'data': [
@@ -48,6 +49,7 @@
         'views/product_brand_view.xml',
         'views/res_users_view.xml',
         'views/stock_view.xml',
+        'views/shop_view.xml',
         'security/ir.model.access.csv',
         # 'reports/report_purchaseorder.xml',
         # 'reports/report_purchasequotation.xml',

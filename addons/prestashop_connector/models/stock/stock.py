@@ -16,7 +16,7 @@ class stock_move(models.Model):
             if backend_record:
                 for move in self.browse(cr, uid, ids, context=context):
                     pick = move.picking_id
-                    if pick and pick.picking_type_code == 'outgoing' and not move.origin_returned_move_id:
+                    if pick and (pick.picking_type_code == 'outgoing' and not move.origin_returned_move_id):
                         continue
                         
                     if move.state == 'done' or (pick and (pick.picking_type_code == 'incoming' or (pick.picking_type_code == 'outgoing' and move.origin_returned_move_id))):
