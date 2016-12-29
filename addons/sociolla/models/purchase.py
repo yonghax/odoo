@@ -19,7 +19,7 @@ class PurchaseOrder(models.Model):
     picking_status = fields.Selection([
         ('no', 'Not yet Receive'),
         ('receiving', 'Receive in Progress'),
-        ('received', 'Close Received'),
+        ('received', 'Full Received'),
         ], string='Receive Status', compute='_get_receive', store=True, readonly=True, copy=False, default='no')
     
     @api.depends('state', 'order_line.qty_received', 'order_line.product_qty')
@@ -213,10 +213,51 @@ class PurchaseOrder(models.Model):
 
         self.env['mail.mail'].sudo().send(mail_ids)
 
+    @api.multi
+    def _add_supplier_to_product(self):
+        # Add the partner in the supplier list of the product if the supplier is not registered for
+        # this product. We limit to 10 the number of suppliers for a product to avoid the mess that
+        # could be caused for some generic products ("Miscellaneous").
+        for line in self.order_line:
+            # Do not add a contact as a supplier
+            partner = self.partner_id if not self.partner_id.parent_id else self.partner_id.parent_id
+            if partner not in line.product_id.seller_ids.mapped('name') and len(line.product_id.seller_ids) <= 10:
+                currency = partner.property_purchase_currency_id or self.env.user.company_id.currency_id
+                supplierinfo = {
+                    'name': partner.id,
+                    'sequence': max(line.product_id.seller_ids.mapped('sequence')) + 1 if line.product_id.seller_ids else 1,
+                    'product_uom': line.product_uom.id,
+                    'min_qty': 0.0,
+                    'price': self.currency_id.compute(line.price_unit, currency),
+                    'discount': line.discount,
+                    'currency_id': currency.id,
+                    'delay': 0,
+                }
+                vals = {
+                    'seller_ids': [(0, 0, supplierinfo)],
+                }
+                try:
+                    line.product_id.write(vals)
+                except AccessError:  # no write access rights -> just ignore
+                    break
+            elif partner in line.product_id.seller_ids.mapped('name'):
+                supplierinfos = line.product_id.seller_ids.filtered(lambda x: x.name == partner)
+                for supplierinfo in supplierinfos:
+                    currency = partner.property_purchase_currency_id or self.env.user.company_id.currency_id
+                    vals = {
+                        'price': self.currency_id.compute(line.price_unit, currency),
+                        'discount': line.discount,
+                    }
+                    try:
+                        supplierinfo.write(vals)
+                    except AccessError:  # no write access rights -> just ignore
+                        break
+                
+
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'
 
-    discount = fields.Float(string='Disc %')
+    discount = fields.Float(string='Disc %', digits=dp.get_precision('Discount'), default=0.0)
     discount_amount = fields.Monetary(compute='_compute_amount', string='Disc. Amt', store=True)
     discount_header_amount = fields.Monetary(compute='_compute_amount', string='Disc. Header Amount', readonly = True, store=True)
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_compute_amount')
@@ -251,6 +292,34 @@ class PurchaseOrderLine(models.Model):
                 'discount_header_amount': discount_header_amount,
                 'price_undiscounted': price_undiscounted,
             })
+    
+    @api.onchange('product_qty', 'product_uom')
+    def _onchange_quantity(self):
+        if not self.product_id or self.price_unit > 0 or self.discount > 0:
+            return
+
+        seller = self.product_id._select_seller(
+            self.product_id,
+            partner_id=self.partner_id,
+            quantity=self.product_qty,
+            date=self.order_id.date_order and self.order_id.date_order[:10],
+            uom_id=self.product_uom)
+
+        if seller or not self.date_planned:
+            self.date_planned = self._get_date_planned(seller).strftime(DEFAULT_SERVER_DATETIME_FORMAT)
+
+        if not seller:
+            return
+
+        price_unit = self.env['account.tax']._fix_tax_included_price(seller.price, self.product_id.supplier_taxes_id, self.taxes_id) if seller else 0.0
+        if price_unit and seller and self.order_id.currency_id and seller.currency_id != self.order_id.currency_id:
+            price_unit = seller.currency_id.compute(price_unit, self.order_id.currency_id)
+
+        if seller and self.product_uom and seller.product_uom != self.product_uom:
+            price_unit = self.env['product.uom']._compute_price(seller.product_uom.id, price_unit, to_uom_id=self.product_uom.id)
+
+        self.price_unit = price_unit
+        self.discount = seller.discount
 
     @api.multi
     def _get_stock_move_price_unit(self):

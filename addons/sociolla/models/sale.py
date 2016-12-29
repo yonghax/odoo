@@ -10,7 +10,8 @@ class SaleOrder(models.Model):
 
     discount_amount = fields.Monetary(string='Discount Amount', store=True, readonly=True, compute='_amount_all', track_visibility='always')
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_amount_all', track_visibility='always')
-    
+    shop_id = fields.Many2one('sale.shop', string='Shop', change_default=True,)
+
     def has_product_bundle(self):
         order_lines = self.order_line
         for line in order_lines:
@@ -18,6 +19,11 @@ class SaleOrder(models.Model):
                 return True
 
         return False
+
+    @api.onchange('shop_id')
+    def _setWarehouseID(self):
+        if self.shop_id:
+            self.warehouse_id = self.shop_id.warehouse_id
 
     @api.depends('order_line.price_total')
     def _amount_all(self):

@@ -531,10 +531,13 @@ class AccountInvoiceLine(models.Model):
 
     @api.v8
     def get_invoice_line_account(self, type, product, fpos, company):
-        accounts = product.product_tmpl_id.get_product_accounts(fpos)
+        if company.anglo_saxon_accounting and type in ('in_invoice', 'in_refund') and product and product.type in ('consu', 'product'):
+            accounts = product.product_tmpl_id.get_product_accounts(fiscal_pos=fpos)
+            if type == 'in_invoice':
+                return accounts['stock_input']
+            return accounts['stock_output']
+
         if type == 'out_invoice':
             return accounts['income']
         elif type == 'out_refund':
             return accounts['sales_return']
-
-        return accounts['expense']

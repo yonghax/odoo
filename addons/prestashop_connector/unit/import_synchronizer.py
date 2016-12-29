@@ -555,5 +555,5 @@ def export_product_quantities(session, model_name, backend_id, product=None):
         'prestashop.product.template',
         backend_id,
         product.id,
-        priority=20,
+        priority=1,
     )

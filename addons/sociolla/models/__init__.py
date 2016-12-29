@@ -10,3 +10,5 @@ import product_brand
 import res_users
 import stock
 import mail
+import shop
+import account_bank_statement
