@@ -10,7 +10,7 @@ msgstr ""
 "Project-Id-Version: Odoo 9.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2015-10-09 09:17+0000\n"
-"PO-Revision-Date: 2016-05-16 11:53+0000\n"
+"PO-Revision-Date: 2016-12-02 13:43+0000\n"
 "Last-Translator: Bole <bole@dajmi5.com>\n"
 "Language-Team: Croatian (http://www.transifex.com/odoo/odoo-9/language/hr/)\n"
 "MIME-Version: 1.0\n"
@@ -54,7 +54,7 @@ msgstr "&times;"
 msgid ""
 "(Un)archiving a project automatically (un)archives its tasks and issues. Do "
 "you want to proceed?"
-msgstr ""
+msgstr "Arhiviranje projekta automatski arhivira njegove zadatke i pogreške. Želite li nastaviti?"
 
 #. module: project
 #: model:ir.ui.view,arch_db:project.project_planner
@@ -70,12 +70,12 @@ msgstr "1. naučite o Zadacima, Problemima i Rasporedima."
 #: model:ir.ui.view,arch_db:project.project_planner
 msgid ""
 "2. Now, take some time to list <strong>the Projects you'll need:</strong>"
-msgstr ""
+msgstr "2. Sada, dajte si vremena da odaberete  <strong>projekte koje ćete trebati:</strong>"
 
 #. module: project
 #: model:ir.ui.view,arch_db:project.project_planner
 msgid "<i class=\"fa fa-user\"/> Person Responsible"
-msgstr ""
+msgstr "<i class=\"fa fa-user\"/> Odgovorna osoba"
 
 #. module: project
 #: code:addons/project/project.py:139
@@ -91,7 +91,7 @@ msgstr ""
 #. module: project
 #: model:ir.ui.view,arch_db:project.edit_project
 msgid "<span attrs=\"{'invisible':[('use_tasks', '=', False)]}\">as </span>"
-msgstr ""
+msgstr "<span attrs=\"{'invisible':[('use_tasks', '=', False)]}\">kao </span>"
 
 #. module: project
 #: model:ir.ui.view,arch_db:project.project_planner
@@ -111,21 +111,21 @@ msgstr "<span class=\"fa fa-comment-o\"/> Uključeno čavrljanje na web stranici
 #. module: project
 #: model:ir.ui.view,arch_db:project.project_planner
 msgid "<span class=\"fa fa-envelope-o\"/> Email Our Project Expert"
-msgstr ""
+msgstr "<span class=\"fa fa-envelope-o\"/> Kontaktirajte našeg stručnjaka za projekte"
 
 #. module: project
 #: model:ir.ui.view,arch_db:project.project_planner
 msgid ""
 "<span class=\"fa fa-thumbs-o-down\"/> The <strong> Wrong Way</strong> to use"
 " projects:"
-msgstr ""
+msgstr "<span class=\"fa fa-thumbs-o-down\"/> <strong> Krivi način</strong> korištenja projekata:"
 
 #. module: project
 #: model:ir.ui.view,arch_db:project.project_planner
 msgid ""
 "<span class=\"fa fa-thumbs-o-up\"/> The <strong>Right Way</strong> to use "
 "projects:"
-msgstr ""
+msgstr "<span class=\"fa fa-thumbs-o-up\"/><strong>Pravi način</strong> korištenja projekata:"
 
 #. module: project
 #: model:ir.ui.view,arch_db:project.view_project_kanban
@@ -658,7 +658,7 @@ msgstr "Prihvati email od"
 #. module: project
 #: model:ir.ui.view,arch_db:project.project_planner
 msgid "Account Preferences"
-msgstr ""
+msgstr "Postavke konta"
 
 #. module: project
 #: model:ir.model.fields,field_description:project.field_project_project_message_needaction
@@ -701,7 +701,7 @@ msgstr "Dodaj opis..."
 #: code:addons/project/static/src/js/web_planner_project.js:55
 #, python-format
 msgid "Added in current sprint"
-msgstr ""
+msgstr "Dodano u trenutni sprint"
 
 #. module: project
 #: model:project.task.type,name:project.project_stage_data_2
@@ -815,7 +815,7 @@ msgstr "Datum dodjeljivanja"
 #. module: project
 #: model:ir.ui.view,arch_db:project.view_task_project_user_search
 msgid "Assignation Month"
-msgstr ""
+msgstr "Mjesec dodjeljivanja"
 
 #. module: project
 #: model:ir.actions.act_window,name:project.act_res_users_2_project_task_opened
@@ -942,7 +942,7 @@ msgstr ""
 #. module: project
 #: model:ir.filters,name:project.filter_task_report_responsible
 msgid "By Responsible"
-msgstr ""
+msgstr "Po odgovornom"
 
 #. module: project
 #: model:ir.ui.view,arch_db:project.view_config_settings
@@ -994,7 +994,7 @@ msgstr ""
 #. module: project
 #: model:ir.actions.act_window,help:project.project_tags_action
 msgid "Click to add a new tag."
-msgstr ""
+msgstr "Klikni za dodavanje nove oznake."
 
 #. module: project
 #: model:ir.actions.act_window,help:project.open_task_type_form
@@ -1116,7 +1116,7 @@ msgstr ""
 #: model:ir.actions.act_window,help:project.open_view_project_all
 #: model:ir.actions.act_window,help:project.open_view_project_all_config
 msgid "Create a new project."
-msgstr ""
+msgstr "Kreiraj novi projekt."
 
 #. module: project
 #: model:ir.ui.view,arch_db:project.project_planner
@@ -1128,7 +1128,7 @@ msgstr ""
 #. module: project
 #: model:ir.ui.view,arch_db:project.project_planner
 msgid "Create at least 3 tasks"
-msgstr ""
+msgstr "Kreiraj najmanje 3 zadatka"
 
 #. module: project
 #: model:ir.ui.view,arch_db:project.project_planner
@@ -1480,7 +1480,7 @@ msgstr ""
 #. module: project
 #: model:ir.ui.view,arch_db:project.view_task_kanban
 msgid "Edit Task"
-msgstr ""
+msgstr "Uredi zadatak"
 
 #. module: project
 #: model:ir.ui.view,arch_db:project.edit_project
@@ -1574,7 +1574,7 @@ msgstr "Datum isteka roka trajanja"
 msgid ""
 "Explanation text to help users using the star and priority mechanism on "
 "stages or issues that are in this stage."
-msgstr ""
+msgstr "Tekst koji objašnjava korisnicima korištenje zvedice i mehanizma prioriteta na etapama ili problemima koji su u toj etapi."
 
 #. module: project
 #: model:ir.ui.view,arch_db:project.view_task_project_user_search
@@ -2075,7 +2075,7 @@ msgstr ""
 #. module: project
 #: model:ir.ui.view,arch_db:project.view_task_search_form
 msgid "Last Message"
-msgstr ""
+msgstr "Zadnja poruka"
 
 #. module: project
 #: model:ir.model.fields,field_description:project.field_project_project_message_last_post
@@ -2528,7 +2528,7 @@ msgstr "Prioritet"
 #. module: project
 #: model:ir.model.fields,field_description:project.field_project_task_type_legend_priority
 msgid "Priority Management Explanation"
-msgstr ""
+msgstr "Objašnjenje upravljana prioritetima"
 
 #. module: project
 #: model:ir.model.fields,field_description:project.field_project_project_privacy_visibility
@@ -3455,7 +3455,7 @@ msgstr "Brojač nepročitanih poruka"
 #. module: project
 #: model:ir.ui.view,arch_db:project.edit_project
 msgid "Use Tasks"
-msgstr ""
+msgstr "Koristi zadatke"
 
 #. module: project
 #: model:ir.model.fields,field_description:project.field_project_project_label_tasks
@@ -3539,7 +3539,7 @@ msgstr ""
 #. module: project
 #: model:ir.ui.view,arch_db:project.project_planner
 msgid "We can automate steps in your workflow, for example:"
-msgstr ""
+msgstr "Možemo automatizirati korake tijeka rada, na primjer:"
 
 #. module: project
 #: model:ir.ui.view,arch_db:project.project_planner
@@ -3696,7 +3696,7 @@ msgstr "Vaši objekti"
 #. module: project
 #: model:ir.ui.view,arch_db:project.project_planner
 msgid "Your Projects"
-msgstr ""
+msgstr "Vaši projekti"
 
 #. module: project
 #: model:ir.ui.view,arch_db:project.project_planner

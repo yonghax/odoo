@@ -423,7 +423,7 @@ class procurement_order(osv.osv):
 
     def _get_orderpoint_date_planned(self, cr, uid, orderpoint, start_date, context=None):
         days = orderpoint.lead_days or 0.0
-        if orderpoint.lead_type=='purchase':
+        if orderpoint.lead_type == 'supplier':
             # These days will be substracted when creating the PO
             days += orderpoint.product_id._select_seller(orderpoint.product_id).delay or 0.0
         date_planned = start_date + relativedelta(days=days)
@@ -460,7 +460,7 @@ class procurement_order(osv.osv):
         product_obj = self.pool.get('product.product')
 
         dom = company_id and [('company_id', '=', company_id)] or []
-        orderpoint_ids = orderpoint_obj.search(cr, uid, dom, order="location_id")
+        orderpoint_ids = orderpoint_obj.search(cr, uid, dom, order="location_id", context=context)
         prev_ids = []
         tot_procs = []
         while orderpoint_ids:

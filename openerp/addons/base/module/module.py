@@ -499,6 +499,7 @@ class module(osv.osv):
                                                               known_dep_ids, exclude_states, context))
         return list(known_dep_ids)
 
+    @api.returns('self')
     def upstream_dependencies(self, cr, uid, ids, known_dep_ids=None,
                                 exclude_states=['installed', 'uninstallable', 'to remove'],
                                 context=None):
@@ -751,7 +752,7 @@ class module(osv.osv):
             to_install_ids = self.search(cr, uid, [('name', 'in', urls.keys()), ('state', '=', 'uninstalled')], context=context)
             post_install_action = self.button_immediate_install(cr, uid, to_install_ids, context=context)
 
-            if already_installed:
+            if already_installed or to_install_ids:
                 # in this case, force server restart to reload python code...
                 cr.commit()
                 openerp.service.server.restart()

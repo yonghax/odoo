@@ -1113,6 +1113,7 @@ var FieldReference = common.AbstractField.extend(common.ReinitializeFieldMixin, 
         this.m2o = new FieldMany2One(fm, { attrs: {
             name: 'Referenced Document',
             modifiers: JSON.stringify({readonly: this.get('effective_readonly')}),
+            context: this.build_context().eval(),
         }});
         this.m2o.on("change:value", this, this.data_changed);
         this.m2o.appendTo(this.$(".oe_form_view_reference_m2o"));
@@ -1151,6 +1152,9 @@ var FieldReference = common.AbstractField.extend(common.ReinitializeFieldMixin, 
         this.m2o.set_value(this.get('value')[1]);
         this.m2o.do_toggle(!!this.get('value')[0]);
         this.reference_ready = true;
+    },
+    is_false: function() {
+        return this.get('value')[0] == false || this.get('value')[1] == false;
     },
 });
 
