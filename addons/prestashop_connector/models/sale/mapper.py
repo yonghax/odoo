@@ -4,6 +4,7 @@ import pytz
 from decimal import Decimal
 from ...backend import prestashop
 from ...unit.mapper import PrestashopImportMapper, mapping
+from openerp import SUPERUSER_ID
 from openerp.addons.connector.unit.backend_adapter import BackendAdapter
 from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT
 
@@ -130,34 +131,37 @@ class SaleOrderMapper(PrestashopImportMapper):
             record['id_shop']
         )
         return {'shop_id': shop_id}
+    
+    def _find_partner_id(self, record):
+        module = record['module']
+
+        if module:
+            obj = self.env['sociolla.payment.method']
+            search = obj.search([('name','=',module)])
+
+            if search:
+                payment_method = search
+                return payment_method.partner_id
+
+        return False
+
 
     @mapping
     def partner_id(self, record):
-        return {'partner_id': self.get_openerp_id(
-            'prestashop.res.partner',
-            record['id_customer']
-        )}
+        partner_id = self._find_partner_id(record)
 
-    @mapping
-    def partner_invoice_id(self, record):
-        return {'partner_invoice_id': self.get_openerp_id(
-            'prestashop.address',
-            record['id_address_invoice']
-        )}
-
-    @mapping
-    def partner_shipping_id(self, record):
-        return {'partner_shipping_id': self.get_openerp_id(
-            'prestashop.address',
-            record['id_address_delivery']
-        )}
+        return {
+            'partner_id': partner_id.id,
+            'id_address_invoice': partner_id.id,
+            'id_address_delivery': partner_id.id,
+            'payment_term_id': partner_id.property_payment_term_id.id,
+        }
 
     @mapping
     def pricelist_id(self, record):
-        partner_id = self.get_openerp_id(
-            'prestashop.res.partner',
-            record['id_customer'])
-        partner_pricelist_id = self.env['res.partner'].browse(partner_id).property_product_pricelist
+        partner_id = self._find_partner_id(record)
+
+        partner_pricelist_id = partner_id.property_product_pricelist
         if partner_pricelist_id  :
             return {'pricelist_id': partner_pricelist_id.id}
         

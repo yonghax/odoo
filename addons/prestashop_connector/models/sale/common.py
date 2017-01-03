@@ -40,12 +40,12 @@ class SaleOrderImport(PrestashopImportSynchronizer):
     def _import_dependencies(self):
         record = self.prestashop_record
         
-        self._import_dependency(
-            record['id_customer'], 'prestashop.res.partner')
-        self._import_dependency(
-            record['id_address_invoice'], 'prestashop.address')
-        self._import_dependency(
-            record['id_address_delivery'], 'prestashop.address')
+        # self._import_dependency(
+        #     record['id_customer'], 'prestashop.res.partner')
+        # self._import_dependency(
+        #     record['id_address_invoice'], 'prestashop.address')
+        # self._import_dependency(
+        #     record['id_address_delivery'], 'prestashop.address')
         
         orders = record['associations'] \
             .get('order_rows', {}) \
