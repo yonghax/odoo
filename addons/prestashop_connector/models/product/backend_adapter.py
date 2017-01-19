@@ -12,6 +12,11 @@ class ProductBrandAdapter(GenericAdapter):
     _prestashop_model = 'manufacturers'
 
 @prestashop
+class ProductCategoryAdapter(GenericAdapter):
+    _model_name = 'prestashop.product.category'
+    _prestashop_model = 'categories'
+
+@prestashop
 class ProductTemplateAdapter(GenericAdapter):
     _model_name = 'prestashop.product.template'
     _prestashop_model = 'products'

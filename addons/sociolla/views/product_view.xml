@@ -105,5 +105,20 @@
       </field>
     </record>
 
+    <record id="view_product_switchover_form" model="ir.ui.view">
+      <field name="name">product.product.switchover.form</field>
+      <field name="model">product.product</field>
+      <field name="inherit_id" ref="product.product_normal_form_view"/>
+      <field name="arch" type="xml">
+        <xpath expr="//field[@name='attribute_value_ids']" position="before">
+          <div>
+            <field name="is_product_switchover"/>
+            <label for="is_product_switchover" string="Switch-over Product"/>
+            <field name="switchover_product_mapping" attrs="{'invisible':[('is_product_switchover','=',False)],'required':[('is_product_switchover','=',True)]}"/>
+          </div>
+        </xpath>
+      </field>
+    </record>
+
   </data>
 </openerp>

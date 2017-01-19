@@ -9,43 +9,43 @@ class stock_picking(models.Model):
         comodel_name='res.partner',
     )
 
-    @api.cr_uid_ids_context
-    def do_prepare_partial(self, cr, uid, picking_ids, context=None):
-        context = context or {}
-        pack_operation_obj = self.pool.get('stock.pack.operation')
-        product_obj = self.pool.get('product.product')
+    # @api.cr_uid_ids_context
+    # def do_prepare_partial(self, cr, uid, picking_ids, context=None):
+    #     context = context or {}
+    #     pack_operation_obj = self.pool.get('stock.pack.operation')
+    #     product_obj = self.pool.get('product.product')
 
-        #get list of existing operations and delete them
-        existing_package_ids = pack_operation_obj.search(cr, uid, [('picking_id', 'in', picking_ids)], context=context)
-        if existing_package_ids:
-            pack_operation_obj.unlink(cr, uid, existing_package_ids, context)
-        for picking in self.browse(cr, uid, picking_ids, context=context):
-            forced_qties = {}  # Quantity remaining after calculating reserved quants
-            picking_quants = []
-            #Calculate packages, reserved quants, qtys of this picking's moves
-            for move in picking.move_lines:
-                if move.state not in ('assigned', 'confirmed', 'waiting'):
-                    continue
-                move_quants = move.reserved_quant_ids
-                picking_quants += move_quants
-                forced_qty = (move.state == 'assigned') and move.product_qty - sum([x.qty for x in move_quants]) or 0
-                #if we used force_assign() on the move, or if the move is incoming, forced_qty > 0
-                if float_compare(forced_qty, 0, precision_rounding=move.product_id.uom_id.rounding) > 0:
-                    if forced_qties.get(move.product_id):
-                        forced_qties[move.product_id] += forced_qty
-                    else:
-                        forced_qties[move.product_id] = forced_qty
-            for vals in self._prepare_pack_ops(cr, uid, picking, picking_quants, forced_qties, context=context):
-                vals['fresh_record'] = False
+    #     #get list of existing operations and delete them
+    #     existing_package_ids = pack_operation_obj.search(cr, uid, [('picking_id', 'in', picking_ids)], context=context)
+    #     if existing_package_ids:
+    #         pack_operation_obj.unlink(cr, uid, existing_package_ids, context)
+    #     for picking in self.browse(cr, uid, picking_ids, context=context):
+    #         forced_qties = {}  # Quantity remaining after calculating reserved quants
+    #         picking_quants = []
+    #         #Calculate packages, reserved quants, qtys of this picking's moves
+    #         for move in picking.move_lines:
+    #             if move.state not in ('assigned', 'confirmed', 'waiting'):
+    #                 continue
+    #             move_quants = move.reserved_quant_ids
+    #             picking_quants += move_quants
+    #             forced_qty = (move.state == 'assigned') and move.product_qty - sum([x.qty for x in move_quants]) or 0
+    #             #if we used force_assign() on the move, or if the move is incoming, forced_qty > 0
+    #             if float_compare(forced_qty, 0, precision_rounding=move.product_id.uom_id.rounding) > 0:
+    #                 if forced_qties.get(move.product_id):
+    #                     forced_qties[move.product_id] += forced_qty
+    #                 else:
+    #                     forced_qties[move.product_id] = forced_qty
+    #         for vals in self._prepare_pack_ops(cr, uid, picking, picking_quants, forced_qties, context=context):
+    #             vals['fresh_record'] = False
 
-                product = product_obj.browse(cr, uid,[vals['product_id']],context=context)
-                if product.product_brand_id.categ_id.name == 'Consignment':
-                    vals['owner_id'] = picking.vendor_id.id
+    #             product = product_obj.browse(cr, uid,[vals['product_id']],context=context)
+    #             if product.product_brand_id.categ_id.name == 'Consignment':
+    #                 vals['owner_id'] = picking.vendor_id.id
                 
-                pack_operation_obj.create(cr, uid, vals, context=context)
-        #recompute the remaining quantities all at once
-        self.do_recompute_remaining_quantities(cr, uid, picking_ids, context=context)
-        self.write(cr, uid, picking_ids, {'recompute_pack_op': False}, context=context)
+    #             pack_operation_obj.create(cr, uid, vals, context=context)
+    #     #recompute the remaining quantities all at once
+    #     self.do_recompute_remaining_quantities(cr, uid, picking_ids, context=context)
+    #     self.write(cr, uid, picking_ids, {'recompute_pack_op': False}, context=context)
 
 class stock_inventory(models.Model):
     _inherit = ['stock.inventory']

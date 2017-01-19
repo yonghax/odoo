@@ -159,9 +159,9 @@ class TemplateMapper(PrestashopImportMapper):
             'active':True
         }
     
-    @mapping
-    def is_product_bundle(self,record):
-        return {'is_product_bundle': self.has_bundles(record)}
+    # @mapping
+    # def is_product_bundle(self,record):
+    #     return {'is_product_bundle': self.has_bundles(record)}
 
     @mapping
     def sale_ok(self, record):
@@ -178,44 +178,54 @@ class TemplateMapper(PrestashopImportMapper):
         if not code or not record['categ_id']:  
             return {'categ_id': self.backend_record.unrealized_product_category_id.id}
         
-        categ_obj = self.session.pool.get('product.category')
-        if id_category_default in hardcodedPSSampleCategory:
-            sample = categ_obj.browse(
-                self.session.cr,
-                SUPERUSER_ID,
-                categ_obj.search(self.session.cr, SUPERUSER_ID, [('name', '=', 'Sample')])
-            )
-            if sample:
-                return {'categ_id': sample.id}
-            else:
-                return {'categ_id': self.backend_record.unrealized_product_category_id.id}
-        else:
-            strSplittedDash = code.split('-')
-            strSplitted = strSplittedDash[0].split('.')
+        categ_adapter = self.unit_for(BackendAdapter,'prestashop.product.category')
+        categ_ids = adapter.search({'filter[id]': record['id_category_default']})
 
-            if len(strSplitted) > 1:
-                try:
-                    categ_search = categ_obj.search(
-                        self.session.cr,
-                        SUPERUSER_ID, 
-                        [
-                            ('parent_id', '=', record['categ_id']),
-                            ('name', '=', categoryEnum[strSplitted[1]])
-                        ]
-                    )
-                    categ = categ_obj.browse(
+        for categ_id in categ_ids:
+            categ = adapter.read(categ_id)
+            categ_name = categ['name']
+            
+            if categ_name.lower() == 'special price':
+                pass
+            else:
+                categ_obj = self.session.pool.get('product.category')
+                if id_category_default in hardcodedPSSampleCategory:
+                    sample = categ_obj.browse(
                         self.session.cr,
                         SUPERUSER_ID,
-                        categ_search
+                        categ_obj.search(self.session.cr, SUPERUSER_ID, [('name', '=', 'Sample')])
                     )
-                    if categ:
-                        return {'categ_id': categ.id}
+                    if sample:
+                        return {'categ_id': sample.id}
                     else:
                         return {'categ_id': self.backend_record.unrealized_product_category_id.id}
-                except:
-                    return {'categ_id': self.backend_record.unrealized_product_category_id.id}
-            else:
-                return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+                else:
+                    strSplittedDash = code.split('-')
+                    strSplitted = strSplittedDash[0].split('.')
+
+                    if len(strSplitted) > 1:
+                        try:
+                            categ_search = categ_obj.search(
+                                self.session.cr,
+                                SUPERUSER_ID, 
+                                [
+                                    ('parent_id', '=', record['categ_id']),
+                                    ('name', '=', categoryEnum[strSplitted[1]])
+                                ]
+                            )
+                            categ = categ_obj.browse(
+                                self.session.cr,
+                                SUPERUSER_ID,
+                                categ_search
+                            )
+                            if categ:
+                                return {'categ_id': categ.id}
+                            else:
+                                return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+                        except:
+                            return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+                    else:
+                        return {'categ_id': self.backend_record.unrealized_product_category_id.id}
     @mapping
     def backend_id(self, record):
         return {'backend_id': self.backend_record.id}
