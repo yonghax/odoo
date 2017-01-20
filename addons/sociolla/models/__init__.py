@@ -13,3 +13,4 @@ import mail
 import shop
 import account_bank_statement
 import payment_method
+import switchover_product
