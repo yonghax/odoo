@@ -22,7 +22,7 @@ class ProductCombinationMapper(PrestashopImportMapper):
 
     @mapping
     def default_on(self, record):
-        return {'default_on': True}
+        return {'default_on': bool(int(record['default_on']))}
     
     @mapping
     def type(self, record):

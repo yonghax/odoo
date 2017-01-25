@@ -27,6 +27,16 @@ class ProductTemplate(models.Model):
         string="Sales Return", 
         domain=[('deprecated', '=', False)],
         help="This account will be used for invoices instead of the default one to value sales return for the current product.")
+    
+    is_product_switchover = fields.Boolean(string='Product Switchover')
+    
+    switchover_product_mapping = fields.Many2one(
+        string='Switch-Over Product',
+        comodel_name='product.template',
+        domain=[('is_product_switchover', '=', False)],
+        ondelete='cascade',
+        auto_join=True
+    )
 
     @api.multi
     def _get_asset_accounts(self):

@@ -1,11 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
 <openerp>
     <data>
+        <record id="view_product_switchover_form" model="ir.ui.view">
+            <field name="name">product.product.switchover.form</field>
+            <field name="model">product.product</field>
+            <field name="inherit_id" ref="product.product_variant_easy_edit_view"/>
+            <field name="priority" eval="99" />
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='attribute_value_ids']" position="before">
+                <div>
+                    <field name="is_product_switchover"/>
+                    <label for="is_product_switchover" string="Switch-over Product"/>
+                    <field name="switchover_product_mapping" attrs="{'invisible':[('is_product_switchover','=',False)],'required':[('is_product_switchover','=',True)]}"/>
+                </div>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="view_product_template_switchover_form" model="ir.ui.view">
+            <field name="name">product.template.switchover.form</field>
+            <field name="model">product.template</field>
+            <field name="inherit_id" ref="product.product_template_form_view"/>
+            <field name="priority" eval="99" />
+            <field name="arch" type="xml">
+                <div name="options" position="inside">
+                    <div>
+                        <field name="is_product_switchover"/>
+                        <label for="is_product_switchover"/>
+                        <field name="switchover_product_mapping" attrs="{'invisible':[('is_product_switchover','=',False)],'required':[('is_product_switchover','=',True)]}"/>
+                    </div>
+                </div>
+            </field>
+        </record>
+
+        <record id="view_switchover_inventory_form" model="ir.ui.view">
+            <field name="name">stock.inventory.switchover.form.inherit</field>
+            <field name="model">stock.inventory</field>
+            <field name="inherit_id" ref="stock.view_inventory_form"/>
+            <field name="arch" type="xml">
+                <page string="Inventory Adjustments" attrs="{'invisible': [('state', '!=', 'done'),('is_switchover_stock','=',True)]}">
+                    <field name="move_ids">
+                        <tree decoration-muted="scrapped == True" string="Stock Moves">
+                            <field name="product_id"/>
+                            <field name="product_uom_qty" on_change="onchange_quantity(product_id, product_uom_qty, product_uom)"/>
+                            <field name="product_uom" options="{'no_open': True, 'no_create': True}" string="Unit of Measure" groups="product.group_uom"/>
+                            <field name="picking_id" invisible="1" />
+                            <field name="create_date" invisible="1" />
+                            <field name="date_expected" invisible="1" />
+                            <button name="%(stock.move_scrap)d"
+                                string="Scrap Products" type="action"
+                                icon="terp-gtk-jump-to-ltr" context="{'scrap': True}"
+                                states="draft,waiting,confirmed,assigned"
+                                groups="base.group_user"/>
+                            <field name="scrapped" invisible="1"/>
+                            <field name="location_id"/>
+                            <field name="location_dest_id"/>
+                            <field name="state"/>
+                        </tree>
+                    </field>
+                </page>
+            </field>
+        </record>
+
         <record id="switchover_product_form" model="ir.ui.view">
             <field name="name">switchover.product.form</field>
             <field name="model">switchover.product</field>
             <field name="type">form</field>
-            <field name="mode">primary</field>
             <field name="arch" type="xml">
                 <form string="Switch-Over Product">
                     <header>
@@ -42,6 +102,10 @@
                         </field>
                         <field name="notes"/>
                     </sheet>
+                    <div class="oe_chatter">
+                        <field name="message_follower_ids" widget="mail_followers"/>
+                        <field name="message_ids" widget="mail_thread"/>
+                    </div>
                 </form>
             </field>
         </record>

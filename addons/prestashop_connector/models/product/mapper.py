@@ -53,6 +53,21 @@ class TemplateMapper(PrestashopImportMapper):
 
     @mapping
     def list_price(self, record):
+        is_product_switchover = record['is_product_switchover']
+        mapping_product_switchover_id = record['switchover_product_mapping']
+        if is_product_switchover and mapping_product_switchover_id:
+            product_obj = self.session.pool.get('product.template')
+            mapped_product = product_obj.browse(
+                self.session.cr,
+                SUPERUSER_ID,
+                [mapping_product_switchover_id]
+            )
+            
+            return {
+                'list_price': mapped_product.list_price,                
+                'final_price': mapped_product.list_price,
+            }
+
         taxes = self.taxes_id(record)
         if not record['price'] :
             _logger.debug("Price was not found in the record. Forced to 0")
@@ -172,12 +187,25 @@ class TemplateMapper(PrestashopImportMapper):
         return {'purchase_ok': True}
 
     @mapping
+    def is_product_switchover(self,record):
+        if record['is_product_switchover']:
+            return {
+                'is_product_switchover': record['is_product_switchover'],
+                'switchover_product_mapping': record['switchover_product_mapping'],
+            }
+
+    @mapping
     def categ_id(self, record):
         code = record.get('reference')
         id_category_default = int(record['id_category_default'])
+        is_product_switchover = record['is_product_switchover']
+
+        if is_product_switchover:
+            return {'categ_id': record['categ_id']}
+
         if not code or not record['categ_id']:  
             return {'categ_id': self.backend_record.unrealized_product_category_id.id}
-        
+
         categ_adapter = self.unit_for(BackendAdapter,'prestashop.product.category')
         categ_ids = adapter.search({'filter[id]': record['id_category_default']})
 
