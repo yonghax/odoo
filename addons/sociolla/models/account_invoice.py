@@ -342,8 +342,8 @@ class AccountInvoice(models.Model):
             amount = inv_line.quantity * price
             discount_proportional = round(amount / gross_amount * discount_amount)
 
-            if discount_proportional > price:
-                discount_proportional = price
+            if discount_proportional > amount:
+                discount_proportional = amount
 
             discount_proportional_unit = 0.0
                 
