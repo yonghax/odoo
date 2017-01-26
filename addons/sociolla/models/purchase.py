@@ -29,15 +29,19 @@ class PurchaseOrder(models.Model):
             if order.state != 'purchase':
                 order.picking_status = 'no'
                 continue
+                
+            picking_status = 'no'
 
-            if any(float_compare(line.qty_received, line.product_qty, precision_digits=precision) == -1 and line.qty_received > 0 \
-                for line in order.order_line):
-                order.picking_status = 'receiving'
-            elif all(float_compare(line.qty_received, line.product_qty, precision_digits=precision) >= 0 \
-                for line in order.order_line):
-                order.picking_status = 'received'
-            else:
-                order.picking_status = 'no'
+            for line in order.order_line:
+                if line.product_qty <= line.qty_received:
+                    picking_status = 'received'
+                elif line.product_qty > line.qty_received and line.qty_received > 0:
+                    picking_status = 'receiving'
+                    break
+                else:
+                    picking_status = 'no'
+
+            order.picking_status = picking_status
 
     @api.multi
     def button_approve(self):
@@ -371,6 +375,10 @@ class AccountInvoice(models.Model):
                 qty = line.qty_received - line.qty_invoiced
             if float_compare(qty, 0.0, precision_rounding=line.product_uom.rounding) <= 0:
                 qty = 0.0
+
+            if qty == 0.0:
+                continue
+                
             taxes = line.taxes_id
             invoice_line_tax_ids = self.purchase_id.fiscal_position_id.map_tax(taxes)
             data = {

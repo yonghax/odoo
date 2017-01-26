@@ -88,7 +88,7 @@ class SaleOrderImport(PrestashopImportSynchronizer):
             pick.do_new_transfer()
 
         # Create and validate direct account.invoice 
-        filters = {'filter[id_order]': erp_order.prestashop_id, 'filter[id_order_state':'4'}
+        filters = {'filter[id_order]': erp_order.prestashop_id, 'filter[id_order_state]':'4'}
         order_history_adapter = self.unit_for(GenericAdapter, 'order.histories')
         order_history = order_history_adapter.read(order_history_adapter.search(filters)[0])
 

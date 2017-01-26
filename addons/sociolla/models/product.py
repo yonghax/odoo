@@ -1,6 +1,7 @@
 from openerp.osv import fields, osv
 from openerp import api, fields, models, _
 from openerp.exceptions import UserError
+import openerp.addons.decimal_precision as dp
 
 class ProductCategory(models.Model):
     _inherit = "product.category"
@@ -26,6 +27,16 @@ class ProductTemplate(models.Model):
         string="Sales Return", 
         domain=[('deprecated', '=', False)],
         help="This account will be used for invoices instead of the default one to value sales return for the current product.")
+    
+    is_product_switchover = fields.Boolean(string='Product Switchover')
+    
+    switchover_product_mapping = fields.Many2one(
+        string='Switch-Over Product',
+        comodel_name='product.template',
+        domain=[('is_product_switchover', '=', False)],
+        ondelete='cascade',
+        auto_join=True
+    )
 
     @api.multi
     def _get_asset_accounts(self):
@@ -50,6 +61,19 @@ class product_template(osv.osv):
             'sales_return': res['sales_return'] or self.property_account_sales_return_id or self.categ_id.property_account_sales_return_categ_id,
         })
         return accounts
+
+class product_product(models.Model):
+    _inherit = ['product.product']
+    
+    is_product_switchover = fields.Boolean(string='Product Switchover')
+    
+    switchover_product_mapping = fields.Many2one(
+        string='Switch-Over Product',
+        comodel_name='product.product',
+        domain=[('is_product_switchover', '=', False)],
+        ondelete='cascade',
+        auto_join=True
+    )
 
 class ProductSupplierInfo(models.Model):
     _inherit='product.supplierinfo'

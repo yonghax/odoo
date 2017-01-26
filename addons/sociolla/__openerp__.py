@@ -24,6 +24,9 @@
         
         Version 0.6:
             - AR base from payment method
+
+        Version 0.7:
+            - Switch-Over Product Feature
     """,
 
     'author': "Internal Development - PT. Social Bella Indonesia",
@@ -54,6 +57,7 @@
         'views/stock_view.xml',
         'views/shop_view.xml',
         'views/payment_method_view.xml',
+        'views/switchover_product_view.xml',
         'security/ir.model.access.csv',
         # 'reports/report_purchaseorder.xml',
         # 'reports/report_purchasequotation.xml',

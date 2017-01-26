@@ -33,7 +33,9 @@ class SaleOrder(models.Model):
         for order in self:
             amount_untaxed = amount_tax = price_undiscounted = 0.0
 
-            for line in order.order_line:
+            order_lines = order.order_line.filtered(lambda x: x.product_id.default_code != 'Disc')
+
+            for line in order_lines:
                 amount_untaxed += line.price_subtotal
                 amount_tax += line.price_tax
                 price_undiscounted += line.price_undiscounted
