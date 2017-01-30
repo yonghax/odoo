@@ -75,10 +75,14 @@ class TemplateRecordImport(TranslatableRecordImport):
 
         if self.is_product_switchover:
             self.product_maps = self.env['product.product'].search([('default_code', '=', self.prestashop_record['reference'][:-3])])
-            for product in self.product_maps:
-                self.prestashop_record['is_product_switchover'] = True
-                self.prestashop_record['switchover_product_mapping'] = product.product_tmpl_id.id
+            if not self.product_maps:
+                raise UserError(('source product: %s not found.') % (self.prestashop_record['reference'][:-3],))
+            else:
+                for product in self.product_maps:
+                    self.prestashop_record['is_product_switchover'] = True
+                    self.prestashop_record['switchover_product_mapping'] = product.product_tmpl_id.id
         else:
+            self.prestashop_record['is_product_switchover'] = False
             self.prestashop_record['switchover_product_mapping'] = False
 
     def _import_dependencies(self):
