@@ -1,8 +1,11 @@
 import logging
+
+from openerp.exceptions import UserError
+from openerp.addons.connector.unit.synchronizer import Exporter
+
+from ...unit.backend_adapter import GenericAdapter
 from ...backend import prestashop
 from ...unit.import_synchronizer import TranslatableRecordImport,import_record
-from openerp.addons.connector.unit.synchronizer import Exporter
-from ...unit.backend_adapter import GenericAdapter
 
 _logger = logging.getLogger(__name__)
 
