@@ -8,8 +8,8 @@ class odoo_ps_stock_quant(osv.osv):
     _description = "Odoo - Prestashop Stock Quantity"
     
     _columns = {
-        'id_product': fields.many2one('prestashop.product.template', 'Prestashop Product Header', readonly=True),
-        'id_product_attribute': fields.many2one('prestashop.product.combination', 'Prestashop Product Combination', readonly=True),
+        'id_product': fields.integer('Prestashop Product Header', readonly=True),
+        'id_product_attribute': fields.integer('Prestashop Product Combination', readonly=True),
         'reference': fields.char('Reference', readonly=True),
         'name': fields.char('Name', readonly=True),
         'quantity': fields.float('Qty Delivered', readonly=True),
