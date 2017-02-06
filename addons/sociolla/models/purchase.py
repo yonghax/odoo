@@ -51,7 +51,7 @@ class PurchaseOrder(models.Model):
             'approved_date': datetime.today().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
         })
         self._create_picking()
-
+        self._add_supplier_to_product()
         self.send_notification_approved()
         return {}
 
@@ -74,7 +74,6 @@ class PurchaseOrder(models.Model):
          for order in self:
             if order.state not in ['draft', 'sent']:
                 continue
-            order._add_supplier_to_product()
             # Deal with double validation process
             if order.company_id.po_double_validation == 'one_step'\
                     or (order.company_id.po_double_validation == 'two_step'\
