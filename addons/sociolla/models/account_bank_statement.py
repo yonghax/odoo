@@ -23,10 +23,10 @@ class AccountBankStatementLine(models.Model):
                     'amount': float_round(amount, precision_digits=precision),
                     'partner_id': self.partner_id.id,
                     'excluded_ids': tuple(excluded_ids),
-                    'ref': '%%%s%%' % (self.name.strip()),
+                    'ref': '%%%s%%' % (self.ref.strip()),
                     }
         # Look for structured communication match
-        if self.name:
+        if self.ref:
             add_to_select = ", CASE WHEN (aml.ref like %(ref)s or m.ref like %(ref)s) THEN 1 ELSE 2 END as temp_field_order "
             add_to_from = " JOIN account_move m ON m.id = aml.move_id "
             select_clause, from_clause, where_clause = self._get_common_sql_query(overlook_partner=True, excluded_ids=excluded_ids, split=True)
@@ -68,12 +68,12 @@ class AccountBankStatementLine(models.Model):
                     'account_payable_receivable': (self.journal_id.default_credit_account_id.id, self.journal_id.default_debit_account_id.id),
                     'amount': float_round(amount, precision_digits=precision),
                     'partner_id': self.partner_id.id,
-                    'ref': '%%%s%%' % (self.name.strip()),
+                    'ref': '%%%s%%' % (self.ref.strip()),
                     }   
         field = currency and 'amount_residual_currency' or 'amount_residual'
         liquidity_field = currency and 'amount_currency' or amount > 0 and 'debit' or 'credit'
         # Look for structured communication match
-        if self.name:
+        if self.ref:
             sql_query = self._get_common_sql_query() + \
                 " AND aml.ref like %(ref)s AND ("+field+" = %(amount)s OR (acc.internal_type = 'liquidity' AND "+liquidity_field+" = %(amount)s)) \
                 ORDER BY date_maturity asc, aml.id asc"

@@ -1,7 +1,8 @@
 from decimal import Decimal
-
-from openerp.addons.connector.connector import ConnectorUnit
 from prestapyt import PrestaShopWebServiceError
+
+from openerp.exceptions import UserError
+from openerp.addons.connector.connector import ConnectorUnit
 
 from ...backend import prestashop
 from ...unit.import_synchronizer import PrestashopImportSynchronizer, BatchImportSynchronizer, import_record
@@ -40,12 +41,12 @@ class SaleOrderImport(PrestashopImportSynchronizer):
     def _import_dependencies(self):
         record = self.prestashop_record
         
-        self._import_dependency(
-            record['id_customer'], 'prestashop.res.partner')
-        self._import_dependency(
-            record['id_address_invoice'], 'prestashop.address')
-        self._import_dependency(
-            record['id_address_delivery'], 'prestashop.address')
+        # self._import_dependency(
+        #     record['id_customer'], 'prestashop.res.partner')
+        # self._import_dependency(
+        #     record['id_address_invoice'], 'prestashop.address')
+        # self._import_dependency(
+        #     record['id_address_delivery'], 'prestashop.address')
         
         orders = record['associations'] \
             .get('order_rows', {}) \
@@ -88,8 +89,15 @@ class SaleOrderImport(PrestashopImportSynchronizer):
             pick.do_new_transfer()
 
         # Create and validate direct account.invoice 
-        filters = {'filter[id_order]': erp_order.prestashop_id, 'filter[id_order_state':'4'}
+        filters = {'filter[id_order]': erp_order.prestashop_id, 'filter[id_order_state]':'4'}
         order_history_adapter = self.unit_for(GenericAdapter, 'order.histories')
+
+        if len(order_history_adapter.search(filters)) < 1:
+            filters = {'filter[id_order]': erp_order.prestashop_id, 'filter[id_order_state]':'5'}
+
+        if len(order_history_adapter.search(filters)) < 1:
+            raise UserError(('Status order not yet shipped nor deliver'))
+
         order_history = order_history_adapter.read(order_history_adapter.search(filters)[0])
 
         sale_order.create_account_invoice(order_history['date_add'])

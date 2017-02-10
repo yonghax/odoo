@@ -17,6 +17,10 @@ class ProductCombinationMapper(PrestashopImportMapper):
     from_main = []
 
     @mapping
+    def active(self,record):
+        return {'active': True}
+
+    @mapping
     def default_on(self, record):
         return {'default_on': bool(int(record['default_on']))}
     

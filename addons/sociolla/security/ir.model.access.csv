@@ -6,3 +6,5 @@ product_product_bundle_all,product.product.bundle,product.product.bundle,base.gr
 product_product_bundle_write,product.product.bundle,product.product.bundle,stock.group_stock_user,1,1,1,0
 product_product_bundle_delete,product.product.bundle,product.product.bundle,stock.group_stock_manager,1,1,1,1
 product_product_bundle_purchase,product.product.bundle,product.product.bundle,group_purchase_user,1,1,1,0
+switchover_product_inventory,switchover.product,switchover.product,group_stock_user,1,1,1,1
+switchover_product_purchase,switchover.product,switchover.product,stock.group_purchase_user,1,1,1,1

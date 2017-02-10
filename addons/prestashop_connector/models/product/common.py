@@ -1,8 +1,11 @@
 import logging
+
+from openerp.exceptions import UserError
+from openerp.addons.connector.unit.synchronizer import Exporter
+
+from ...unit.backend_adapter import GenericAdapter
 from ...backend import prestashop
 from ...unit.import_synchronizer import TranslatableRecordImport,import_record
-from openerp.addons.connector.unit.synchronizer import Exporter
-from ...unit.backend_adapter import GenericAdapter
 
 _logger = logging.getLogger(__name__)
 
@@ -25,17 +28,83 @@ class TemplateRecordImport(TranslatableRecordImport):
         ],
     }
 
+    is_product_switchover = False
+    product_maps = False
+
+    def run(self, prestashop_id, force=False):
+        """ Run the synchronization
+
+        :param prestashop_id: identifier of the record on Prestashop
+        """
+        self.prestashop_id = prestashop_id
+        self.prestashop_record = self._get_prestashop_data()
+        skip = self._has_to_skip()
+        if skip:
+            return skip
+        
+        self._before_import()
+
+        # import the missing linked resources
+        self._import_dependencies()
+
+        # split prestashop data for every lang
+        splitted_record = self._split_per_language(self.prestashop_record)
+
+        erp_id = None
+
+        if self._default_language in splitted_record:
+            erp_id = self._run_record(
+                splitted_record[self._default_language],
+                self._default_language
+            )
+            del splitted_record[self._default_language]
+
+        for lang_code, prestashop_record in splitted_record.items():
+            erp_id = self._run_record(
+                prestashop_record,
+                lang_code,
+                erp_id
+            )
+
+        self.binder.bind(self.prestashop_id, erp_id)
+
+        self._after_import(erp_id)
+
+    def _before_import(self):
+        record = self.prestashop_record
+        backend_adapter = self.unit_for(GenericAdapter,'prestashop.product.category')
+        option_value = backend_adapter.read(record['id_category_default'])
+        self.is_product_switchover = option_value['name']['language']['value'] == 'Special Price'
+
+        if self.is_product_switchover:
+            self.product_maps = self.env['product.product'].search([('default_code', '=', self.prestashop_record['reference'][:-3])])
+            if not self.product_maps:
+                raise UserError(('source product: %s not found.') % (self.prestashop_record['reference'][:-3],))
+            else:
+                for product in self.product_maps:
+                    self.prestashop_record['is_product_switchover'] = True
+                    self.prestashop_record['switchover_product_mapping'] = product.product_tmpl_id.id
+        else:
+            self.prestashop_record['is_product_switchover'] = False
+            self.prestashop_record['switchover_product_mapping'] = False
+
     def _import_dependencies(self):
         self._import_product_brand()
 
     def _import_product_brand(self):
         record = self.prestashop_record
         
+        if self.product_maps and self.is_product_switchover:
+            self.prestashop_record['product_brand_id'] = self.product_maps.product_tmpl_id.product_brand_id.id
+            self.prestashop_record['categ_id'] = self.product_maps.product_tmpl_id.categ_id.id
+            return
+
         manufacturer_name = record['manufacturer_name']['value']
         if not manufacturer_name:
             backend_adapter = self.unit_for(GenericAdapter,'prestashop.product.brand')
             option_value = backend_adapter.read(record['id_manufacturer'])
             manufacturer_name = option_value['name']
+
             # self.prestashop_record['product_brand_id'] = False
             # return
         
@@ -55,6 +124,17 @@ class TemplateRecordImport(TranslatableRecordImport):
         self.import_bundle(erp_id)
         self.attribute_line(erp_id.id)
         self.deactivate_default_product(erp_id.id)
+
+        template = self.env['prestashop.product.template'].browse(erp_id.id)
+        for product in template.product_variant_ids:
+            if template.is_product_switchover and template.switchover_product_mapping:
+                product_mapped = self.env['product.product'].search([('default_code', '=', product.default_code[:-3])])
+                if product_mapped:
+                    product.with_context(self.session.context).write({
+                        'is_product_switchover': template.is_product_switchover,
+                        'switchover_product_mapping': product_mapped.id,
+                        'standard_price': product_mapped.standard_price,
+                        'active': True})
 
     def deactivate_default_product(self, erp_id):
         template = self.env['prestashop.product.template'].browse(erp_id)
