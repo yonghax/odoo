@@ -29,8 +29,8 @@ class odoo_ps_stock_quant(osv.osv):
             ) ps_tbl ON ps_tbl.odoo_product_tmpl_id = p.product_tmpl_id AND CASE WHEN ps_tbl.odoo_product_id is NULL THEN 0 ELSE ps_tbl.odoo_product_id END = CASE WHEN ps_tbl.odoo_product_id is NULL THEN 0 ELSE p.id END
             LEFT JOIN 
             (
-                SELECT product_id, SUM(quantity) as quantity
-                FROM stock_history 
+                SELECT product_id, SUM(qty) as quantity
+                FROM stock_quant 
                 WHERE location_id = 12
                 GROUP by product_id
             ) st ON st.product_id = p.id
