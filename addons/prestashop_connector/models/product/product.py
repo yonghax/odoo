@@ -1,4 +1,6 @@
 import logging
+
+from openerp import api, SUPERUSER_ID, models, _
 from openerp.osv import fields, orm
 
 _logger = logging.getLogger(__name__)
@@ -127,3 +129,17 @@ class prestashop_product_template(orm.Model):
             cr, uid, product.id, [stock_field], context=location_ctx
         )
         return product_stk[stock_field]
+
+class ProductProduct(models.Model):
+    _inherit = 'product.product'
+    
+    @api.multi
+    def push_qty(self):
+        backend_obj = self.pool['prestashop.backend']
+        backend_record = backend_obj.search(self._cr, SUPERUSER_ID, [], context=self._context,limit=1)
+        backend_record = backend_obj.browse(self._cr,SUPERUSER_ID, backend_record, context=self._context)
+
+        if backend_record:
+            backend_record.update_product_stock_qty(context=self._context, product=self)
+        
+        return True

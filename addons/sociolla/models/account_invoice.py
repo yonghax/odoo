@@ -24,14 +24,9 @@ MAGIC_COLUMNS = ('id', 'create_uid', 'create_date', 'write_uid', 'write_date')
 class AccountInvoice(models.Model):
     _inherit = "account.invoice"
 
-    discount_amount = fields.Monetary(string='Discount Amount',  readonly=True, default=0.0)
-    price_undiscounted = fields.Monetary(string='Undiscount Amount', compute='_compute_amount', default=0.0)
-
-    @api.one
-    @api.depends('invoice_line_ids.price_subtotal', 'tax_line_ids.amount', 'currency_id', 'company_id')
-    def _compute_amount(self):
-        super(AccountInvoice,self)._compute_amount()
-        self.price_undiscounted = sum(line.price_undiscounted for line in self.invoice_line_ids)
+    discount_amount = fields.Monetary(string='Discount Amount', readonly=True, default=0.0)
+    price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, compute='_compute_amount', default=0.0)
+    amount_tax = fields.Monetary(string='Tax', default=0.0, store=True, readonly=True, compute='_compute_amount')
 
     @api.multi
     def action_move_create(self):
@@ -347,8 +342,8 @@ class AccountInvoice(models.Model):
             amount = inv_line.quantity * price
             discount_proportional = round(amount / gross_amount * discount_amount)
 
-            if discount_proportional > price:
-                discount_proportional = price
+            if discount_proportional > amount:
+                discount_proportional = amount
 
             discount_proportional_unit = 0.0
                 

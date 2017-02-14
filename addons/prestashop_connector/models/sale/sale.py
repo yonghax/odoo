@@ -74,6 +74,7 @@ class sale_order(models.Model):
             inv.calculate_discount_proportional(self.discount_amount)
             inv.compute_taxes()
             inv._compute_amount()
+            inv._onchange_payment_term_date_invoice()
 
         return res
     
