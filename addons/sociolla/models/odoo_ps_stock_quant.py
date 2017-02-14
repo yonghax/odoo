@@ -13,13 +13,15 @@ class odoo_ps_stock_quant(osv.osv):
         'reference': fields.char('Reference', readonly=True),
         'name': fields.char('Name', readonly=True),
         'quantity': fields.float('Qty Delivered', readonly=True),
+        'cogs': fields.float('cogs', readonly=True),
     }
 
     def init(self, cr):
         _query = """
             SELECT
-                ROW_NUMBER() OVER() AS "id", ps_tbl.ps_product_id as id_product, coalesce(ps_tbl.ps_product_attribute_id,0) as id_product_attribute, 
-                p.default_code as reference, p.name_template as name, coalesce(st.quantity, 0) as quantity
+                ROW_NUMBER() OVER() AS "id", ps_tbl.ps_product_id as id_product, COALESCE(ps_tbl.ps_product_attribute_id,0) as id_product_attribute, 
+                p.default_code as reference, p.name_template as name, 
+                coalesce(st.quantity, 0) as quantity, coalesce(prop.value_float, 0) as cogs
             FROM product_product p 
             INNER JOIN 
             (
@@ -34,6 +36,7 @@ class odoo_ps_stock_quant(osv.osv):
                 WHERE location_id = 12
                 GROUP by product_id
             ) st ON st.product_id = p.id
+            LEFT JOIN ir_property prop on prop.name = 'standard_price' AND prop.res_id = 'product.product,' || p.id
         """
     
         tools.drop_view_if_exists(cr, self._table)
