@@ -43,7 +43,7 @@ class odoo_ps_stock_quant(osv.osv):
             (
                 SELECT product_id, SUM(product_uom_qty) as forecast_qty
                 FROM stock_move
-                WHERE location_dest_id = 12 and state = 'assigned' -- and product_id = 10531
+                WHERE location_dest_id = 12 and state = 'assigned'
                 GROUP by product_id   
             ) sm ON sm.product_id = p.id
         """
