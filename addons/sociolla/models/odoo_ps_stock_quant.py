@@ -4,7 +4,7 @@ from openerp.osv import fields, osv
 class odoo_ps_stock_quant(osv.osv):
     _name = 'odoo.ps.stock.quant'
     _auto = False
-    _order = 'reference asc'
+    _order = 'id_product, id_product_attribute'
     _description = "Odoo - Prestashop Stock Quantity"
     
     _columns = {
@@ -21,7 +21,9 @@ class odoo_ps_stock_quant(osv.osv):
             SELECT
                 ROW_NUMBER() OVER() AS "id", ps_tbl.ps_product_id as id_product, COALESCE(ps_tbl.ps_product_attribute_id,0) as id_product_attribute, 
                 p.default_code as reference, p.name_template as name, 
-                coalesce(st.quantity, 0) as quantity, coalesce(prop.value_float, 0) as cogs
+                coalesce(st.quantity, 0) as quantity, 
+                coalesce(sm.forecast_qty, 0) as forecast_qty,
+                coalesce(prop.value_float, 0) as cogs
             FROM product_product p 
             INNER JOIN 
             (
@@ -37,6 +39,13 @@ class odoo_ps_stock_quant(osv.osv):
                 GROUP by product_id
             ) st ON st.product_id = p.id
             LEFT JOIN ir_property prop on prop.name = 'standard_price' AND prop.res_id = 'product.product,' || p.id
+            LEFT JOIN 
+            (
+                SELECT product_id, SUM(product_uom_qty) as forecast_qty
+                FROM stock_move
+                WHERE location_dest_id = 12 and state = 'assigned' -- and product_id = 10531
+                GROUP by product_id   
+            ) sm ON sm.product_id = p.id
         """
     
         tools.drop_view_if_exists(cr, self._table)
