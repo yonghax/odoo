@@ -265,6 +265,7 @@ class PurchaseOrderLine(models.Model):
     discount_header_amount = fields.Monetary(compute='_compute_amount', string='Disc. Header Amount', readonly = True, store=True)
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_compute_amount')
     is_full_received = fields.Boolean(string='Is Full Receved', compute='_check_full_received', store=True)
+    flag_disc = fields.Selection([('percentage', 'Percentage'),('value', 'Value')], string='Discount Type', copy=False, default='percentage')
     
     @api.depends('move_ids.state')
     def _check_full_received(self):

@@ -8,7 +8,7 @@ from openerp.tools import float_is_zero, float_compare, DEFAULT_SERVER_DATETIME_
 class SaleOrder(models.Model):
     _inherit = "sale.order"
 
-    discount_amount = fields.Monetary(string='Discount Amount', store=True, readonly=True, compute='_amount_all', track_visibility='always')
+    discount_amount = fields.Monetary(string='Discount Amount', readonly=False, compute='compute_discount_header', track_visibility='always', )
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_amount_all', track_visibility='always')
     shop_id = fields.Many2one('sale.shop', string='Shop', change_default=True,)
 
@@ -19,6 +19,23 @@ class SaleOrder(models.Model):
                 return True
 
         return False
+
+    @api.onchange('discount_amount')
+    def compute_discount_header(self):
+        for order in self:
+            order_products = order.order_line.filtered(lambda x: x.product_id.type == 'product')
+            order_products = sorted(order_products, key=lambda x : x.price_total, reverse=True)
+
+            sum_discount_amount = order.discount_amount
+            sum_total_amount_header = sum([x.price_total for x in order_products])
+            
+            for i in xrange(0, len(order_products)):
+                total_amount = order_products[i].price_total
+                discount_header_amount = round((total_amount / sum_total_amount_header) * sum_discount_amount)
+                if discount_header_amount > total_amount:
+                     discount_header_amount = total_amount
+
+                order_products[i]._compute_proportional_amount(discount_header_amount)
 
     @api.onchange('shop_id')
     def _setWarehouseID(self):
@@ -31,9 +48,9 @@ class SaleOrder(models.Model):
         Compute the total amounts of the SO, add compute discount
         """
         for order in self:
+            self.compute_discount_header()
             amount_untaxed = amount_tax = price_undiscounted = 0.0
-
-            order_lines = order.order_line.filtered(lambda x: x.product_id.default_code != 'Disc')
+            order_lines = order.order_line.filtered(lambda x: x.product_id.default_code != 'service')
 
             for line in order_lines:
                 amount_untaxed += line.price_subtotal
@@ -43,19 +60,18 @@ class SaleOrder(models.Model):
             order.update({
                 'amount_untaxed': order.pricelist_id.currency_id.round(amount_untaxed),
                 'amount_tax': order.pricelist_id.currency_id.round(amount_tax),
-                'amount_total': amount_untaxed + amount_tax - order.discount_amount,
+                'amount_total': amount_untaxed + amount_tax,
             })
 
 
 class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
 
-    discount_amount = fields.Monetary(string='Discount Amount',  readonly=True, default=0.0)
+    discount_amount = fields.Monetary(string='Discount Amount', readonly=False, default=0.0)
     discount_header_amount = fields.Monetary(string='Discount Header Amount',  readonly=True, default=0.0)
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_compute_amount', track_visibility='always')
     is_from_product_bundle = fields.Boolean(string='Flag from Product Bundle',default=False)
-    flag_disc = fields.Char(string='Discount Flag',size=50,)
-    
+    flag_disc = fields.Selection([('percentage', 'Percentage'),('value', 'Value')], string='Discount Type', copy=False, default='percentage')
     
     @api.depends('product_uom_qty', 'discount', 'price_unit', 'tax_id', 'discount_amount','flag_disc')
     def _compute_amount(self):
@@ -71,10 +87,10 @@ class SaleOrderLine(models.Model):
             price_undiscounted = round(line.product_uom_qty * line.price_unit) 
             discount_header_amount = line.discount_header_amount or 0.0
 
-            if line.flag_disc == 'percentage':
-                discount_amount = price_undiscounted * ((line.discount or 0.0) / 100.0)
-            else:
+            if line.flag_disc == 'value':
                 discount_amount = line.discount_amount or 0.0
+            else:
+                discount_amount = price_undiscounted * ((line.discount or 0.0) / 100.0)
 
             if discount_header_amount > 0:
                 discount_unit = round(discount_header_amount / line.product_uom_qty)
@@ -91,14 +107,14 @@ class SaleOrderLine(models.Model):
             })
 
     def _compute_proportional_amount(self, amount):
-        if not self.flag_disc == 'percentage':
+        if self.flag_disc == 'percentage':
             price = self.price_unit * (1 - (self.discount or 0.0) / 100.0)
         else:
             price = self.price_unit - (self.discount_amount / self.product_uom_qty)
 
         price_undiscounted = round(self.product_uom_qty * self.price_unit) 
 
-        if not self.flag_disc == 'percentage':
+        if self.flag_disc == 'percentage':
             discount_amount = price_undiscounted * ((self.discount or 0.0) / 100.0)
         else:
             discount_amount = self.discount_amount or 0.0

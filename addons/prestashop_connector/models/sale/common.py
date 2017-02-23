@@ -205,23 +205,23 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         """
         order_lines = sale_order.order_line
         order_discounts = order_lines.filtered(lambda x: x.product_id == self.backend_record.discount_product_id)
-        order_products = order_lines.filtered(lambda x: x.product_id != self.backend_record.discount_product_id and x.product_id.type == 'product')
-        order_products = sorted(order_products, key=lambda x : x.price_total, reverse=True)
+        # order_products = order_lines.filtered(lambda x: x.product_id != self.backend_record.discount_product_id and x.product_id.type == 'product')
+        # order_products = sorted(order_products, key=lambda x : x.price_total, reverse=True)
         
-        sum_discount_amount = sum([x.price_unit for x in order_discounts])
-        sum_total_amount_header = sum([x.price_total for x in order_products])
-        if sum_discount_amount > 0:
-            for i in xrange(0, len(order_products)):
-                total_amount = order_products[i].price_total
-                discount_header_amount = round((total_amount / sum_total_amount_header) * sum_discount_amount)
-                if discount_header_amount > total_amount:
-                     discount_header_amount = total_amount
+        # sum_discount_amount = sum([x.price_unit for x in order_discounts])
+        # sum_total_amount_header = sum([x.price_total for x in order_products])
+        # if sum_discount_amount > 0:
+        #     for i in xrange(0, len(order_products)):
+        #         total_amount = order_products[i].price_total
+        #         discount_header_amount = round((total_amount / sum_total_amount_header) * sum_discount_amount)
+        #         if discount_header_amount > total_amount:
+        #              discount_header_amount = total_amount
 
-                order_products[i]._compute_proportional_amount(discount_header_amount)
+        #         order_products[i]._compute_proportional_amount(discount_header_amount)
         
-            order_discounts.unlink()
+        #     order_discounts.unlink()
 
-        sale_order.discount_amount = sum_discount_amount
+        # sale_order.discount_amount = sum_discount_amount
         sale_order.update({
             'discount_amount': sum_discount_amount
         })

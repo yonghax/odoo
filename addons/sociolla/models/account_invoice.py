@@ -423,7 +423,7 @@ class AccountInvoiceLine(models.Model):
     price_undiscounted = fields.Monetary(string='Undiscount Amount', compute='_compute_price', default=0.0)
     discount_account_id = fields.Many2one('account.account', string='Discount Account', domain=[('deprecated', '=', False)])
     is_from_product_bundle = fields.Boolean(string='Flag from Product Bundle',default=False)
-    flag_disc = fields.Char(string='Discount Flag',size=50,)
+    flag_disc = fields.Selection([('percentage', 'Percentage'),('value', 'Value')], string='Discount Type', copy=False, default='percentage')
 
     @api.onchange('product_id')
     def _onchange_product_id(self):
