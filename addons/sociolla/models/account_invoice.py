@@ -165,17 +165,17 @@ class AccountInvoice(models.Model):
 
             # Journal sales for account income the amount will be add discount_amount
             if self.type in ('out_invoice', 'out_refund'):
-                price_amount += line.discount_amount + line.discount_header_amount
-                discount_amount = line.discount_amount + line.discount_header_amount
+                price_amount += line.currency_id.round(line.discount_amount) + line.currency_id.round(line.discount_header_amount)
+                discount_amount = line.currency_id.round(line.discount_amount) + line.currency_id.round(line.discount_header_amount)
 
             move_line_dict = {
                 'invl_id': line.id,
                 'type': 'src',
                 'name': line.name.split('\n')[0][:64],
-                'price_unit': line.price_unit,
+                'price_unit': line.currency_id.round(line.price_unit),
                 'quantity': line.quantity,
-                'price': price_amount,
-                'discount_amount': discount_amount,
+                'price': line.currency_id.round(price_amount),
+                'discount_amount': line.currency_id.round(discount_amount),
                 'account_id': line.account_id.id,
                 'product_id': line.product_id.id,
                 'uom_id': line.uom_id.id,
@@ -210,10 +210,10 @@ class AccountInvoice(models.Model):
                     'tax_line_id': tax_line.tax_id.id,
                     'type': 'tax',
                     'name': tax_line.name,
-                    'price_unit': tax_line.amount,
+                    'price_unit': tax_line.currency_id.round(tax_line.amount),
                     'discount_amount': 0,
                     'quantity': 1,
-                    'price': tax_line.amount,
+                    'price': tax_line.currency_id.round(tax_line.amount),
                     'account_id': tax_line.account_id.id,
                     'account_analytic_id': tax_line.account_analytic_id.id,
                     'invoice_id': self.id,
@@ -229,6 +229,8 @@ class AccountInvoice(models.Model):
                 amount = line.discount_amount + line.discount_header_amount
                 if self.type == 'out_refund':
                     amount = - amount
+                
+                amount = line.currency_id.round(amount)
 
                 move_line_dict = {
                     'invl_id': line.id,
@@ -340,7 +342,7 @@ class AccountInvoice(models.Model):
                 price = inv_line.price_unit - (inv_line.discount_amount / inv_line.quantity)
             
             amount = inv_line.quantity * price
-            discount_proportional = round(amount / gross_amount * discount_amount)
+            discount_proportional = self.currency_id.round(amount / gross_amount * discount_amount)
 
             if discount_proportional > amount:
                 discount_proportional = amount
@@ -348,20 +350,23 @@ class AccountInvoice(models.Model):
             discount_proportional_unit = 0.0
                 
             if discount_proportional > 0:
-                discount_proportional_unit = round(discount_proportional / inv_line.quantity)
+                discount_proportional_unit = self.currency_id.round(discount_proportional / inv_line.quantity)
                 price -= discount_proportional_unit
+            
+            price = self.currency_id.round(price)
 
             taxes = False
             if inv_line.invoice_line_tax_ids:
                 taxes = inv_line.invoice_line_tax_ids.compute_all(price, currency, inv_line.quantity, product=inv_line.product_id, partner=self.partner_id)
 
             subtotal_amount = price_subtotal_signed = taxes['total_excluded'] if taxes else inv_line.quantity * price
+            subtotal_amount = self.currency_id.round(subtotal_amount)
 
             if self.currency_id and self.currency_id != self.company_id.currency_id:
                 price_subtotal_signed = self.currency_id.compute(price_subtotal_signed, self.company_id.currency_id)
             sign = self.type in ['in_refund', 'out_refund'] and -1 or 1
             price_subtotal_signed = price_subtotal_signed * sign
-            
+            price_subtotal_signed = self.currency_id.round(price_subtotal_signed)
             inv_line.update({
                 'price_subtotal': subtotal_amount,
                 'price_subtotal_signed': price_subtotal_signed,
@@ -378,11 +383,11 @@ class AccountInvoice(models.Model):
                 price_unit = line.price_unit - (line.discount_amount /line.quantity)
 
             if line.discount_header_amount:
-                discount_header_unit = round(line.discount_header_amount/line.quantity)
+                discount_header_unit = self.currency_id.round(line.discount_header_amount/line.quantity)
                 price_unit -= discount_header_unit
             elif line.invoice_id.discount_amount > 0:
                 self.calculate_discount_proportional(self.discount_amount)
-                discount_header_unit = round(line.discount_header_amount/line.quantity)
+                discount_header_unit = self.currency_id.round(line.discount_header_amount/line.quantity)
                 price_unit -= discount_header_unit
 
             taxes = line.invoice_line_tax_ids.compute_all(price_unit, self.currency_id, line.quantity, line.product_id, self.partner_id)['taxes']
@@ -505,11 +510,11 @@ class AccountInvoiceLine(models.Model):
         discount_header_unit = 0.0
 
         if self.discount_header_amount:
-            discount_header_unit = round(self.discount_header_amount/self.quantity)
+            discount_header_unit = self.currency_id.round(self.discount_header_amount/self.quantity)
             price -= discount_header_unit
         elif self.invoice_id.discount_amount > 0:
             self.invoice_id.calculate_discount_proportional(self.invoice_id.discount_amount)
-            discount_header_unit = round(self.discount_header_amount/self.quantity)
+            discount_header_unit = self.currency_id.round(self.discount_header_amount/self.quantity)
             price -= discount_header_unit
 
         taxes = False
