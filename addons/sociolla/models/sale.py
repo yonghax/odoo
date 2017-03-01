@@ -95,15 +95,18 @@ class SaleOrderLine(models.Model):
             if discount_header_amount > 0:
                 discount_unit = round(discount_header_amount / line.product_uom_qty)
                 price -= discount_unit
+            
+            price = line.currency_id.round(price)
+            discount_amount = line.currency_id.round(discount_amount)
 
             taxes = line.tax_id.compute_all(price, line.order_id.currency_id, line.product_uom_qty, product=line.product_id, partner=line.order_id.partner_id)
             line.update({
                 'discount_amount': discount_amount,
                 'price_undiscounted': price_undiscounted,
-                'price_tax': taxes['total_included'] - taxes['total_excluded'],
-                'price_total': taxes['total_included'],
-                'price_subtotal': taxes['total_excluded'],
-                'discount_header_amount': discount_header_amount
+                'price_tax': line.currency_id.round(taxes['total_included']) - line.currency_id.round(taxes['total_excluded']),
+                'price_total': line.currency_id.round(taxes['total_included']),
+                'price_subtotal': line.currency_id.round(taxes['total_excluded']),
+                'discount_header_amount': line.currency_id.round(discount_header_amount)
             })
 
     def _compute_proportional_amount(self, amount):
@@ -124,15 +127,18 @@ class SaleOrderLine(models.Model):
         if discount_header_amount > 0:
             discount_unit = round(discount_header_amount / self.product_uom_qty)
             price -= discount_unit
+        
+        discount_amount = self.currency_id.round(discount_amount)
+        price = self.currency_id.round(price)
 
         taxes = self.tax_id.compute_all(price, self.order_id.currency_id, self.product_uom_qty, product=self.product_id, partner=self.order_id.partner_id)
         self.update({
             'discount_amount': discount_amount,
             'price_undiscounted': price_undiscounted,
-            'price_tax': taxes['total_included'] - taxes['total_excluded'],
-            'price_total': taxes['total_included'],
-            'price_subtotal': taxes['total_excluded'],
-            'discount_header_amount': discount_header_amount
+            'price_tax': self.currency_id.round(taxes['total_included']) - self.currency_id.round(taxes['total_excluded']),
+            'price_total': self.currency_id.round(taxes['total_included']),
+            'price_subtotal': self.currency_id.round(taxes['total_excluded']),
+            'discount_header_amount': self.currency_id.round(discount_header_amount)
         })
 
     @api.multi
@@ -173,8 +179,8 @@ class SaleOrderLine(models.Model):
             'price_unit': self.price_unit,
             'quantity': qty,
             'discount': self.discount,
-            'discount_amount': self.discount_amount,
-            'discount_header_amount': self.discount_header_amount,
+            'discount_amount': self.currency_id.round(self.discount_amount),
+            'discount_header_amount': self.currency_id.round(self.discount_header_amount),
             'uom_id': self.product_uom.id,
             'product_id': self.product_id.id or False,
             'invoice_line_tax_ids': [(6, 0, self.tax_id.ids)],
