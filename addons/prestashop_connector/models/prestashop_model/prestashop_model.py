@@ -236,8 +236,18 @@ class prestashop_backend(orm.Model):
                                domain=domain, context=context)
 
     def _scheduler_update_product_stock_qty(self, cr, uid, domain=None, context=None):
-        self._scheduler_launch(cr, uid, self.update_product_stock_qty,
-                               domain=domain, context=context)
+        product_obj = self.pool.get('product.product')
+        
+        products = product_obj.browse(
+            cr,
+            uid,
+            product_obj.search(cr, uid, [('is_product_bundle', '=', False), ('product_tmpl_id.is_product_bundle', '=', False)], context=context),
+            context=context
+        )
+
+        for product in products:
+            if not product.product_tmpl_id.categ_id.id in [1,2, 21, 29, 30, 38, 40]:
+                self.update_product_stock_qty(cr, uid, [1], context=None, product=product)
 
     def import_record(self, cr, uid, backend_id, model_name, ext_id,
                       context=None):
