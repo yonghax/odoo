@@ -7,7 +7,7 @@
             <field name="inherit_id" ref="product_brand.view_product_brand_form"/>
             <field name="arch" type="xml">
                 <field name="partner_id" position='before'>
-                    <field name='categ_id'/>
+                    <field name='categ_id' required="1"/>
                 </field>
             </field>
         </record>

@@ -15,3 +15,6 @@ import account_bank_statement
 import payment_method
 import switchover_product
 import odoo_ps_stock_quant
+import stock_change_standard_price
+import account
+import partner

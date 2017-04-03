@@ -15,12 +15,38 @@ class PurchaseOrder(models.Model):
     last_send_mail = fields.Datetime(string='Last send mail')
     has_send_mail = fields.Boolean(string='Has send mail')
     retry_send_mail = fields.Integer(string='Retry send mail')
+    force_inventory_date = fields.Datetime(string='Force Inventory Date')
 
     picking_status = fields.Selection([
         ('no', 'Not yet Receive'),
         ('receiving', 'Receive in Progress'),
         ('received', 'Full Received'),
         ], string='Receive Status', compute='_get_receive', store=True, readonly=True, copy=False, default='no')
+
+    # def do_approve(self, cr, uid, domain=None, context=None):
+    #     obj = self.pool.get('purchase.order')
+    #     items = obj.browse(
+    #         cr,
+    #         uid,
+    #         obj.search(
+    #             cr,
+    #             uid,
+    #             [
+    #                 ('date_order', '>=', '2016-09-01 00:00:00'),
+    #                 ('date_order', '<=', '2016-11-30 23:59:59'),
+    #                 ('state', '=','draft')
+    #             ],
+    #             context=context
+    #         ),
+    #         context=context
+    #     )
+
+    #     for item in items:
+    #         item.apprv()
+
+    # def apprv(self, cr, uid, ids, context=None):
+    #     for item in self.browse(cr, uid, ids, context=context):
+    #         item.button_approve()
     
     @api.depends('state', 'order_line.qty_received', 'order_line.product_qty')
     def _get_receive(self):
@@ -54,6 +80,27 @@ class PurchaseOrder(models.Model):
         self._add_supplier_to_product()
         self.send_notification_approved()
         return {}
+
+    @api.model
+    def _prepare_picking(self):
+        if not self.group_id:
+            self.group_id = self.group_id.create({
+                'name': self.name,
+                'partner_id': self.partner_id.id
+            })
+        if not self.partner_id.property_stock_supplier.id:
+            raise UserError(_("You must set a Vendor Location for this partner %s") % self.partner_id.name)
+        return {
+            'picking_type_id': self.picking_type_id.id,
+            'partner_id': self.partner_id.id,
+            'date': self.date_order,
+            'origin': self.name,
+            'location_dest_id': self._get_destination_location(),
+            'location_id': self.partner_id.property_stock_supplier.id,
+            'company_id': self.company_id.id,
+            'inventory_date': self.force_inventory_date,
+            'date': self.force_inventory_date,
+        }
 
     @api.multi
     def _create_picking(self):
@@ -265,7 +312,53 @@ class PurchaseOrderLine(models.Model):
     discount_header_amount = fields.Monetary(compute='_compute_amount', string='Disc. Header Amount', readonly = True, store=True)
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_compute_amount')
     is_full_received = fields.Boolean(string='Is Full Receved', compute='_check_full_received', store=True)
+    product_id = fields.Many2one(
+        'product.product', 
+        string='Product', 
+        domain=[
+            ('purchase_ok', '=', True),
+            ('is_product_switchover','=',False),
+            ('is_product_bundle','=',False),
+            ('product_tmpl_id.is_product_bundle','=',False),
+            ('product_tmpl_id.is_product_bundle','=',False),], 
+        change_default=True, 
+        required=True)
     
+    @api.onchange('product_id')
+    def onchange_product_id(self):
+        result = {}
+        if not self.product_id:
+            return result
+
+        # Reset date, price and quantity since _onchange_quantity will provide default values
+        self.date_planned = datetime.today().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
+        self.price_unit = self.product_qty = 0.0
+        self.product_uom = self.product_id.uom_po_id or self.product_id.uom_id
+        result['domain'] = {'product_uom': [('category_id', '=', self.product_id.uom_id.category_id.id)]}
+
+        product_lang = self.product_id.with_context({
+            'lang': self.partner_id.lang,
+            'partner_id': self.partner_id.id,
+        })
+        self.name = product_lang.display_name
+        if product_lang.description_purchase:
+            self.name += '\n' + product_lang.description_purchase
+        
+        if self.partner_id.default_purchase_tax:
+            self.taxes_id = self.partner_id.default_purchase_tax
+        else:
+            fpos = self.order_id.fiscal_position_id
+            if self.env.uid == SUPERUSER_ID:
+                company_id = self.env.user.company_id.id
+                self.taxes_id = fpos.map_tax(self.product_id.supplier_taxes_id.filtered(lambda r: r.company_id.id == company_id))
+            else:
+                self.taxes_id = fpos.map_tax(self.product_id.supplier_taxes_id)
+
+        self._suggest_quantity()
+        self._onchange_quantity()
+
+        return result
+
     @api.depends('move_ids.state')
     def _check_full_received(self):
         for line in self:
