@@ -298,7 +298,8 @@ class DelayedBatchImport(BatchImportSynchronizer):
         'prestashop.supplier',
         'prestashop.mail.message',
         'prestashop.product.attribute',
-        'prestashop.product.attribute.value'
+        'prestashop.product.attribute.value',
+        'prestashop.order.state'
     ]
 
     def _import_record(self, record, **kwargs):
@@ -487,23 +488,63 @@ def import_orders_since(session, model_name, backend_id, since_date=None):
     """ Prepare the import of orders modified on Prestashop """
 
     filters = None
+
+    obj = session.pool.get('prestashop.backend')
+
+    backend_record = obj.read(
+        session.cr,
+        session.uid,
+        backend_id,
+        context=session.context)
+    
+    order_state_ids = backend_record['order_state_ids']
+    states = ""
+    for id in order_state_ids:
+        state = session.pool.get('prestashop.order.state').read(
+            session.cr,
+            session.uid,
+            id,
+            context=session.context
+        )
+        states += `state['prestashop_id']` +"|"
+
+    if len(states) > 0:
+        states = states[:-1]
+
     if since_date:
-        date_str = since_date.strftime('%Y-%m-%d %H:%M:%S')
-        filters = {'date': '1', 'filter[date_upd]': '>[%s]' % (date_str), 'filter[current_state]':'4|5'}
+       date_str = since_date.strftime('%Y-%m-%d %H:%M:%S')
+       filters = {'date': '1', 'filter[date_upd]': '>[%s]' % (date_str), 'filter[current_state]':states}
     
     now_fmt = datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
     import_batch(session, 'prestashop.sale.order', backend_id, filters)
 
-    session.pool.get('prestashop.backend').write(
+    # import_record(session, 'prestashop.sale.order', backend_id, 143028, force=False)
+
+@job
+def import_order_backorder(session, model_name, backend_id):
+    obj = session.pool.get('pending.download.order')
+
+    items = obj.read(
         session.cr,
         session.uid,
-        backend_id,
-        {'import_orders_since': now_fmt},
+        obj.search(
+            session.cr,
+            session.uid,
+            [('run_at', '=', False)],
+            context=session.context
+        ),
         context=session.context
     )
 
-    #import_record(session, 'prestashop.sale.order', backend_id, 97529, force=False)
-
+    for item in items:
+        filters = {'filter[id]':item['prestashop_id_order']}
+        import_batch(session, 'prestashop.sale.order', backend_id, filters)
+        obj.write(
+            session.cr,
+            session.uid,
+            item['id'],
+            {'run_at':datetime.now()}
+        )
 
 @job
 def import_products(session, model_name, backend_id, since_date):
@@ -525,12 +566,6 @@ def import_products(session, model_name, backend_id, since_date):
         {'import_products_since': now_fmt},
         context=session.context
     )
-
-    # import_record(session, model_name, backend_id, 4235, force=False)
-    # import_record(session, model_name, backend_id, 1483, force=False)
-    # import_record(session, model_name, backend_id, 1489, force=False)
-    # import_record(session, model_name, backend_id, 1487, force=False)
-
 
 @job
 def import_refunds(session, backend_id, since_date):
