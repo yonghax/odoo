@@ -4,6 +4,11 @@ from ...backend import prestashop
 from ...unit.backend_adapter import GenericAdapter
 
 @prestashop
+class PrestashopOrderStateAdapter(GenericAdapter):
+    _model_name = 'prestashop.order.state'
+    _prestashop_model = 'order_states'
+
+@prestashop
 class SalesOrderHistoryAdapter(GenericAdapter):
     _model_name = 'order.histories'
     _prestashop_model = 'order_histories'
@@ -14,21 +19,21 @@ class SaleOrderAdapter(GenericAdapter):
     _prestashop_model = 'orders'
     _export_node_name = 'order'
 
-    def search(self, filters=None):
-        result = super(SaleOrderAdapter, self).search(filters=filters)
+    # def search(self, filters=None):
+    #     result = super(SaleOrderAdapter, self).search(filters=filters)
 
-        shops = self.env['prestashop.shop'].search([
-            ('backend_id', '=', self.backend_record.id)
-        ])
-        for shop in shops:
-            if not shop.default_url:
-                continue
+    #     shops = self.env['prestashop.shop'].search([
+    #         ('backend_id', '=', self.backend_record.id)
+    #     ])
+    #     for shop in shops:
+    #         if not shop.default_url:
+    #             continue
 
-            api = PrestaShopWebServiceDict(
-                '%s/api' % shop.default_url, self.prestashop.webservice_key
-            )
-            result += api.search(self._prestashop_model, filters)
-        return result    
+    #         api = PrestaShopWebServiceDict(
+    #             '%s/api' % shop.default_url, self.prestashop.webservice_key
+    #         )
+    #         result += api.search(self._prestashop_model, filters)
+    #     return result    
 
 @prestashop
 class SaleOrderLineAdapter(GenericAdapter):

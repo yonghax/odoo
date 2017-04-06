@@ -13,6 +13,7 @@ from ...unit.import_synchronizer import (
     import_batch,
     import_customers_since,
     import_orders_since,
+    import_order_backorder,
     import_products,
     import_refunds,
     import_product_attribute,
@@ -79,7 +80,8 @@ class prestashop_backend(orm.Model):
         'property_account_payable_id': fields.many2one('account.account', 'Account Payable', select=1, required=True),
         'unrealized_product_category_id': fields.many2one('product.category', 'Unrealized Product Category', select=1, required=True),
         'tax_out_id': fields.many2one('account.tax', 'Tax Out', select=1, required=True),
-        'ship_free_order_amount': fields.float(string='Ship free if Order more than', default=0.0)
+        'ship_free_order_amount': fields.float(string='Ship free if Order more than', default=0.0),
+        'order_state_ids': fields.many2many('prestashop.order.state', 'order_state_rel', 'backend_id', 'order_state_id', 'Order States'),
     }
 
     _defaults = {
@@ -94,6 +96,8 @@ class prestashop_backend(orm.Model):
             for model in ('prestashop.shop.group',
                           'prestashop.shop',):
                 import_batch(session, model, backend_id)
+
+            import_batch(session, 'prestashop.order.state', backend_id, None)
             
         return True
 
@@ -200,6 +204,18 @@ class prestashop_backend(orm.Model):
             )
         return True
 
+    def import_sale_order_backdate(self, cr, uid, ids, context=None):
+        if not hasattr(ids, '__iter__'):
+            ids = [ids]
+        session = ConnectorSession(cr, uid, context=context)
+        for backend_record in self.browse(cr, uid, ids, context=context):
+            import_order_backorder(
+                session,
+                'prestashop.sale.order',
+                backend_record.id,
+            )
+        return True
+
     def import_refunds(self, cr, uid, ids, context=None):
         if not hasattr(ids, '__iter__'):
             ids = [ids]
@@ -221,6 +237,10 @@ class prestashop_backend(orm.Model):
 
     def _scheduler_import_sale_orders(self, cr, uid, domain=None, context=None):
         self._scheduler_launch(cr, uid, self.import_sale_orders, domain=domain,
+                               context=context)
+
+    def _scheduler_import_backdate_sale_order(self, cr, uid, domain=None, context=None):
+        self._scheduler_launch(cr, uid, self.import_sale_order_backdate, domain=domain,
                                context=context)
 
     def _scheduler_import_customers(self, cr, uid, domain=None, context=None):

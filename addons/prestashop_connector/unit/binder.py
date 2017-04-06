@@ -40,7 +40,8 @@ class PrestashopModelBinder(PrestashopBinder):
         'prestashop.groups.pricelist',
         'prestashop.product.attribute',
         'prestashop.product.attribute.value',
-        'export.stock.available'
+        'export.stock.available',
+        'prestashop.order.state'
     ]
 
     def to_openerp(self, external_id, unwrap=False, browse=False):

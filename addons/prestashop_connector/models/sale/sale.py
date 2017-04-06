@@ -144,6 +144,16 @@ class prestashop_sale_order(models.Model):
             digits_compute=dp.get_precision('Account'),
             readonly=True
         )
+    total_discount = fields.Float(
+            string = 'Total Discount',
+            digits_compute=dp.get_precision('Account'),
+            readonly=True
+        )
+    discount_amount = fields.Float(
+            string = 'Discount Amount',
+            digits_compute=dp.get_precision('Account'),
+            readonly=True
+        )
     payment = fields.Char(
         string='Payment Method',
     )

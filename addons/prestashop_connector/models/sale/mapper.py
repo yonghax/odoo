@@ -11,6 +11,20 @@ from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT
 _logger = logging.getLogger(__name__)
 
 @prestashop
+class PrestashopOrderStateMapper(PrestashopImportMapper):
+    _model_name = 'prestashop.order.state'
+
+    @mapping
+    def name(self, record):
+        if record['name']:
+            return {'name': record['name']}
+        return {'name': 'noname'}
+
+    @mapping
+    def backend_id(self, record):
+        return {'backend_id': self.backend_record.id}
+
+@prestashop
 class SaleOrderMapper(PrestashopImportMapper):
     _model_name = 'prestashop.sale.order'
 
@@ -20,6 +34,7 @@ class SaleOrderMapper(PrestashopImportMapper):
         ('total_paid', 'total_amount'),
         ('total_shipping_tax_incl', 'total_shipping_tax_included'),
         ('total_shipping_tax_excl', 'total_shipping_tax_excluded'),
+        ('total_discounts', 'discount_amount')
     ]
 
     def _get_sale_order_lines(self, record):
@@ -48,10 +63,6 @@ class SaleOrderMapper(PrestashopImportMapper):
             _get_sale_order_lines,
             'prestashop_order_line_ids',
             'prestashop.sale.order.line'
-        ),
-        (   _get_discounts_lines,
-            'prestashop_discount_line_ids',
-            'prestashop.sale.order.line.discount'
         )
     ]
 
@@ -99,7 +110,7 @@ class SaleOrderMapper(PrestashopImportMapper):
     @mapping
     def date_order(self, record):
         date_order = datetime.strptime(record['date_add'], DEFAULT_SERVER_DATETIME_FORMAT)
-        return {'date_order': pytz.timezone('Asia/Jakarta').localize(date_order).astimezone(pytz.utc)}
+        return {'date_order': date_order.date()}
 
     @mapping
     def name(self, record):
@@ -180,7 +191,6 @@ class SaleOrderMapper(PrestashopImportMapper):
     @mapping
     def payment_method(self,record):
         return {'payment_method': record['payment']}
-
 
     # @mapping
     # def payment(self, record):
@@ -308,13 +318,29 @@ class SaleOrderLineMapper(PrestashopImportMapper):
 
     @mapping
     def product_id(self, record):
+        switch_product_id = {
+            4737:5821,4736:5825,4734:5823,4735:5824,4733:5822,1318:7532,5365:4569,5261:1539,5793:2357,5791:2356,
+            5260:3130,5790:2757,5262:4399,5789:4397,810:1653, 5792:2358, 5874:668, 5887:1541, 5863:1035, 5914:3895,
+            5935:3763,5868:2211,5843:532, 5904:2766, 5863:1035, 5862:1037, 5864:1041, 5858:1041, 5871:2836, 5881:304,
+            5880:233, 5892:560, 5919:3890
+        }
+
+        switch_prestahop_combination = {
+            3682:4364,
+        }
+        
         is_from_product_bundle = False
         product_id = 0
-        if int(record.get('product_attribute_id', 0)):
+        prestashop_product_combination_id = int(record.get('product_attribute_id', 0))
+        if prestashop_product_combination_id:
+
+            if prestashop_product_combination_id in switch_prestahop_combination:
+                prestashop_product_combination_id = switch_prestahop_combination[prestashop_product_combination_id]
+
             combination_binder = self.binder_for(
                 'prestashop.product.combination')
             product_id = combination_binder.to_openerp(
-                record['product_attribute_id'],
+                prestashop_product_combination_id,
                 unwrap=True
             )
             if product_id:
@@ -332,7 +358,10 @@ class SaleOrderLineMapper(PrestashopImportMapper):
                 product = product[0]
                 product_id = product.id
                 is_from_product_bundle = product.is_product_bundle
-
+        
+        if product_id in switch_product_id:
+            product_id = switch_product_id[product_id]
+            
         return {
             'product_id': product_id, 
             'is_from_product_bundle': is_from_product_bundle

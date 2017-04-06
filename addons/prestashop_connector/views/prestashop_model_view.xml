@@ -50,6 +50,7 @@
                     <field name="discount_product_id" />
                     <field name="shipping_product_id" />
                     <field name="ship_free_order_amount" />
+                    <field name="order_state_ids" options="{'no_create': True}" string="Download order with states"/>
                 </group>
                 <notebook>
                     <page name="import" string="Imports">

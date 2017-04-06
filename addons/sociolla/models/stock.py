@@ -13,6 +13,12 @@ class stock_picking(models.Model):
         comodel_name='res.partner',
     )
 
+    inventory_date = fields.Date(string='Force Inventory Date',)
+    
+    _defaults = {
+        'inventory_date': datetime.today(),
+    }
+
     # @api.cr_uid_ids_context
     # def do_prepare_partial(self, cr, uid, picking_ids, context=None):
     #     context = context or {}
@@ -51,6 +57,34 @@ class stock_picking(models.Model):
     #     self.do_recompute_remaining_quantities(cr, uid, picking_ids, context=context)
     #     self.write(cr, uid, picking_ids, {'recompute_pack_op': False}, context=context)
 
+
+class StockMove(models.Model):
+    
+    _inherit = ['stock.move']
+    
+    @api.multi
+    def action_done(self):
+        # do actual processing
+        result = super(StockMove, self).action_done()
+        # overwrite date field where applicable
+        for move in self:
+            if move.inventory_id:
+                inventory = move.inventory_id
+                move.date = inventory.inventory_date
+            elif move.picking_id:
+                move.date = move.picking_id.inventory_date or move.picking_id.date
+            
+            if move.quant_ids:
+                move.quant_ids.sudo().write({'in_date': move.date})
+        
+        pickings = self.mapped('picking_id').filtered(
+            lambda r: r.state == 'done')
+        for picking in pickings:
+            # set date_done as the youngest date among the moves
+            dates = picking.mapped('move_lines.date')
+            picking.write({'date_done': max(dates)})
+        return result
+
 class stock_inventory(models.Model):
     _inherit = ['stock.inventory']
     
@@ -70,6 +104,17 @@ class stock_inventory(models.Model):
             "(e.g. Cycle Counting) you can choose 'Manual Selection of Products' and the system won't propose anything.  You can also let the "\
             "system propose for a single product / lot /... ")
     
+    inventory_date = fields.Date(
+        string='Force Inventory Date',
+        help="Choose the inventory date at which you want to value the stock moves created by the inventory instead of the default one (the inventory end date)"
+    )
+
+    
+    _defaults = {
+        'inventory_date': datetime.today(),
+    }
+    
+
     def _get_available_filters(self, cr, uid, context=None):
         res_filter = super(stock_inventory,self)._get_available_filters(cr, uid, context=context)
         res_filter.append(('brand', _('Select one product brand')))
@@ -189,6 +234,7 @@ class stock_quant(models.Model):
                       force_location_from=False, force_location_to=False, context=None):
         '''Create a quant in the destination location and create a negative quant in the source location if it's an internal location.
         '''
+        quant_obj = self.pool.get('stock.quant')
         if context is None:
             context = {}
         price_unit = self.pool.get('stock.move').get_price_unit(cr, uid, move, context=context)
@@ -226,7 +272,45 @@ class stock_quant(models.Model):
 
         #create the quant as superuser, because we want to restrict the creation of quant manually: we should always use this method to create quants
         quant_id = self.create(cr, SUPERUSER_ID, vals, context=context)
+        quant = self.browse(cr, uid, quant_id, context=context)
+
+        if move.product_id.valuation == 'real_time':
+            self._account_entry_move(cr, uid, [quant], move, context)
+
+            curr_rounding = move.company_id.currency_id.rounding
+            cost_rounded = float_round(quant.cost, precision_rounding=curr_rounding)
+            cost_correct = cost_rounded
+            if float_compare(quant.product_id.uom_id.rounding, 1.0, precision_digits=1) == 0\
+                    and float_compare(quant.qty * quant.cost, quant.qty * cost_rounded, precision_rounding=curr_rounding) != 0\
+                    and float_compare(quant.qty, 2.0, precision_rounding=quant.product_id.uom_id.rounding) >= 0:
+                qty = quant.qty
+                cost = quant.cost
+                quant_correct = quant_obj._quant_split(cr, uid, quant, quant.qty - 1.0, context=context)
+                cost_correct += (qty * cost) - (qty * cost_rounded)
+                quant_obj.write(cr, SUPERUSER_ID, [quant.id], {'cost': cost_rounded}, context=context)
+                quant_obj.write(cr, SUPERUSER_ID, [quant_correct.id], {'cost': cost_correct}, context=context)
+
+        
         return self.browse(cr, uid, quant_id, context=context)
+
+    def _create_account_move_line(self, cr, uid, quants, move, credit_account_id, debit_account_id, journal_id, context=None):
+        #group quants by cost
+        quant_cost_qty = {}
+        for quant in quants:
+            if quant_cost_qty.get(quant.cost):
+                quant_cost_qty[quant.cost] += quant.qty
+            else:
+                quant_cost_qty[quant.cost] = quant.qty
+        move_obj = self.pool.get('account.move')
+        for cost, qty in quant_cost_qty.items():
+            move_lines = self._prepare_account_move_line(cr, uid, move, qty, cost, credit_account_id, debit_account_id, context=context)
+            if move_lines:
+                date = context.get('force_period_date', move.picking_id.inventory_date)
+                new_move = move_obj.create(cr, uid, {'journal_id': journal_id,
+                                          'line_ids': move_lines,
+                                          'date': date,
+                                          'ref': move.picking_id.name}, context=context)
+                move_obj.post(cr, uid, [new_move], context=context)
 
     def _account_entry_move(self, cr, uid, quants, move, context=None):
         if not move.is_switchover_stock:

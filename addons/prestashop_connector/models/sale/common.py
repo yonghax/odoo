@@ -1,13 +1,50 @@
 from decimal import Decimal
+from datetime import datetime
+import pytz
 from prestapyt import PrestaShopWebServiceError
 
 from openerp.exceptions import UserError
 from openerp.addons.connector.connector import ConnectorUnit
+from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT
 
 from ...backend import prestashop
-from ...unit.import_synchronizer import PrestashopImportSynchronizer, BatchImportSynchronizer, import_record
+from ...unit.import_synchronizer import PrestashopImportSynchronizer,TranslatableRecordImport, BatchImportSynchronizer, import_record
 from ...unit.backend_adapter import GenericAdapter
 from ...connector import get_environment
+
+@prestashop
+class OrderStateRecordImport(TranslatableRecordImport):
+    _model_name = ['prestashop.order.state']
+    
+    _translatable_fields = {
+        'prestashop.order.state': [
+            'name',
+        ],
+    }
+
+    def run(self, prestashop_id, force=False):
+        self.prestashop_id = prestashop_id
+        self.prestashop_record = self._get_prestashop_data()
+
+        erp_id = None
+        splitted_record = self._split_per_language(self.prestashop_record)
+        
+        if self._default_language in splitted_record:
+            erp_id = self._run_record(
+                splitted_record[self._default_language],
+                self._default_language
+            )
+            del splitted_record[self._default_language]
+
+        for lang_code, prestashop_record in splitted_record.items():
+            erp_id = self._run_record(
+                prestashop_record,
+                lang_code,
+                erp_id
+            )
+
+        self.binder.bind(self.prestashop_id, erp_id)
+
 
 @prestashop
 class OrderHistoryImport(BatchImportSynchronizer):
@@ -75,20 +112,13 @@ class SaleOrderImport(PrestashopImportSynchronizer):
             self.add_shipping_cost(sale_order, erp_order)
 
         self.work_with_product_bundle(sale_order)
-        self.calculate_discount_proportional(sale_order)
+        self.calculate_discount_proportional(sale_order, erp_order.discount_amount)
         sale_order.recompute()
 
         # Confirm sale.order and validate inventory out
         sale_order.action_confirm()
+        date_history = sale_order.date_order
 
-        for pick in sale_order.picking_ids:
-            pick.write({'state':'assigned'})
-            for pack in pick.pack_operation_ids:
-                pack.write({'qty_done':pack.product_qty})
-            
-            pick.do_new_transfer()
-
-        # Create and validate direct account.invoice 
         filters = {'filter[id_order]': erp_order.prestashop_id, 'filter[id_order_state]':'4'}
         order_history_adapter = self.unit_for(GenericAdapter, 'order.histories')
 
@@ -99,6 +129,18 @@ class SaleOrderImport(PrestashopImportSynchronizer):
             raise UserError(('Status order not yet shipped nor deliver'))
 
         order_history = order_history_adapter.read(order_history_adapter.search(filters)[0])
+        date_history = datetime.strptime(order_history['date_add'], DEFAULT_SERVER_DATETIME_FORMAT)
+        
+        for pick in sale_order.picking_ids:
+            pick.write({
+                'state':'assigned',
+                'inventory_date': date_history.date(),
+                'date': date_history.date()
+            })
+            for pack in pick.pack_operation_ids:
+                pack.write({'qty_done':pack.product_qty})
+            
+            pick.do_new_transfer()
 
         sale_order.create_account_invoice(sale_order.date_order)
         if sale_order.invoice_status == 'invoiced':
@@ -200,17 +242,16 @@ class SaleOrderImport(PrestashopImportSynchronizer):
 
             line.unlink()
             
-    def calculate_discount_proportional(self, sale_order): 
+    def calculate_discount_proportional(self, sale_order, discount_amount): 
         """ Delete order line with product discount. and the amount will be split average per order line.
         """
         order_lines = sale_order.order_line
-        order_discounts = order_lines.filtered(lambda x: x.product_id == self.backend_record.discount_product_id)
         order_products = order_lines.filtered(lambda x: x.product_id != self.backend_record.discount_product_id and x.product_id.type == 'product')
         order_products = sorted(order_products, key=lambda x : x.price_total, reverse=True)
         
-        sum_discount_amount = sum([x.price_unit for x in order_discounts])
+        sum_discount_amount = discount_amount
         sum_total_amount_header = sum([x.price_total for x in order_products])
-        if sum_discount_amount > 0:
+        if sum_discount_amount and sum_discount_amount > 0:
             for i in xrange(0, len(order_products)):
                 total_amount = order_products[i].price_total
                 discount_header_amount = round((total_amount / sum_total_amount_header) * sum_discount_amount)
@@ -218,13 +259,11 @@ class SaleOrderImport(PrestashopImportSynchronizer):
                      discount_header_amount = total_amount
 
                 order_products[i]._compute_proportional_amount(discount_header_amount)
-        
-            order_discounts.unlink()
 
-        sale_order.discount_amount = sum_discount_amount
-        sale_order.update({
-            'discount_amount': sum_discount_amount
-        })
+        sale_order.discount_amount = discount_amount
+        sale_order.write(
+            {'discount_amount':discount_amount}
+        )
 
     def _check_refunds(self, id_customer, id_order):
         backend_adapter = self.unit_for(

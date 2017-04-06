@@ -1,7 +1,9 @@
+from datetime import datetime
 from openerp import SUPERUSER_ID
 import logging
 from ...backend import prestashop
 from ...unit.mapper import PrestashopImportMapper, mapping
+from ...unit.backend_adapter import GenericAdapter
 
 _logger = logging.getLogger(__name__)
 
@@ -109,13 +111,13 @@ class TemplateMapper(PrestashopImportMapper):
     @mapping
     def date_add(self, record):
         if record['date_add'] == '0000-00-00 00:00:00':
-            return {'date_add': datetime.datetime.now()}
+            return {'date_add': datetime.now()}
         return {'date_add': record['date_add']}
 
     @mapping
     def date_upd(self, record):
         if record['date_upd'] == '0000-00-00 00:00:00':
-            return {'date_upd': datetime.datetime.now()}
+            return {'date_upd': datetime.now()}
         return {'date_upd': record['date_upd']}
 
     def has_bundles(self,record):
@@ -206,12 +208,12 @@ class TemplateMapper(PrestashopImportMapper):
         if not code or not record['categ_id']:  
             return {'categ_id': self.backend_record.unrealized_product_category_id.id}
 
-        categ_adapter = self.unit_for(BackendAdapter,'prestashop.product.category')
-        categ_ids = adapter.search({'filter[id]': record['id_category_default']})
+        categ_adapter = self.unit_for(GenericAdapter,'prestashop.product.category')
+        categ_ids = categ_adapter.search({'filter[id]': record['id_category_default']})
 
         for categ_id in categ_ids:
-            categ = adapter.read(categ_id)
-            categ_name = categ['name']
+            categ = categ_adapter.read(categ_id)
+            categ_name = categ['name']['language']['value']
             
             if categ_name.lower() == 'special price':
                 pass

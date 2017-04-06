@@ -175,28 +175,29 @@ class PurchaseOrder(models.Model):
                 }
             )
 
-        message_id = message_obj.create(cr, SUPERUSER_ID, {
-            'type' : 'email',
-            'subject' : 'Pending RFQ needs your approval (%s)' % datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
-        })
-        mail_ids = []
-
-        mail_body = self.generate_mail_body_html('John Marco', list_html)
-
-        mail_id = mail_obj.create(cr, SUPERUSER_ID, {
-            'mail_message_id' : message_id,
-            'state' : 'outgoing',
-            'auto_delete' : True,
-            'mail_server_id': su.mail_server.id,
-            'email_from' : 'christa.alycia@sociolla.com',
-            'email_to' : 'john@sociolla.com',
-            'reply_to' : 'christa.alycia@sociolla.com',
-            'body_html' : mail_body
+        for user_manager in user_purchase_managers:
+            message_id = message_obj.create(cr, SUPERUSER_ID, {
+                'type' : 'email',
+                'subject' : 'Pending RFQ needs your approval (%s)' % datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
             })
+            mail_ids = []
 
-        mail_ids += [mail_id,]
+            mail_body = self.generate_mail_body_html(user_manager.partner_id.name, list_html)
 
-        mail_obj.send(cr, SUPERUSER_ID, mail_ids)
+            mail_id = mail_obj.create(cr, SUPERUSER_ID, {
+                'mail_message_id' : message_id,
+                'state' : 'outgoing',
+                'auto_delete' : True,
+                'mail_server_id': su.mail_server.id,
+                'email_from' : 'christa.alycia@sociolla.com',
+                'email_to' : user_manager.partner_id.email,
+                'reply_to' : 'christa.alycia@sociolla.com',
+                'body_html' : mail_body
+                })
+
+            mail_ids += [mail_id,]
+
+            mail_obj.send(cr, SUPERUSER_ID, mail_ids)
     
     def generate_mail_body_html(self, user_name, list_purchase_html):
         return """
