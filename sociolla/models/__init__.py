@@ -18,4 +18,3 @@ import odoo_ps_stock_quant
 import stock_change_standard_price
 import account
 import partner
-import sales_gmv_report

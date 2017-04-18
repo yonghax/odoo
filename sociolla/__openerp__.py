@@ -50,6 +50,8 @@
     ],
 
     'data': [
+        'security/custom_sociolla_security.xml',
+        # 'security/ir.model.access.csv',
         'views/product_view.xml',
         'views/purchase_view.xml',
         'views/product_brand_view.xml',
@@ -60,7 +62,6 @@
         'views/switchover_product_view.xml',
         'views/account_view.xml',
         'views/partner.xml',
-        'views/gmv_sales_report_view.xml'
         # 'security/ir.model.access.csv',
         # 'reports/report_purchaseorder.xml',
         # 'reports/report_purchasequotation.xml',
