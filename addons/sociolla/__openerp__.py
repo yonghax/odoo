@@ -50,6 +50,8 @@
     ],
 
     'data': [
+        'security/custom_sociolla_security.xml',
+        # 'security/ir.model.access.csv',
         'views/product_view.xml',
         'views/purchase_view.xml',
         'views/product_brand_view.xml',

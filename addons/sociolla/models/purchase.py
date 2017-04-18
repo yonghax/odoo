@@ -17,36 +17,33 @@ class PurchaseOrder(models.Model):
     retry_send_mail = fields.Integer(string='Retry send mail')
     force_inventory_date = fields.Datetime(string='Force Inventory Date')
 
+    @api.model
+    def _default_shop_id(self):
+        user=self.env.user
+        b2b = len(user.groups_id.filtered(lambda x: x.name=='B2B')) > 0
+        b2c = len(user.groups_id.filtered(lambda x: x.name=='B2C')) > 0
+        
+        if b2c:
+            return self.env['sale.shop'].search([('name', '=', 'sociolla.com')], limit=1)
+
+        if b2b:
+            return self.env['sale.shop'].search([('name', '=', 'Sociolla BO')], limit=1)
+
+    shop_id = fields.Many2one(string='Shop',index=True,comodel_name='sale.shop', default=_default_shop_id)
+
+    @api.onchange('shop_id')
+    def onchange_shop_id(self):
+        result = {}
+        if not self.shop_id:
+            return result
+
+        self.picking_type_id = self.shop_id.warehouse_id.in_type_id.id
+
     picking_status = fields.Selection([
         ('no', 'Not yet Receive'),
         ('receiving', 'Receive in Progress'),
         ('received', 'Full Received'),
         ], string='Receive Status', compute='_get_receive', store=True, readonly=True, copy=False, default='no')
-
-    # def do_approve(self, cr, uid, domain=None, context=None):
-    #     obj = self.pool.get('purchase.order')
-    #     items = obj.browse(
-    #         cr,
-    #         uid,
-    #         obj.search(
-    #             cr,
-    #             uid,
-    #             [
-    #                 ('date_order', '>=', '2016-09-01 00:00:00'),
-    #                 ('date_order', '<=', '2016-11-30 23:59:59'),
-    #                 ('state', '=','draft')
-    #             ],
-    #             context=context
-    #         ),
-    #         context=context
-    #     )
-
-    #     for item in items:
-    #         item.apprv()
-
-    # def apprv(self, cr, uid, ids, context=None):
-    #     for item in self.browse(cr, uid, ids, context=context):
-    #         item.button_approve()
     
     @api.depends('state', 'order_line.qty_received', 'order_line.product_qty')
     def _get_receive(self):
@@ -153,18 +150,32 @@ class PurchaseOrder(models.Model):
 
         su = user_obj.browse(cr, SUPERUSER_ID, [SUPERUSER_ID])
 
-        pending_approvals = self.browse(cr, SUPERUSER_ID, self.search(cr, SUPERUSER_ID, [('state', '=', 'to approve'), ('has_send_mail', '=', False)]))
+        pending_approvals_b2c = self.browse(cr, SUPERUSER_ID, self.search(cr, SUPERUSER_ID, [('state', '=', 'to approve'), ('has_send_mail', '=', False), ('shop_id.name', '=', 'sociolla.com')]))
+        pending_approvals_b2b = self.browse(cr, SUPERUSER_ID, self.search(cr, SUPERUSER_ID, [('state', '=', 'to approve'), ('has_send_mail', '=', False), ('shop_id.name', '=', 'Sociolla BO')]))
 
-        if len(user_purchase_managers) < 1 or len(pending_approvals) < 1:
+        if len(user_purchase_managers) < 1 or (len(pending_approvals_b2c) < 1 and len(pending_approvals_b2b) < 1):
             return False
 
-        list_html = ''
+        list_html_b2c = ''
+        list_html_b2b = ''
 
         message_obj = self.pool.get('mail.message')
         mail_obj = self.pool.get('mail.mail')
 
-        for order in pending_approvals:
-            list_html += self.generate_list_html(order.name, order.date_order, order.partner_id.name, format(order.amount_total, '0,.2f'))
+        for order in pending_approvals_b2c:
+            list_html_b2c += self.generate_list_html(order.name, order.date_order, order.partner_id.name, format(order.amount_total, '0,.2f'))
+
+            order.write
+            (
+                {
+                    'last_send_mail': datetime.today().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
+                    'has_send_mail': True,
+                    'retry_send_mail': order.retry_send_mail + 1
+                }
+            )
+
+        for order in pending_approvals_b2b:
+            list_html_b2b += self.generate_list_html(order.name, order.date_order, order.partner_id.name, format(order.amount_total, '0,.2f'))
 
             order.write
             (
@@ -182,22 +193,34 @@ class PurchaseOrder(models.Model):
             })
             mail_ids = []
 
-            mail_body = self.generate_mail_body_html(user_manager.partner_id.name, list_html)
+            list_html = ''
 
-            mail_id = mail_obj.create(cr, SUPERUSER_ID, {
-                'mail_message_id' : message_id,
-                'state' : 'outgoing',
-                'auto_delete' : True,
-                'mail_server_id': su.mail_server.id,
-                'email_from' : 'christa.alycia@sociolla.com',
-                'email_to' : user_manager.partner_id.email,
-                'reply_to' : 'christa.alycia@sociolla.com',
-                'body_html' : mail_body
-                })
+            b2b = len(user_manager.groups_id.filtered(lambda x: x.name=='B2B')) > 0
+            b2c = len(user_manager.groups_id.filtered(lambda x: x.name=='B2C')) > 0
+            
+            if b2c:
+                list_html += list_html_b2c
 
-            mail_ids += [mail_id,]
+            if b2b:
+                list_html += list_html_b2b
 
-            mail_obj.send(cr, SUPERUSER_ID, mail_ids)
+            if list_html != '':
+                mail_body = self.generate_mail_body_html(user_manager.partner_id.name, list_html)
+
+                mail_id = mail_obj.create(cr, SUPERUSER_ID, {
+                    'mail_message_id' : message_id,
+                    'state' : 'outgoing',
+                    'auto_delete' : True,
+                    'mail_server_id': su.mail_server.id,
+                    'email_from' : 'christa.alycia@sociolla.com',
+                    'email_to' : user_manager.partner_id.email,
+                    'reply_to' : 'christa.alycia@sociolla.com',
+                    'body_html' : mail_body
+                    })
+
+                mail_ids += [mail_id,]
+
+                mail_obj.send(cr, SUPERUSER_ID, mail_ids)
     
     def generate_mail_body_html(self, user_name, list_purchase_html):
         return """

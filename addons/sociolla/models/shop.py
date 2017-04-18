@@ -14,3 +14,11 @@ class SaleShop(models.Model):
         string='Warehouse',
         required=True,
         default=_default_warehouse_id)
+
+    
+    apply_group_id = fields.Many2one(
+        string='Apply group',
+        comodel_name='res.groups',
+        domain=['|',('name','=','B2B'),('name','=','B2C')],
+    )
+    
