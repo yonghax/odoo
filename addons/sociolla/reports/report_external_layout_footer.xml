@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<t t-name="report.external_layout_footer">
+    <div class="footer">
+        <div class="text-center" style="border-top: 1px solid black; font-size: 12px">
+            <div class="col-xs-9 text-left" style="padding-left: 0">
+                <ul t-if="not company.custom_footer" class="list-inline" >
+                    <li class="fa fa-phone" t-if="company.phone"> <span t-field="company.phone"/></li>
+
+                    <li t-if="company.fax and company.phone">&amp;bull;</li>
+                    <li t-if="company.fax" class="fa fa-fax"> <span t-field="company.fax"/></li>
+
+                    <li t-if="company.email and company.fax or company.email and company.phone">&amp;bull;</li>
+                    <li t-if="company.email" class="fa fa-envelope"> <span t-field="company.email"/></li>
+
+                    <li t-if="company.website and company.email or company.website and company.fax or company.website and company.phone">&amp;bull;</li>
+                    <li t-if="company.website" class="fa fa-globe" style="padding-right: 0"> <span t-field="company.website" /></li>
+                </ul>
+
+                <ul t-if="not company.custom_footer" class="list-inline" name="financial_infos">
+                    <li t-if="company.vat">TIN: <span t-field="company.vat"/></li>
+                </ul>
+            </div>
+            <div class="col-xs-3 text-right" style="padding-right: 0">
+                <ul class="list-inline">
+                    <li>Page:</li>
+                    <li><span class="page"/></li>
+                    <li>/</li>
+                    <li><span class="topage"/></li>
+                </ul>
+            </div>
+        </div>
+    </div>      
+</t>
