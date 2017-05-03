@@ -348,6 +348,12 @@ class PurchaseOrderLine(models.Model):
         change_default=True, 
         required=True)
     
+    @api.constrains('product_id')
+    def _validate_brand(self):
+        for line in self:
+            if not line.product_id.product_tmpl_id.product_brand_id.categ_id:
+                raise models.ValidationError('Category for Brand ' + line.product_id.product_tmpl_id.product_brand_id.name + ' is required, please set the category on Product Brand data.')
+
     @api.onchange('product_id')
     def onchange_product_id(self):
         result = {}
