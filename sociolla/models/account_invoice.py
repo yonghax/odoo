@@ -25,8 +25,7 @@ class AccountInvoice(models.Model):
     _inherit = "account.invoice"
 
     discount_amount = fields.Monetary(string='Discount Amount', readonly=True, default=0.0)
-    price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, compute='_compute_amount', default=0.0)
-    amount_tax = fields.Monetary(string='Tax', default=0.0, store=True, readonly=True, compute='_compute_amount')
+    price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, default=0.0)
 
     @api.multi
     def action_move_create(self):
