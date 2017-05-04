@@ -159,8 +159,8 @@ class PurchaseOrder(models.Model):
         list_html_b2c = ''
         list_html_b2b = ''
 
-        message_obj = self.pool.get('mail.message')
-        mail_obj = self.pool.get('mail.mail')
+        message_obj = self.env['mail.message'].sudo()
+        mail_obj = self.env['mail.mail'].sudo()
 
         for order in pending_approvals_b2c:
             list_html_b2c += self.generate_list_html(order.name, order.date_order, order.partner_id.name, format(order.amount_total, '0,.2f'))
@@ -187,10 +187,6 @@ class PurchaseOrder(models.Model):
             )
 
         for user_manager in user_purchase_managers:
-            message_id = message_obj.create(cr, SUPERUSER_ID, {
-                'type' : 'email',
-                'subject' : 'Pending RFQ needs your approval (%s)' % datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
-            })
             mail_ids = []
 
             list_html = ''
@@ -205,9 +201,13 @@ class PurchaseOrder(models.Model):
                 list_html += list_html_b2b
 
             if list_html != '':
+                message_id = message_obj.create({
+                    'type' : 'email',
+                    'subject' : 'Pending RFQ needs your approval (%s)' % datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
+                })
                 mail_body = self.generate_mail_body_html(user_manager.partner_id.name, list_html)
 
-                mail_id = mail_obj.create(cr, SUPERUSER_ID, {
+                mail_id = mail_obj.create({
                     'mail_message_id' : message_id,
                     'state' : 'outgoing',
                     'auto_delete' : True,
@@ -220,7 +220,7 @@ class PurchaseOrder(models.Model):
 
                 mail_ids += [mail_id,]
 
-                mail_obj.send(cr, SUPERUSER_ID, mail_ids)
+                mail_obj.send(mail_ids)
     
     def generate_mail_body_html(self, user_name, list_purchase_html):
         return """
@@ -348,6 +348,12 @@ class PurchaseOrderLine(models.Model):
         change_default=True, 
         required=True)
     
+    @api.constrains('product_id')
+    def _validate_brand(self):
+        for line in self:
+            if not line.product_id.product_tmpl_id.product_brand_id.categ_id:
+                raise models.ValidationError('Category for Brand ' + line.product_id.product_tmpl_id.product_brand_id.name + ' is required, please set the category on Product Brand data.')
+
     @api.onchange('product_id')
     def onchange_product_id(self):
         result = {}

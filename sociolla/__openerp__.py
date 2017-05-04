@@ -62,6 +62,7 @@
         'views/switchover_product_view.xml',
         'views/account_view.xml',
         'views/partner.xml',
+        'reports/account_invoice_report_view.xml',
         # 'security/ir.model.access.csv',
         # 'reports/report_purchaseorder.xml',
         # 'reports/report_purchasequotation.xml',

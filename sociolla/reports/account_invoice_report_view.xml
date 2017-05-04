@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+        <record id="view_account_invoice_report_search_inherit" model="ir.ui.view">
+            <field name="name">account.invoice.report.search.inherit</field>
+            <field name="model">account.invoice.report</field>
+            <field name="inherit_id" ref="account.view_account_invoice_report_search"/>
+            <field name="arch" type="xml">
+                <xpath expr="//filter[@name='thisyear']" position="after">
+                    <filter string="This Period" name="thisperiod" domain="['|', ('date', '=', False), '&amp;',('date','&lt;=', time.strftime('%Y-%m-%d')),('date','&gt;=',time.strftime('%Y-%m-01'))]" help="Journal invoices with period in current period"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="view_account_invoice_report_pivot_inherit" model="ir.ui.view">
+            <field name="name">account.invoice.report.pivot.inherit</field>
+            <field name="model">account.invoice.report</field>
+            <field name="inherit_id" ref="account.view_account_invoice_report_pivot"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='price_total']" position="replace">
+                    <field name="product_qty" type="measure"/>
+                    <field name="discount_amount" type="measure"/>
+                    <field name="discount_header_amount" type="measure"/>
+                    <field name="revenue_amount" type="measure"/>
+                    <field name="gmv_amount" type="measure"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</openerp>
