@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="hr_advance_refuse_wizard_view_form" model="ir.ui.view">
+        <field name="name">hr.advance.refuse.wizard.form</field>
+        <field name="model">hr.advance.refuse.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Advance refuse reason">
+                <separator string="Reason to refuse advance."/>
+                <field name="description"/>
+                <footer>
+                    <button string='Refuse' name="advance_refuse_reason" type="object" class="oe_highlight"/>
+                    or
+                    <button string="Cancel" class="oe_link" special="cancel"/>
+                </footer>
+           </form>
+        </field>
+    </record>
+
+    <record id="hr_advance_refuse_wizard_action" model="ir.actions.act_window">
+        <field name="name">Refuse Advance</field>
+        <field name="res_model">hr.advance.refuse.wizard</field>
+        <field name="view_type">form</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="hr_advance_refuse_wizard_view_form"/>
+        <field name="target">new</field>
+    </record>
+</odoo>
