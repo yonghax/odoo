@@ -18,3 +18,4 @@ import odoo_ps_stock_quant
 import stock_change_standard_price
 import account
 import partner
+import account_asset
