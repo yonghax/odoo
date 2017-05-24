@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+        <record id="view_dynamic_financial_report_tree" model="ir.ui.view">
+            <field name="name">account.dynamic.financial.report.tree</field>
+            <field name="model">account.dynamic.financial.report</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Dynamic Financial Report">
+                    <field name="name"/>
+                </tree>
+            </field>
+        </record>
+
+        <record id="view_dynamic_financial_report_form" model="ir.ui.view">
+            <field name="name">account.dynamic.financial.report.form</field>
+            <field name="model">account.dynamic.financial.report</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Dynamic Account Report">
+                    <sheet>
+                        <div class="oe_title">
+                            <field name="name"/>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="report_type"/>
+                                <field name="company_id" groups="base.group_multi_company"/>
+                            </group>
+                            <group>
+                                <field name="debit_credit"/>
+                            </group>
+                            <field colspan="4" name="line_ids" string="Report Lines"/>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="view_dynamic_financial_report_line_tree" model="ir.ui.view">
+            <field name="name">account.dynamic.financial.report.line.tree</field>
+            <field name="model">account.dynamic.financial.report.line</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Dynamic Financial Report">
+                    <field name="sequence" widget="handle"/>
+                    <field name="name"/>
+                    <field name="code"/>
+                    <field name="level"/>
+                </tree>
+            </field>
+        </record>
+
+        <record id="view_dynamic_financial_report_line_form" model="ir.ui.view">
+            <field name="name">account.dynamic.financial.report.line.form</field>
+            <field name="model">account.dynamic.financial.report.line</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Dynamic Account Report Line">
+                    <group>
+                        <group string="Main Info">
+                            <field name="name"/>
+                            <field name="code"/>
+                            <field name="sequence"/>
+                            <field name="parent_id"/>
+                        </group>
+                        <group string="Computation">
+                            <field name="formulas"/>
+                            <field name="domain"/>
+                            <field name="special_date_changer"/>
+                        </group>
+                        <group string="Cosmetics">
+                            <field name="level"/>
+                        </group>
+                        <group string="Children Lines">
+                            <field name="children_ids" nolabel="1"/>
+                        </group>
+                    </group>
+                </form>
+            </field>
+        </record>
+        
+        <record id="dynamic_financial_report_action" model="ir.actions.act_window">
+            <field name="name">Dynamic Account Financial Report</field>
+            <field name="res_model">account.dynamic.financial.report</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+            <field name="view_id" ref="view_dynamic_financial_report_tree"/>
+        </record>
+
+        <!--<record id="dynamic_financial_report_action" model="ir.actions.act_window">
+            <field name="name">Dynamic Account Financial Report</field>
+            <field name="res_model">account.dynamic.financial.report</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+            <field name="view_id" ref="view_dynamic_financial_report_line_tree"/>
+        </record>-->
+
+        <menuitem 
+            id="menu_dynamic_financial_report"
+            name="Dynamic Financial Report" 
+            parent="account.menu_account_reports" 
+            sequence="1" 
+            action="dynamic_financial_report_action" 
+            groups="stock.group_stock_user"/>
+    </data>
+</openerp>
