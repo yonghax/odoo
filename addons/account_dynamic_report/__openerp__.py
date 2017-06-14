@@ -19,7 +19,8 @@ This module adds two new reports:
         #'views/report_journal.xml',
         #'wizard/account_report_partner_ledger_view.xml',
         'views/account_dynamic_financial_report_view.xml',
-        #'data/account_report.xml'
+        'data/account_type_data.xml',
+        'report/financial_report.xml',
     ],
     'demo': [],
     'installable': True,

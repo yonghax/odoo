@@ -269,10 +269,10 @@ class TemplateMapper(PrestashopImportMapper):
         if record['ean13'] in ['', '0']:
             return {'ean13': False}
         
-        barcode_nomenclature = self.env['barcode.nomenclature'].search([])[:1]
-        if barcode_nomenclature.check_ean(record['ean13']):
-            return {'ean13': record['ean13']}
-        return {}
+        # barcode_nomenclature = self.env['barcode.nomenclature'].search([])[:1]
+        # if barcode_nomenclature.check_ean(record['ean13']):
+        #     return {'ean13': record['ean13']}
+        return {'barcode': record['ean13']}
 
 
     @mapping

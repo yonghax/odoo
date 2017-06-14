@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data noupdate="1">
+        <!-- account.account.type -->
+        <record model="account.account.type" id="data_account_type_liquidity_cash">
+          <field name="name">Cash</field>
+          <field name="type">liquidity</field>
+          <field name="note">Used mainly for cash account</field>
+          <field name="include_initial_balance" eval="True"/>
+        </record>
+        <record model="account.account.type" id="data_account_type_inventory_consignment">
+            <field name="name">Asset Consignment</field>
+            <field name="type">other</field>
+            <field name="note">Used mainly for current asset inventory consignment</field>
+            <field name="include_initial_balance" eval="True" />
+        </record>
+        <record model="account.account.type" id="data_account_type_tax">
+            <field name="name">Tax</field>
+            <field name="type">other</field>
+            <field name="note">Used mainly for tax account</field>
+            <field name="include_initial_balance" eval="True" />
+        </record>
+        <record model="account.account.type" id="data_account_type_other_current_assets">
+          <field name="name">Other Current Assets</field>
+          <field name="type">other</field>
+          <field name="include_initial_balance" eval="True"/>
+        </record>
+        <record model="account.account.type" id="data_account_type_other_consignment_assets">
+          <field name="name">Other Consignment Assets</field>
+          <field name="type">other</field>
+          <field name="include_initial_balance" eval="True"/>
+        </record>
+    </data>
+</openerp>
