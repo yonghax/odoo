@@ -61,6 +61,11 @@ class ProductBundle(models.Model):
         help=False
     )
 
+    choose_variant = fields.Boolean(
+        string=u'Allow Choose Variant',
+    )
+    
+
 class ProductProductBundle(models.Model):
     _name = 'product.product.bundle'
 
@@ -88,4 +93,8 @@ class ProductProductBundle(models.Model):
         readonly=False,
         default=1,
         help=False
+    )
+
+    choose_variant = fields.Boolean(
+        string=u'Allow Choose Variant',
     )

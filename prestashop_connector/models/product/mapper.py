@@ -2,6 +2,7 @@ from openerp import SUPERUSER_ID
 import logging
 from ...backend import prestashop
 from ...unit.mapper import PrestashopImportMapper, mapping
+from openerp.addons.connector.unit.backend_adapter import BackendAdapter
 
 _logger = logging.getLogger(__name__)
 
@@ -174,17 +175,13 @@ class TemplateMapper(PrestashopImportMapper):
             'active':True
         }
     
-    # @mapping
-    # def is_product_bundle(self,record):
-    #     return {'is_product_bundle': self.has_bundles(record)}
+    @mapping
+    def is_product_bundle(self,record):
+        return {'is_product_bundle': record['type']['value'] == 'pack'}
 
     @mapping
     def sale_ok(self, record):
         return {'sale_ok': True}
-
-    @mapping
-    def purchase_ok(self, record):
-        return {'purchase_ok': True}
 
     @mapping
     def is_product_switchover(self,record):
@@ -207,11 +204,11 @@ class TemplateMapper(PrestashopImportMapper):
             return {'categ_id': self.backend_record.unrealized_product_category_id.id}
 
         categ_adapter = self.unit_for(BackendAdapter,'prestashop.product.category')
-        categ_ids = adapter.search({'filter[id]': record['id_category_default']})
+        categ_ids = categ_adapter.search({'filter[id]': record['id_category_default']})
 
         for categ_id in categ_ids:
-            categ = adapter.read(categ_id)
-            categ_name = categ['name']
+            categ = categ_adapter.read(categ_id)
+            categ_name = categ['name']['language']['value']
             
             if categ_name.lower() == 'special price':
                 pass
@@ -269,10 +266,10 @@ class TemplateMapper(PrestashopImportMapper):
         if record['ean13'] in ['', '0']:
             return {'ean13': False}
         
-        barcode_nomenclature = self.env['barcode.nomenclature'].search([])[:1]
-        if barcode_nomenclature.check_ean(record['ean13']):
-            return {'ean13': record['ean13']}
-        return {}
+        # barcode_nomenclature = self.env['barcode.nomenclature'].search([])[:1]
+        # if barcode_nomenclature.check_ean(record['ean13']):
+        #     return {'ean13': record['ean13']}
+        return {'barcode': record['ean13']}
 
 
     @mapping

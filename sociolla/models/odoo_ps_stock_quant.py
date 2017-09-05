@@ -19,7 +19,7 @@ class odoo_ps_stock_quant(osv.osv):
     def init(self, cr):
         _query = """
             SELECT
-                ROW_NUMBER() OVER() AS "id", ps_tbl.ps_product_id as id_product, COALESCE(ps_tbl.ps_product_attribute_id,0) as id_product_attribute, 
+                ROW_NUMBER() OVER() AS "id", ps_tbl.ps_product_id AS id_product, COALESCE(ps_tbl.ps_product_attribute_id, 0) AS id_product_attribute,
                 p.default_code as reference, p.name_template as name, 
                 coalesce(st.quantity, 0) as quantity, 
                 coalesce(sm.forecast_qty, 0) as forecast_qty,
@@ -27,10 +27,13 @@ class odoo_ps_stock_quant(osv.osv):
             FROM product_product p 
             INNER JOIN 
             (
-                SELECT ppt.prestashop_id as ps_product_id, ppt.openerp_id as odoo_product_tmpl_id, ppc.prestashop_id as ps_product_attribute_id, ppc.openerp_id as odoo_product_id
+                SELECT ppt.prestashop_id AS ps_product_id,
+                    ppt.openerp_id AS odoo_product_tmpl_id,
+                    ppc.prestashop_id AS ps_product_attribute_id,
+                    ppc.openerp_id AS odoo_product_id
                 FROM prestashop_product_template ppt
                 LEFT JOIN prestashop_product_combination ppc ON ppc.main_template_id = ppt.id
-            ) ps_tbl ON ps_tbl.odoo_product_tmpl_id = p.product_tmpl_id AND CASE WHEN ps_tbl.odoo_product_id is NULL THEN 0 ELSE ps_tbl.odoo_product_id END = CASE WHEN ps_tbl.odoo_product_id is NULL THEN 0 ELSE p.id END
+            ) ps_tbl ON ps_tbl.odoo_product_tmpl_id = p.product_tmpl_id AND CASE WHEN ps_tbl.odoo_product_id IS NULL THEN 0 ELSE ps_tbl.odoo_product_id END = CASE WHEN ps_tbl.odoo_product_id IS NULL THEN 0 ELSE p.id END
             LEFT JOIN 
             (
                 SELECT product_id, SUM(qty) as quantity

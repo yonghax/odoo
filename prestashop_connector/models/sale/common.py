@@ -1,13 +1,19 @@
 from decimal import Decimal
+from datetime import datetime
 from prestapyt import PrestaShopWebServiceError
+from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT, DEFAULT_SERVER_DATE_FORMAT
 
 from openerp.exceptions import UserError
 from openerp.addons.connector.connector import ConnectorUnit
+from openerp import SUPERUSER_ID
 
 from ...backend import prestashop
 from ...unit.import_synchronizer import PrestashopImportSynchronizer, BatchImportSynchronizer, import_record
 from ...unit.backend_adapter import GenericAdapter
 from ...connector import get_environment
+
+import MySQLdb
+import MySQLdb.cursors as cursors
 
 @prestashop
 class OrderHistoryImport(BatchImportSynchronizer):
@@ -62,19 +68,13 @@ class SaleOrderImport(PrestashopImportSynchronizer):
                 pass
 
     def _after_import(self, erp_id):
-        model = self.session.pool.get('prestashop.sale.order')
-        erp_order = model.browse(
-            self.session.cr,
-            self.session.uid,
-            erp_id.id,
-        )
-
-        sale_order = erp_order.openerp_id
+        sale_order = erp_id.openerp_id
+        prestashop_id = erp_id.prestashop_id
 
         if sale_order.amount_total <= self.backend_record.ship_free_order_amount:
-            self.add_shipping_cost(sale_order, erp_order)
+            self.add_shipping_cost(sale_order, prestashop_id)
 
-        self.work_with_product_bundle(sale_order)
+        self.work_with_product_bundle(sale_order, prestashop_id)
         self.calculate_discount_proportional(sale_order)
         sale_order.recompute()
 
@@ -89,27 +89,28 @@ class SaleOrderImport(PrestashopImportSynchronizer):
             pick.do_new_transfer()
 
         # Create and validate direct account.invoice 
-        filters = {'filter[id_order]': erp_order.prestashop_id, 'filter[id_order_state]':'4'}
+        filters = {'filter[id_order]': prestashop_id, 'filter[id_order_state]':'4'}
         order_history_adapter = self.unit_for(GenericAdapter, 'order.histories')
 
         if len(order_history_adapter.search(filters)) < 1:
-            filters = {'filter[id_order]': erp_order.prestashop_id, 'filter[id_order_state]':'5'}
+            filters = {'filter[id_order]': prestashop_id, 'filter[id_order_state]':'5'}
 
         if len(order_history_adapter.search(filters)) < 1:
             raise UserError(('Status order not yet shipped nor deliver'))
 
         order_history = order_history_adapter.read(order_history_adapter.search(filters)[0])
+        history_date = datetime.strptime(order_history['date_add'], DEFAULT_SERVER_DATETIME_FORMAT).strftime(DEFAULT_SERVER_DATE_FORMAT)
 
-        sale_order.create_account_invoice(sale_order.date_order)
+        sale_order.create_account_invoice(history_date)
         if sale_order.invoice_status == 'invoiced':
             for inv in sale_order.invoice_ids:
                 inv.action_move_create()
 
         return True
     
-    def add_shipping_cost(self, sale_order, erp_order):
+    def add_shipping_cost(self, sale_order, prestashop_id):
         order_adapter = self.unit_for(GenericAdapter, 'prestashop.sale.order')
-        ps_order = order_adapter.read(erp_order.prestashop_id)
+        ps_order = order_adapter.read(prestashop_id)
         total_shipping_amount = Decimal(ps_order['total_shipping']) if Decimal(ps_order['total_shipping']) > 0.0 else Decimal(ps_order['total_paid']) - Decimal(sale_order.amount_total)
 
         vals = {
@@ -134,8 +135,76 @@ class SaleOrderImport(PrestashopImportSynchronizer):
 
         self.env['sale.order.line'].with_context(self.session.context).create(vals)
 
+    def _get_bundle(self, prestashop_id, product_id):
+        vals = []
+        prestashop_product_ids = []
+        has_choose_variant = False
+        if len(product_id.product_bundles) > 0:
+            for prd in product_id.product_bundles:
+                if not prd.choose_variant:
+                    vals.append({
+                        'product_id': prd.product_id,
+                        'qty': prd.qty,
+                    })
+                else:
+                    prestashop_product_ids.append(prd.product_id.product_tmpl_id.prestashop_bind_ids[0].prestashop_id)
+                    has_choose_variant = True
+        elif len(product_id.product_tmpl_id.product_bundles) > 0:
+            for prd in product_id.product_tmpl_id.product_bundles:
+                if not prd.choose_variant:
+                    vals.append({
+                        'product_id': prd.product_id,
+                        'qty': prd.qty,
+                    })
+                else:
+                    prestashop_product_ids.append(prd.product_id.product_tmpl_id.prestashop_bind_ids[0].prestashop_id)
+                    has_choose_variant = True
 
-    def work_with_product_bundle(self, sale_order):
+        if not has_choose_variant:
+            return vals
+
+        host = self.env['ir.config_parameter'].get_param('mysql.host')
+        user = self.env['ir.config_parameter'].get_param('mysql.user')
+        passwd = self.env['ir.config_parameter'].get_param('mysql.passwd')
+        dbname = self.env['ir.config_parameter'].get_param('mysql.dbname')
+
+        ps_prd_obj = self.env['prestashop.product.combination']
+        ps_prd_tmpl_obj  = self.env['prestashop.product.template']
+        prd_obj = self.env['product.product']
+        prd_tmpl_obj = self.env['product.template']
+
+        db = MySQLdb.connect(host, user, passwd, dbname, cursorclass=MySQLdb.cursors.DictCursor)
+        cur = db.cursor()
+
+        query = """
+select op.id_cart, o.id_order, o.date_add, o.reference as reference_order, o.current_state, op.id_product_pack, op.id_attribute, pa.reference
+    from ps_orders o 
+    inner join ps_order_pack op on op.id_cart = o.id_cart
+    inner join ps_product_attribute pa on pa.id_product_attribute = op.id_attribute
+    where o.id_order = %s and op.id_product_pack in %s """ % (str(prestashop_id), tuple(prestashop_product_ids))
+
+        cur.execute(query)
+        rows = cur.fetchall()
+        cur.close()
+        db.close()
+        for row in rows:
+            id_attribute = row['id_attribute']
+            id_product_pack = row['id_product_pack']
+
+            if id_attribute and id_attribute > 0:
+                prd_bundle = ps_prd_obj.search([('prestashop_id','=',id_attribute)])[0]['openerp_id']
+            elif id_product_pack and id_product_pack > 0:
+                prd_bundle = prd_obj.browse(prd_obj.search([('product_tmpl_id','=',ps_prd_tmpl_obj.search([('prestashop_id','=',id_product_pack)])[0]['openerp_id'].id)]))
+
+            if prd_bundle:
+                vals.append({
+                    'product_id': prd_bundle,
+                    'qty': 1,
+                })
+
+        return vals
+
+    def work_with_product_bundle(self, sale_order, prestashop_id):
         """ 
             if sale.order.has_product_bundle:
                 Delete all product bundle, and change to products involved
@@ -146,15 +215,16 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         bundle_order_lines = sale_order.order_line.filtered(lambda x: x.product_id.is_product_bundle or x.product_id.product_tmpl_id.is_product_bundle)
 
         for line in bundle_order_lines:
-            bundles = line.product_id.product_bundles
+            bundles = self._get_bundle(prestashop_id, line.product_id)
+
             if len(bundles) < 1:
                 bundles = line.product_id.product_tmpl_id.product_bundles
 
-            sum_bundle_unit_price = sum([x.qty * x.product_id.list_price for x in bundles]) * line.product_uom_qty
+            sum_bundle_unit_price = sum([x['qty'] * x['product_id'].list_price for x in bundles]) * line.product_uom_qty
 
             for product_bundle in bundles:
-                product = product_bundle.product_id
-                qty = product_bundle.qty * line.product_uom_qty
+                product = product_bundle['product_id']
+                qty = product_bundle['qty'] * line.product_uom_qty
                 unit_price = product.list_price
                 sub_total = qty * unit_price
                 if sub_total != 0:

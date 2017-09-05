@@ -135,9 +135,7 @@
                 </div>
             </div>
            
-            <p t-if="o.company_id.sale_note">
-                <span t-field="o.company_id.sale_note"/>
-            </p>
+            
             <p t-if="o.fiscal_position_id.note">
                 <strong>Fiscal Position Remark:</strong>
                 <span t-field="o.fiscal_position_id.note"/>

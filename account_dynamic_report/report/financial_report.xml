@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+<template id="dynamic_report_financial">
+    <t t-call="report.html_container">
+        <t t-foreach="docs" t-as="o">
+            <t t-call="report.internal_layout">
+                <div class="page">
+                    <h2 t-esc="data['account_report_id'][1]" />
+
+                    <div class="row mt32 mb32">
+                        <div class="col-xs-4">
+                            <strong>Target Moves:</strong>
+                            <p>
+                                <span t-if="data['target_move'] == 'all'">All Entries</span>
+                                <span t-if="data['target_move'] == 'posted'">All Posted Entries</span>
+                            </p>
+                        </div>
+                        <div class="col-xs-4">
+                            <p>
+                                <t t-if="data['date_from']"><strong>Date from :</strong> <span t-esc="data['date_from']"/><br/></t>
+                                <t t-if="data['date_to']"><strong>Date to :</strong> <span t-esc="data['date_to']"/></t>
+                            </p>
+                        </div>
+                    </div>
+
+                    <table class="table table-condensed" t-if="data['debit_credit'] == 1">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th class="text-right">Debit</th>
+                                <th class="text-right">Credit</th>
+                                <th class="text-right">Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr t-foreach="get_account_lines" t-as="a">
+                                <t>
+                                    <t t-if="a.get('level') == 0"><t t-set="style" t-value="'font-weight: bold;'"/></t>
+                                    <t t-if="a.get('level') == 1 and a.get('type')=='account'"><t t-set="style" t-value="'font-weight: normal; margin-left:8px'"/></t>
+                                    <t t-if="a.get('level') == 1 and a.get('type')!='account'"><t t-set="style" t-value="'font-weight: bold; margin-left:8px'"/></t>
+                                    <t t-if="a.get('level') == 2 and a.get('type')=='account'"><t t-set="style" t-value="'font-weight: normal; margin-left:16px'"/></t>
+                                    <t t-if="a.get('level') == 2 and a.get('type')!='account'"><t t-set="style" t-value="'font-weight: bold; margin-left:16px'"/></t>
+                                    <t t-if="a.get('level') == 3 and a.get('type')=='account'"><t t-set="style" t-value="'font-weight: normal; margin-left:24px'"/></t>
+                                    <t t-if="a.get('level') == 3 and a.get('type')!='account'"><t t-set="style" t-value="'font-weight: bold; margin-left:24px'"/></t>
+                                    <t t-if="a.get('level') == 4 and a.get('type')=='account'"><t t-set="style" t-value="'font-weight: normal; margin-left:32px'"/></t>
+                                    <t t-if="a.get('level') == 4 and a.get('type')!='account'"><t t-set="style" t-value="'font-weight: bold; margin-left:32px'"/></t>
+                                    <t t-if="a.get('level') == 5 and a.get('type')=='account'"><t t-set="style" t-value="'font-weight: normal; margin-left:40px'"/></t>
+                                    <t t-if="a.get('level') == 5 and a.get('type')!='account'"><t t-set="style" t-value="'font-weight: bold; margin-left:40px'"/></t>
+
+                                    <t t-if="a.get('type')=='account'"><t t-set="style1" t-value="'font-weight: normal;'"/></t>
+                                    <t t-if="a.get('type')!='report'"><t t-set="style1" t-value="'font-weight: bold;'"/></t>
+                                </t>
+                                <td>
+                                    <span t-att-style="style" t-esc="a.get('name')"/>
+                                </td>
+                                <td class="text-right" style="white-space: text-nowrap;">
+                                    <span t-att-style="style1" t-esc="a.get('debit')" t-esc-options='{"widget": "monetary", "display_currency": "res_company.currency_id"}'/>
+                                </td>
+                                <td class="text-right" style="white-space: text-nowrap;">
+                                    <span t-att-style="style1" t-esc="a.get('credit')" t-esc-options='{"widget": "monetary", "display_currency": "res_company.currency_id"}'/>
+                                </td>
+                                <td class="text-right" style="white-space: text-nowrap;">
+                                    <span t-att-style="style1" t-esc="a.get('balance')" t-esc-options='{"widget": "monetary", "display_currency": "res_company.currency_id"}'/>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <table class="table table-condensed" t-if="not data['enable_filter'] and not data['debit_credit']">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th class="text-ceneter">Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr t-foreach="get_account_lines" t-as="a">
+                                <t>
+                                    <t t-if="a.get('level') == 0"><t t-set="style" t-value="'font-weight: bold;'"/></t>
+                                    <t t-if="a.get('level') == 1 and a.get('type')=='account'"><t t-set="style" t-value="'font-weight: normal; margin-left:8px'"/></t>
+                                    <t t-if="a.get('level') == 1 and a.get('type')!='account'"><t t-set="style" t-value="'font-weight: bold; margin-left:8px'"/></t>
+                                    <t t-if="a.get('level') == 2 and a.get('type')=='account'"><t t-set="style" t-value="'font-weight: normal; margin-left:16px'"/></t>
+                                    <t t-if="a.get('level') == 2 and a.get('type')!='account'"><t t-set="style" t-value="'font-weight: bold; margin-left:16px'"/></t>
+                                    <t t-if="a.get('level') == 3 and a.get('type')=='account'"><t t-set="style" t-value="'font-weight: normal; margin-left:24px'"/></t>
+                                    <t t-if="a.get('level') == 3 and a.get('type')!='account'"><t t-set="style" t-value="'font-weight: bold; margin-left:24px'"/></t>
+                                    <t t-if="a.get('level') == 4 and a.get('type')=='account'"><t t-set="style" t-value="'font-weight: normal; margin-left:32px'"/></t>
+                                    <t t-if="a.get('level') == 4 and a.get('type')!='account'"><t t-set="style" t-value="'font-weight: bold; margin-left:32px'"/></t>
+                                    <t t-if="a.get('level') == 5 and a.get('type')=='account'"><t t-set="style" t-value="'font-weight: normal; margin-left:40px'"/></t>
+                                    <t t-if="a.get('level') == 5 and a.get('type')!='account'"><t t-set="style" t-value="'font-weight: bold; margin-left:40px'"/></t>
+                                </t>
+                                <td>
+                                    <span t-att-style="style" t-esc="a.get('name')"/>
+                                </td>
+                                <td class="text-right">
+                                    <table style="width:100%" t-if="a.get('show_balance')">
+                                        <tr>
+                                            <td>
+                                                <t>
+                                                    <t t-if="a.get('type')=='account'"><t t-set="style1" t-value="'font-weight: normal;'"/></t>
+                                                    <t t-if="a.get('type')=='report'"><t t-set="style1" t-value="'font-weight: bold;'"/></t>
+                                                    <t t-if="a.get('type')=='footer'"><t t-set="style1" t-value="'visibility:hidden'"/></t>
+                                                </t>
+                                                <span t-att-style="style1" t-esc="a.get('balance')" t-esc-options='{"widget": "monetary", "display_currency": "res_company.currency_id"}'/>
+                                            </td>
+                                            <td>
+                                                <t>
+                                                    <t t-if="a.get('type') == 'footer'"><t t-set="style2" t-value="'visibility: visible;font-weight: bold'"/></t>
+                                                    <t t-if="a.get('type') != 'footer'"><t t-set="style2" t-value="'visibility: hidden;'"/></t>
+                                                </t>
+                                                <span t-att-style="style2" t-esc="a.get('balance')" t-esc-options='{"widget": "monetary", "display_currency": "res_company.currency_id"}'/>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <table class="table table-condensed" t-if="data['enable_filter'] == 1 and not data['debit_credit']">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th class="text-right">Balance</th>
+                                <th class="text-right"><span t-esc="data['label_filter']"/></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr t-foreach="get_account_lines" t-as="a">
+                                <t>
+                                    <t t-if="a.get('level') == 0"><t t-set="style" t-value="'font-weight: bold;'"/></t>
+                                    <t t-if="a.get('level') == 1 and a.get('type')=='account'"><t t-set="style" t-value="'font-weight: normal; margin-left:8px'"/></t>
+                                    <t t-if="a.get('level') == 1 and a.get('type')!='account'"><t t-set="style" t-value="'font-weight: bold; margin-left:8px'"/></t>
+                                    <t t-if="a.get('level') == 2 and a.get('type')=='account'"><t t-set="style" t-value="'font-weight: normal; margin-left:16px'"/></t>
+                                    <t t-if="a.get('level') == 2 and a.get('type')!='account'"><t t-set="style" t-value="'font-weight: bold; margin-left:16px'"/></t>
+                                    <t t-if="a.get('level') == 3 and a.get('type')=='account'"><t t-set="style" t-value="'font-weight: normal; margin-left:24px'"/></t>
+                                    <t t-if="a.get('level') == 3 and a.get('type')!='account'"><t t-set="style" t-value="'font-weight: bold; margin-left:24px'"/></t>
+                                    <t t-if="a.get('level') == 4 and a.get('type')=='account'"><t t-set="style" t-value="'font-weight: normal; margin-left:32px'"/></t>
+                                    <t t-if="a.get('level') == 4 and a.get('type')!='account'"><t t-set="style" t-value="'font-weight: bold; margin-left:32px'"/></t>
+                                    <t t-if="a.get('level') == 5 and a.get('type')=='account'"><t t-set="style" t-value="'font-weight: normal; margin-left:40px'"/></t>
+                                    <t t-if="a.get('level') == 5 and a.get('type')!='account'"><t t-set="style" t-value="'font-weight: bold; margin-left:40px'"/></t>
+
+                                    <t t-if="a.get('type')=='account'"><t t-set="style1" t-value="'font-weight: normal;'"/></t>
+                                    <t t-if="a.get('type')=='report'"><t t-set="style1" t-value="'font-weight: bold;'"/></t>
+                                </t>
+                                <td>
+                                    <span t-att-style="style" t-esc="a.get('name')"/>
+                                </td>
+                                <td class="text-right"><span t-att-style="style1" t-esc="a.get('balance')" t-esc-options='{"widget": "monetary", "display_currency": "res_company.currency_id"}'/></td>
+                                <td class="text-right"><span t-att-style="style1" t-esc="a.get('balance_cmp')"/></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </t>
+        </t>
+    </t>
+</template>
+</odoo>

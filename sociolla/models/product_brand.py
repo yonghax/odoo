@@ -2,7 +2,7 @@ from openerp import api, fields, models, _
 
 class ProductBrand(models.Model):
     _inherit = "product.brand"
-    
+
     categ_id = fields.Many2one(
         string='Product Category',
         required=False,
@@ -29,7 +29,7 @@ class ProductBrand(models.Model):
         result = super(ProductBrand, self).create(values)
         
         for line in self:
-            self.update_product_category(line.categ_id)
+            self.update_product_category(line.purchase_type)
 
         return result
 
@@ -38,12 +38,13 @@ class ProductBrand(models.Model):
     def write(self, values):
         result = super(ProductBrand, self).write(values)
         
-        for line in self:
-            self.update_product_category(line.categ_id)
+        if 'purchase_type' in values:
+            for line in self:
+                self.update_product_category(line.purchase_type)
 
         return result
 
-    def update_product_category(self, product_category):
+    def update_product_category(self, purchase_type):
         categ_obj = self.env['product.category']
 
         for brand in self:
@@ -56,7 +57,7 @@ class ProductBrand(models.Model):
                 if len(strSplitted) > 1:
                     categ = categ_obj.search(
                         [
-                            ('parent_id', '=', product_category.id),
+                            ('purchase_type', '=', purchase_type),
                             ('name', '=', self.categoryEnum[strSplitted[1]])
                         ]
                     )
