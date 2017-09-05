@@ -10,6 +10,7 @@ class AccountInvoiceReport(models.Model):
     discount_header_amount = fields.Float(string='Voucher Discount', readonly=True)
     gmv_amount = fields.Float(string='Gross GMV w/h Tax', readonly=True)
     revenue_amount = fields.Float(string='Sales Revenue', readonly=True)
+    cogs_amount = fields.Float(string='COGS', readonly=True)
 
     _depends = {
         'account.invoice': [
@@ -34,7 +35,7 @@ class AccountInvoiceReport(models.Model):
     def _select(self):
         select_str = super(AccountInvoiceReport,self)._select()
         select_str += """
-                , sub.discount_amount, sub.discount_header_amount, sub.brand_name, sub.price_total as revenue_amount, (sub.price_total + sub.discount_amount + sub.discount_header_amount) as gmv_amount
+                , sub.discount_amount, sub.discount_header_amount, sub.brand_name, sub.price_total as revenue_amount, (sub.price_total + sub.discount_amount + sub.discount_header_amount) as gmv_amount, sub.cogs_amount as cogs_amount
         """
         return select_str
 
@@ -65,7 +66,8 @@ class AccountInvoiceReport(models.Model):
                             ELSE 1
                         END
                 ) AS discount_header_amount, 
-                pb.name as brand_name
+                pb.name as brand_name,
+                AVG(ABS(COALESCE(sh.price_unit_on_quant,0))) AS cogs_amount
         """
         return select_str 
 
@@ -73,6 +75,7 @@ class AccountInvoiceReport(models.Model):
         from_str = super(AccountInvoiceReport,self)._from()
         from_str += """
                 LEFT JOIN product_brand pb ON pb.id = pt.product_brand_id
+                LEFT JOIN stock_history sh on sh.product_id = pr.id and sh."source" = case when ai.origin like '%-%' then substring(ai.origin, position('-' in ai.origin) + 1) else ai.origin end
         """
         return from_str
 

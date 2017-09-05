@@ -1,6 +1,78 @@
 <?xml version="1.0" encoding="utf-8"?>
 <openerp>
   <data>
+    <record id="product_template_tree_hide_price" model="ir.ui.view">
+      <field name="name">product.template.product.tree.hide.price</field>
+      <field name="model">product.template</field>
+      <field name="inherit_id" ref="product.product_template_tree_view"/>
+      <field name="arch" type="xml">
+        <field name="standard_price" position="replace">
+          <field name="standard_price" groups="account.group_account_user"/>
+        </field>
+      </field>
+    </record>
+
+    <record id="product_template_hide_price" model="ir.ui.view">
+      <field name="name">product.template.hide.price</field>
+      <field name="model">product.template</field>
+      <field name="inherit_id" ref="product.product_template_form_view"/>
+      <field name="arch" type="xml">
+        <field name="list_price" position="replace">
+          <field name="list_price" widget="monetary" options="{'currency_field': 'currency_id'}" groups="base.group_sale_salesman"/>
+        </field>
+        <field name="standard_price" position="replace">
+          <field name="standard_price" widget="monetary" options="{'currency_field': 'currency_id'}" class="oe_inline" groups="account.group_account_user"/>
+        </field>
+      </field>
+    </record>
+
+    <record id="product_product_hide_price" model="ir.ui.view">
+      <field name="name">product.product.hide.price</field>
+      <field name="model">product.product</field>
+      <field name="inherit_id" ref="product.product_variant_easy_edit_view"/>
+      <field name="arch" type="xml">
+        <field name="lst_price" position="replace">
+          <field name="lst_price" widget="monetary" options="{'currency_field': 'currency_id'}" groups="base.group_sale_salesman"/>
+        </field>
+        <field name="standard_price" position="replace">
+          <field name="standard_price" widget="monetary" options="{'currency_field': 'currency_id'}" class="oe_inline" groups="account.group_account_user"/>
+        </field>
+      </field>
+    </record>
+
+    <record id="product_product_tree_hide_price" model="ir.ui.view">
+      <field name="name">product.product.hide.price</field>
+      <field name="model">product.product</field>
+      <field name="inherit_id" ref="product.product_product_tree_view"/>
+      <field name="arch" type="xml">
+        <field name="price" position="replace">
+          <field name="price" invisible="not context.get('pricelist',False)" groups="account.group_sale_salesman"/>
+        </field>
+      </field>
+    </record>
+
+    <record id="stock_quant_tree_hide_price" model="ir.ui.view">
+      <field name="name">stock.quant.tree.hide.price</field>
+      <field name="model">stock.quant</field>
+      <field name="inherit_id" ref="stock.view_stock_quant_tree"/>
+      <field name="arch" type="xml">
+        <field name="inventory_value" position="replace">
+          <field name="inventory_value" groups="account.group_account_user"/>
+        </field>
+      </field>
+    </record>
+
+    <record id="view_stock_quant_hide_price" model="ir.ui.view">
+      <field name="name">stock.quant.form.hide.price</field>
+      <field name="model">stock.quant</field>
+      <field name="inherit_id" ref="stock.view_stock_quant_form"/>
+      <field name="arch" type="xml">
+        <field name="inventory_value" position="replace">
+          <field name="inventory_value" groups="account.group_account_user"/>
+        </field>
+      </field>
+    </record>
+
     <record id="product_template_form_view" model="ir.ui.view">
       <field name="name">product.template.form.inherit</field>
       <field name="model">product.template</field>
@@ -42,6 +114,7 @@
               <tree editable="top">
                 <field name="product_id"/>
                 <field name="qty"/>
+                <field name="choose_variant"/>
               </tree>
             </field>
           </page>
@@ -99,6 +172,7 @@
               <tree editable="top">
                 <field name="product_id"/>
                 <field name="qty"/>
+                <field name="choose_variant"/>
               </tree>
             </field>
           </group>
@@ -114,6 +188,17 @@
         <xpath expr="//label[@for='date_start']" position="before">
           <field name="discount" string="Disc(%)" />
         </xpath>
+      </field>
+    </record>
+
+    <record id="product_supplierinfo_tree_view" model="ir.ui.view">
+      <field name="name">product.supplierinfo.tree.view.inherit</field>
+      <field name="model">product.supplierinfo</field>
+      <field name="inherit_id" ref="product.product_supplierinfo_tree_view"/>
+      <field name="arch" type="xml">
+        <field name="price" position="after">
+          <field name="discount" string="Disc(%)" />
+        </field>
       </field>
     </record>
 

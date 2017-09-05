@@ -6,9 +6,6 @@
             <field name="model">res.partner</field>
             <field name="inherit_id" ref="base.view_partner_form"/>
             <field name="arch" type="xml">
-                <group name="purchase" position="inside">
-                    <field name="default_purchase_tax"/>
-                </group>
                 <field name="ref" position="after">
                     <field name="shop_id" required="True" options="{'no_create': True}"/>
                 </field>
