@@ -20,7 +20,7 @@ class PurchaseOrderLine(models.Model):
     @api.constrains('product_id')
     def _validate_purchase_type(self):
         for line in self:
-            if not line.product_id.product_tmpl_id._get_purchase_type():
+            if line.product_id.product_tmpl_id.categ_id.category_purchase_type and not line.product_id.product_tmpl_id._get_purchase_type():
                 raise models.ValidationError('Purchase Type for brand ' + line.product_id.product_tmpl_id.product_brand_id.name + ' not define, please set the purchase type on Product Brand data.')
 
     @api.multi
