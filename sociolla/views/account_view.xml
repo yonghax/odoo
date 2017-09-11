@@ -18,5 +18,16 @@
                 </xpath>         
             </field>
         </record>
+
+        <record id="view_bank_statement_recon_unreg" model="ir.ui.view">
+            <field name="name">bank.statement.recon.unreg.form.inherit</field>
+            <field name="model">account.bank.statement</field>
+            <field name="inherit_id" ref="account.view_bank_statement_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//button[@name='button_cancel']" position="after">
+                    <button name="recon_unreg" string="Recon to Unreg" type="object" class="oe_highlight" attrs="{'invisible':['|','|',('all_lines_reconciled','=',True),('line_ids','=',[]),('state', '!=', 'open')]}"/>
+                </xpath>
+            </field>
+        </record>
     </data>
 </openerp>

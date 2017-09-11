@@ -5,52 +5,6 @@ from openerp.exceptions import UserError
 from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT, DEFAULT_SERVER_DATE_FORMAT
 from openerp.tools.float_utils import float_compare, float_round
 
-class stock_picking(models.Model):
-    _inherit = 'stock.picking'
-
-    vendor_id = fields.Many2one(
-        string='Vendor ID',
-        comodel_name='res.partner',
-    )
-
-    # @api.cr_uid_ids_context
-    # def do_prepare_partial(self, cr, uid, picking_ids, context=None):
-    #     context = context or {}
-    #     pack_operation_obj = self.pool.get('stock.pack.operation')
-    #     product_obj = self.pool.get('product.product')
-
-    #     #get list of existing operations and delete them
-    #     existing_package_ids = pack_operation_obj.search(cr, uid, [('picking_id', 'in', picking_ids)], context=context)
-    #     if existing_package_ids:
-    #         pack_operation_obj.unlink(cr, uid, existing_package_ids, context)
-    #     for picking in self.browse(cr, uid, picking_ids, context=context):
-    #         forced_qties = {}  # Quantity remaining after calculating reserved quants
-    #         picking_quants = []
-    #         #Calculate packages, reserved quants, qtys of this picking's moves
-    #         for move in picking.move_lines:
-    #             if move.state not in ('assigned', 'confirmed', 'waiting'):
-    #                 continue
-    #             move_quants = move.reserved_quant_ids
-    #             picking_quants += move_quants
-    #             forced_qty = (move.state == 'assigned') and move.product_qty - sum([x.qty for x in move_quants]) or 0
-    #             #if we used force_assign() on the move, or if the move is incoming, forced_qty > 0
-    #             if float_compare(forced_qty, 0, precision_rounding=move.product_id.uom_id.rounding) > 0:
-    #                 if forced_qties.get(move.product_id):
-    #                     forced_qties[move.product_id] += forced_qty
-    #                 else:
-    #                     forced_qties[move.product_id] = forced_qty
-    #         for vals in self._prepare_pack_ops(cr, uid, picking, picking_quants, forced_qties, context=context):
-    #             vals['fresh_record'] = False
-
-    #             product = product_obj.browse(cr, uid,[vals['product_id']],context=context)
-    #             if product.product_brand_id.categ_id.name == 'Consignment':
-    #                 vals['owner_id'] = picking.vendor_id.id
-                
-    #             pack_operation_obj.create(cr, uid, vals, context=context)
-    #     #recompute the remaining quantities all at once
-    #     self.do_recompute_remaining_quantities(cr, uid, picking_ids, context=context)
-    #     self.write(cr, uid, picking_ids, {'recompute_pack_op': False}, context=context)
-
 class stock_inventory(models.Model):
     _inherit = ['stock.inventory']
     
@@ -122,6 +76,18 @@ class stock_inventory(models.Model):
                 product_line['product_uom_id'] = product.uom_id.id
             vals.append(product_line)
         return vals
+
+    def auto_proses_action_done(self, cr, uid, domain=None, context=None):
+        obj = self.pool.get('stock.inventory')
+        items = obj.browse(
+            cr,
+            uid,
+            [887],
+            context=context
+        )
+
+        for item in items:
+            item.action_done()
 
 class stock_inventory_line(models.Model):
     _inherit = 'stock.inventory.line'
@@ -226,7 +192,33 @@ class stock_quant(models.Model):
 
         #create the quant as superuser, because we want to restrict the creation of quant manually: we should always use this method to create quants
         quant_id = self.create(cr, SUPERUSER_ID, vals, context=context)
-        return self.browse(cr, uid, quant_id, context=context)
+        quant = self.browse(cr, uid, quant_id, context=context)
+        if move.product_id.valuation == 'real_time':
+            self._account_entry_move(cr, uid, [quant], move, context)
+
+            # If the precision required for the variable quant cost is larger than the accounting
+            # precision, inconsistencies between the stock valuation and the accounting entries
+            # may arise.
+            # For example, a box of 13 units is bought 15.00. If the products leave the
+            # stock one unit at a time, the amount related to the cost will correspond to
+            # round(15/13, 2)*13 = 14.95. To avoid this case, we split the quant in 12 + 1, then
+            # record the difference on the new quant.
+            # We need to make sure to able to extract at least one unit of the product. There is
+            # an arbitrary minimum quantity set to 2.0 from which we consider we can extract a
+            # unit and adapt the cost.
+            curr_rounding = move.company_id.currency_id.rounding
+            cost_rounded = float_round(quant.cost, precision_rounding=curr_rounding)
+            cost_correct = cost_rounded
+            if float_compare(quant.product_id.uom_id.rounding, 1.0, precision_digits=1) == 0\
+                    and float_compare(quant.qty * quant.cost, quant.qty * cost_rounded, precision_rounding=curr_rounding) != 0\
+                    and float_compare(quant.qty, 2.0, precision_rounding=quant.product_id.uom_id.rounding) >= 0:
+                qty = quant.qty
+                cost = quant.cost
+                quant_correct = quant_obj._quant_split(cr, uid, quant, quant.qty - 1.0, context=context)
+                cost_correct += (qty * cost) - (qty * cost_rounded)
+                quant_obj.write(cr, SUPERUSER_ID, [quant.id], {'cost': cost_rounded}, context=context)
+                quant_obj.write(cr, SUPERUSER_ID, [quant_correct.id], {'cost': cost_correct}, context=context)
+        return quant
 
     def _account_entry_move(self, cr, uid, quants, move, context=None):
         if not move.is_switchover_stock:

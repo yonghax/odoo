@@ -13,6 +13,7 @@ class SaleOrder(models.Model):
     
     @api.model
     def _default_shop_id(self):
+        return False
         user=self.env.user
         b2b = len(user.groups_id.filtered(lambda x: x.name=='B2B')) > 0
         b2c = len(user.groups_id.filtered(lambda x: x.name=='B2C')) > 0
@@ -23,7 +24,7 @@ class SaleOrder(models.Model):
         if b2b:
             return self.env['sale.shop'].search([('name', '=', 'Sociolla BO')], limit=1)
 
-    shop_id = fields.Many2one(string='Shop',index=True,comodel_name='sale.shop', default=_default_shop_id)
+    shop_id = fields.Many2one(string='Shop',index=True,comodel_name='sale.shop')
 
     def has_product_bundle(self):
         order_lines = self.order_line

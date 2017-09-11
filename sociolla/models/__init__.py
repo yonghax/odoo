@@ -19,3 +19,4 @@ import stock_change_standard_price
 import account
 import partner
 import account_asset
+import currency

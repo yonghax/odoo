@@ -19,6 +19,7 @@ class PurchaseOrder(models.Model):
 
     @api.model
     def _default_shop_id(self):
+        return False
         user=self.env.user
         b2b = len(user.groups_id.filtered(lambda x: x.name=='B2B')) > 0
         b2c = len(user.groups_id.filtered(lambda x: x.name=='B2C')) > 0
@@ -29,7 +30,15 @@ class PurchaseOrder(models.Model):
         if b2b:
             return self.env['sale.shop'].search([('name', '=', 'Sociolla BO')], limit=1)
 
-    shop_id = fields.Many2one(string='Shop',index=True,comodel_name='sale.shop', default=_default_shop_id)
+    shop_id = fields.Many2one(string='Shop',index=True,comodel_name='sale.shop')
+
+    @api.onchange('partner_id')
+    def onchange_partner_id(self):
+        result = {}
+        if not self.partner_id:
+            return result
+
+        self.shop_id = self.partner_id.shop_id
 
     @api.onchange('shop_id')
     def onchange_shop_id(self):
@@ -80,38 +89,12 @@ class PurchaseOrder(models.Model):
 
     @api.model
     def _prepare_picking(self):
-        if not self.group_id:
-            self.group_id = self.group_id.create({
-                'name': self.name,
-                'partner_id': self.partner_id.id
-            })
-        if not self.partner_id.property_stock_supplier.id:
-            raise UserError(_("You must set a Vendor Location for this partner %s") % self.partner_id.name)
-        return {
-            'picking_type_id': self.picking_type_id.id,
-            'partner_id': self.partner_id.id,
-            'date': self.date_order,
-            'origin': self.name,
-            'location_dest_id': self._get_destination_location(),
-            'location_id': self.partner_id.property_stock_supplier.id,
-            'company_id': self.company_id.id,
+        res = super(PurchaseOrder, self)._prepare_picking()
+        res.update({
             'inventory_date': self.force_inventory_date,
             'date': self.force_inventory_date,
-        }
-
-    @api.multi
-    def _create_picking(self):
-        for order in self:
-            if any([ptype in ['product', 'consu'] for ptype in order.order_line.mapped('product_id.type')]):
-                res = order._prepare_picking()
-                res['vendor_id'] = order.partner_id.id
-                
-                picking = self.env['stock.picking'].create(res)
-                moves = order.order_line.filtered(lambda r: r.product_id.type in ['product', 'consu'])._create_stock_moves(picking)
-                move_ids = moves.action_confirm()
-                moves = self.env['stock.move'].browse(move_ids)
-                moves.force_assign()
-        return True
+        })
+        return res
 
     @api.multi
     def button_confirm(self):
@@ -326,6 +309,16 @@ class PurchaseOrder(models.Model):
                         supplierinfo.write(vals)
                     except AccessError:  # no write access rights -> just ignore
                         break
+
+            if partner and line.product_id.product_tmpl_id.product_brand_id:
+                product_brand = line.product_id.product_tmpl_id.product_brand_id
+                vals = {
+                    'partner_id': partner.id
+                }
+                try:
+                    product_brand.write(vals)
+                except AccessError:  # no write access rights -> just ignore
+                    break
                 
 
 class PurchaseOrderLine(models.Model):
@@ -349,7 +342,7 @@ class PurchaseOrderLine(models.Model):
         required=True)
     
     @api.constrains('product_id')
-    def _validate_brand(self):
+    def _validate_purchase_type(self):
         for line in self:
             if not line.product_id.product_tmpl_id.product_brand_id.categ_id:
                 raise models.ValidationError('Category for Brand ' + line.product_id.product_tmpl_id.product_brand_id.name + ' is required, please set the category on Product Brand data.')
