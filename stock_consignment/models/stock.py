@@ -10,13 +10,6 @@ from operator import itemgetter
 
 _logger = logging.getLogger(__name__)
 
-class stock_inventory(models.Model):
-    
-    _inherit = ['stock.inventory']
-
-    def 
-    
-
 class stock_inventory_line(models.Model):
     
     _inherit = ['stock.inventory.line']
