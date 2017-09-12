@@ -486,22 +486,22 @@ def import_customers_since(session, model_name, backend_id, since_date=None):
 def import_orders_since(session, model_name, backend_id, since_date=None):
     """ Prepare the import of orders modified on Prestashop """
 
-    # filters = None
-    # if since_date:
-    #     date_str = since_date.strftime('%Y-%m-%d %H:%M:%S')
-    #     filters = {'date': '1', 'filter[date_upd]': '>[%s]' % (date_str), 'filter[current_state]':'4|5'}
+    filters = None
+    if since_date:
+        date_str = since_date.strftime('%Y-%m-%d %H:%M:%S')
+        filters = {'date': '1', 'filter[date_upd]': '>[%s]' % (date_str), 'filter[current_state]':'4|5'}
     
-    # now_fmt = datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
-    # import_batch(session, 'prestashop.sale.order', backend_id, filters)
+    now_fmt = datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
+    import_batch(session, 'prestashop.sale.order', backend_id, filters)
 
-    # session.pool.get('prestashop.backend').write(
-    #     session.cr,
-    #     session.uid,
-    #     backend_id,
-    #     {'import_orders_since': now_fmt},
-    #     context=session.context
-    # )
-    import_record(session, 'prestashop.sale.order', backend_id, 217221, force=False)
+    session.pool.get('prestashop.backend').write(
+        session.cr,
+        session.uid,
+        backend_id,
+        {'import_orders_since': now_fmt},
+        context=session.context
+    )
+    # import_record(session, 'prestashop.sale.order', backend_id, 217221, force=False)
     # ids = []
 
     # for id in ids:
@@ -511,26 +511,26 @@ def import_orders_since(session, model_name, backend_id, since_date=None):
 
 @job
 def import_products(session, model_name, backend_id, since_date):
-    # filters = {'filter[active]': 1}
-    # if since_date:
-    #     date_str = since_date.strftime('%Y-%m-%d %H:%M:%S')
-    #     filters.update({'date': '1', 'filter[date_upd]': '>[%s]' % (date_str)})
-    # now_fmt = datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
-    # import_batch(
-    #     session,
-    #     model_name,
-    #     backend_id,
-    #     filters,
-    # )
-    # session.pool.get('prestashop.backend').write(
-    #     session.cr,
-    #     session.uid,
-    #     backend_id,
-    #     {'import_products_since': now_fmt},
-    #     context=session.context
-    # )
+    filters = {'filter[active]': 1}
+    if since_date:
+        date_str = since_date.strftime('%Y-%m-%d %H:%M:%S')
+        filters.update({'date': '1', 'filter[date_upd]': '>[%s]' % (date_str)})
+    now_fmt = datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
+    import_batch(
+        session,
+        model_name,
+        backend_id,
+        filters,
+    )
+    session.pool.get('prestashop.backend').write(
+        session.cr,
+        session.uid,
+        backend_id,
+        {'import_products_since': now_fmt},
+        context=session.context
+    )
 
-    import_record(session, model_name, backend_id, 7313 , force=False)
+    # import_record(session, model_name, backend_id, 7313 , force=False)
     # import_record(session, model_name, backend_id, 1483, force=False)
     # import_record(session, model_name, backend_id, 1489, force=False)
     # import_record(session, model_name, backend_id, 1487, force=False)
