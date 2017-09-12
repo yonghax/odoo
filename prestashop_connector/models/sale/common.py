@@ -137,7 +137,7 @@ class SaleOrderImport(PrestashopImportSynchronizer):
 
     def _get_bundle(self, prestashop_id, product_id):
         vals = []
-        prestashop_product_ids = []
+        prestashop_product_ids = [0]
         has_choose_variant = False
         if len(product_id.product_bundles) > 0:
             for prd in product_id.product_bundles:
