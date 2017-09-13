@@ -41,7 +41,7 @@ class stock_move(models.Model):
                     move_obj.search(
                         cr,
                         uid,
-                        [('date', '>=', ps_backend.export_qty_since), ('state', '=', 'done')]
+                        [('date', '>=', ps_backend.export_qty_since), ('state', '=', 'done'), ('location_dest_id', '!=', 9)]
                     )
                 )
 
