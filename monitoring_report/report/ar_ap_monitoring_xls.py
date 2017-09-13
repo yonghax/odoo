@@ -26,16 +26,6 @@ from openerp.addons.report_xlsx.report.report_xlsx import ReportXlsx
 
 class ar_ap_monitoring_xls(ReportXlsx):
 
-	# def get_warehouse(self, data):
-	# 	if data.get('form', False) and data['form'].get('warehouse_id', False):
-	# 		l1 = []
-	# 		l2 = []
-	# 		obj = self.env['stock.warehouse'].search([('id', '=', data['form']['warehouse_id'])])
-	# 		for j in obj:
-	# 			l1.append(j.name)
-	# 			l2.append(j.id)
- #        return l1, l2
-
 	
 	def get_report_type(self,data):
 		if data.get('form', False) and data['form'].get('report_type', False):
@@ -64,7 +54,6 @@ class ar_ap_monitoring_xls(ReportXlsx):
 
 	def get_lines(self,data,partner):
 		lines = []
-		#partner = self.get_partner(data)
 		cut_off_date_val = data['form']['cut_off_date']
 		filter_report_val = data['form']['filter_report']
 		total_all = 0.0
@@ -105,7 +94,6 @@ class ar_ap_monitoring_xls(ReportXlsx):
 
 
 	def generate_xlsx_report(self, workbook, data, lines):
-		print "zzzzzzzzzzzzzzzzz", data
 		get_report_type = self.get_report_type(data)
 		get_partner = self.get_partner(data)
 
@@ -189,7 +177,7 @@ class ar_ap_monitoring_xls(ReportXlsx):
 				detail_row += 1
 			
 				
-
+#
 
 
 
