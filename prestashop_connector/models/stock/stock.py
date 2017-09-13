@@ -1,5 +1,7 @@
 from openerp import models, fields, api, _
 from openerp import SUPERUSER_ID
+from datetime import datetime
+from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT
 
 class stock_picking(models.Model):
     _inherit = 'stock.picking'
@@ -42,6 +44,13 @@ class stock_move(models.Model):
                         [('date', '>=', ps_backend.export_qty_since), ('state', '=', 'done')]
                     )
                 )
+         
+            ps_backend_obj.write(
+                cr,
+                uid,
+                ps_backend.id,
+                {'import_partners_since': datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)},
+            )
 
 
 class stock_quant(models.Model):
