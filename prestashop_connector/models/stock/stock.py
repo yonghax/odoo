@@ -53,6 +53,7 @@ class stock_move(models.Model):
                 uid,
                 ps_backend.id,
                 {'import_partners_since': datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)},
+                context=context
             )
 
 
