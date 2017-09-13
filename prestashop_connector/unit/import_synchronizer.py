@@ -501,13 +501,6 @@ def import_orders_since(session, model_name, backend_id, since_date=None):
         {'import_orders_since': now_fmt},
         context=session.context
     )
-    # import_record(session, 'prestashop.sale.order', backend_id, 217221, force=False)
-    # ids = []
-
-    # for id in ids:
-    #     filters = {'filter[id]': id}
-    #     import_batch(session, 'prestashop.sale.order', backend_id, filters)
-
 
 @job
 def import_products(session, model_name, backend_id, since_date):
@@ -530,12 +523,6 @@ def import_products(session, model_name, backend_id, since_date):
         context=session.context
     )
 
-    # import_record(session, model_name, backend_id, 7313 , force=False)
-    # import_record(session, model_name, backend_id, 1483, force=False)
-    # import_record(session, model_name, backend_id, 1489, force=False)
-    # import_record(session, model_name, backend_id, 1487, force=False)
-
-
 @job
 def import_refunds(session, backend_id, since_date):
     filters = None
@@ -554,9 +541,10 @@ def import_refunds(session, backend_id, since_date):
 
 @job
 def export_product_quantities(session, model_name, backend_id, product=None):
-    export_record(
+    export_record.delay(
         session,
         'prestashop.product.template',
         backend_id,
         product.id,
+        priority=1,
     )

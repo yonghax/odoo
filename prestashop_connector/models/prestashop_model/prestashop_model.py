@@ -64,6 +64,7 @@ class prestashop_backend(orm.Model):
         'import_products_since': fields.datetime('Import Products since'),
         'import_refunds_since': fields.datetime('Import Refunds since'),
         'import_suppliers_since': fields.datetime('Import Suppliers since'),
+        'export_qty_since': fields.datetime('Export Qty since'),
         'language_ids': fields.one2many(
             'prestashop.res.lang',
             'backend_id',
@@ -172,16 +173,7 @@ class prestashop_backend(orm.Model):
         session = ConnectorSession(cr, uid, context=context)
 
         for backend_record in self.browse(cr, uid, ids, context=context):
-            product_obj = self.pool.get('product.product')
-            products = product_obj.browse(
-                cr,
-                uid,
-                product_obj.search(cr, uid, [('is_product_bundle', '=', False), ('product_tmpl_id.is_product_bundle', '=', False)], context=context),
-                context=context
-            )
-
-            for product in products:
-                export_product_quantities(session, 'prestashop.product.template', backend_record.id, product=product)
+            export_product_quantities(session, 'prestashop.product.template', backend_record.id, product=product)
         
         return True
 
@@ -206,7 +198,6 @@ class prestashop_backend(orm.Model):
                 backend_record.id,
                 since_date,
             )
-        
         return True
 
     def import_refunds(self, cr, uid, ids, context=None):
@@ -250,7 +241,7 @@ class prestashop_backend(orm.Model):
         products = product_obj.browse(
             cr,
             uid,
-            product_obj.search(cr, uid, [('is_product_bundle', '=', False), ('product_tmpl_id.is_product_bundle', '=', False), ('default_code', '=', 'MO.MU-CCFCALL1')], context=context),
+            product_obj.search(cr, uid, [('is_product_bundle', '=', False), ('product_tmpl_id.is_product_bundle', '=', False)], context=context),
             context=context
         )
 
