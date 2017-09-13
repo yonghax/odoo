@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+        <record model='ir.ui.view' id='monitoring_report_wizard_form'>
+            <field name="name">wizard.monitoring.report.form</field>
+            <field name="model">monitoring.report</field>
+            <field name="arch" type="xml">
+                <form string="Wizard">
+                        <group>
+                            <field name="report_type"/>
+                            <field name="cut_off_date"/>
+                            <field name="filter_report"/>
+                            <field name="filter_partner" widget="many2many_tags"/>
+                        </group>
+                        
+                    <footer>
+                        <button name="export_xls" type="object" default_focus="1"
+                                string="Export" class="oe_highlight"
+                                context="{'xls_export':1}" icon="fa-download"/>
+                        or
+                        <button string="Cancel" class="oe_link" special="cancel" />
+                    </footer>
+                </form>
+            </field>
+        </record>
+        <record model='ir.actions.act_window' id='wizard_monitoring_report_action'>
+            <field name="name">AR AP Monitoring</field>
+            <field name="res_model">monitoring.report</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">form</field>
+            <field name="view_id" ref="monitoring_report_wizard_form"/>
+            <field name="target">new</field>
+        </record>
+        <report
+            id="ar_ap_monitoring_xls"
+            model="account.invoice"
+            string=" "
+            report_type="xlsx"
+            name="monitoring_report.monitoring_report_xls.xlsx"
+            file="monitoring_report.monitoring_report_xls.xlsx"
+            attachment_use="False"
+        />
+        <menuitem name="AR AP Monitoring" action="wizard_monitoring_report_action" id="menu_monitoring_report_xls" parent="account.account_reports_management_menu" sequence="100"/>
+
+
+    </data>
+</openerp>
