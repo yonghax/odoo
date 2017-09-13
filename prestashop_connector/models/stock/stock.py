@@ -44,6 +44,9 @@ class stock_move(models.Model):
                         [('date', '>=', ps_backend.export_qty_since), ('state', '=', 'done')]
                     )
                 )
+
+                for move in moves:
+                    ps_backend.update_product_stock_qty(context=context, product=move.product_id)
          
             ps_backend_obj.write(
                 cr,
