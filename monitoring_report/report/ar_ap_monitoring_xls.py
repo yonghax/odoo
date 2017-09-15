@@ -23,6 +23,7 @@
 from datetime import date, datetime, timedelta
 from openerp.addons.report_xlsx.report.report_xlsx import ReportXlsx
 from openerp.tools import DEFAULT_SERVER_DATE_FORMAT
+import locale
 
 
 class ar_ap_monitoring_xls(ReportXlsx):
@@ -77,6 +78,10 @@ class ar_ap_monitoring_xls(ReportXlsx):
 			date_due_formatted =  datetime.strptime(x.date_due,fmt)
 			diff_date = int(str((cut_off_date_formatted-date_due_formatted).days))
 
+			amount_obj = x.residual
+
+	
+
 			vals = {
 				'partner_name'	: x.partner_id.name,
 				'invoice_name'  : x.number,
@@ -84,11 +89,14 @@ class ar_ap_monitoring_xls(ReportXlsx):
 				'due_date'		: x.date_due,
 				'aging_day'		: diff_date,
 				'currency'		: x.currency_id.name,
-				'amount'		: x.amount_total,
+				'amount'		: x.residual,
 				'amount_total'  : total_all,
 			}
 			lines.append(vals)
-		return lines
+
+		sorting_lines = sorted(lines, key=lambda k: k['aging_day'], reverse=True) 
+
+		return sorting_lines
 
 
 
@@ -103,11 +111,22 @@ class ar_ap_monitoring_xls(ReportXlsx):
 		format11 = workbook.add_format({'font_size': 12, 'align': 'center', 'right': True, 'left': True, 'bottom': True, 'top': True, 'bold': True})
 		format21 = workbook.add_format({'font_size': 10, 'align': 'center', 'right': True, 'left': True,'bottom': True, 'top': True, 'bold': True})
 		format3 = workbook.add_format({'bottom': True, 'top': True, 'font_size': 12})
-		format99 = workbook.add_format({'font_size': 10, 'align': 'center', 'bold': True})
-		font_size_8 = workbook.add_format({'bottom': True, 'top': True, 'right': True, 'left': True, 'font_size': 10})
-		red_mark = workbook.add_format({'bottom': True, 'top': True, 'right': True, 'left': True, 'font_size': 10,
-		                                'bg_color': 'red'})
+		format99 = workbook.add_format({'font_size': 10, 'align': 'center',})
+		font_size_8 = workbook.add_format({'bottom': True, 'top': True, 'right': True, 'left': True, 'font_size': 10,'bold':True})
+		red_mark = workbook.add_format({'font_size': 10,
+		                                'font_color': 'red'})
+
+		red_mark_amount = workbook.add_format({'font_size': 10,
+		                                'font_color': 'red'})
 		justify = workbook.add_format({'bottom': True, 'top': True, 'right': True, 'left': True, 'font_size': 12})
+
+		invoice_header =  workbook.add_format({'font_size': 10, 'align': 'left',})
+		invoice_header_mark = workbook.add_format({'font_size': 10, 'align': 'left','font_color':'red'})
+
+		style_tot = workbook.add_format({'font_size': 10,'bold':True})
+		amount_style = workbook.add_format({'font_size': 10,'align':'right'})
+		style_tot.set_align('right')
+		red_mark_amount.set_align('right')
 		format3.set_align('center')
 		font_size_8.set_align('center')
 		justify.set_align('justify')
@@ -116,14 +135,15 @@ class ar_ap_monitoring_xls(ReportXlsx):
 
 		
 
-		sheet.write(1,0,'PT Social Bella Indonesia',format99)
+		# sheet.write(1,0,'PT Social Bella Indonesia',format99)
+		sheet.merge_range('A2:F2','PT Social Bella Indonesia',format1)
 		sheet.write(3,0,'Cut Off Date',format99)
 		sheet.write(4,0,'Filter',format99)
 
 		if get_report_type[0] == 'receivable':
-			sheet.write(2,0,'AR Monitoring Report',format99)
+			sheet.merge_range('A3:F3','AR Monitoring Report',format1)
 		else:
-			sheet.write(2,0,'AP Monitoring Report',format99)
+			sheet.merge_range('A3:F3','AP Monitoring Report',format1)
 
 		for i in get_report_type[1]:
 			sheet.write(3,0,'Cut Off Date',format99)
@@ -146,35 +166,36 @@ class ar_ap_monitoring_xls(ReportXlsx):
 			get_lines 		= self.get_lines(data, partner_idx)
 			amount_total	= 0
 
-			sheet.write(detail_row,detail_col,'Partner',font_size_8) # Detail Partner 
+			partner_id = self.env['res.partner'].search([('id','=',partner_idx)])
+
+			concat_partner = str(partner_id.name) + " " + "(TOP" +" " + str(partner_id.property_payment_term_id.name) + ")" or str(partner_id.name) +" " + "(TOP" +" "  + str(partner_id.property_supplier_payment_term_id.name+")")
+
+			sheet.write(detail_row,detail_col,str(concat_partner),font_size_8) # Detail Partner 
 			detail_row +=1
 
-			sheet.write(detail_row,detail_col,'Partner',font_size_8)
-			sheet.write(detail_row,detail_col+1,'Invoice',font_size_8)
-			sheet.write(detail_row,detail_col+2,'Invoice Date',font_size_8)
-			sheet.write(detail_row,detail_col+3,'Due Date',font_size_8)
-			sheet.write(detail_row,detail_col+4,'Aging(Days)',font_size_8)
-			sheet.write(detail_row,detail_col+5,'Currency',font_size_8)
-			sheet.write(detail_row,detail_col+6,'Amount',font_size_8)
+			sheet.write(detail_row,detail_col+0,'Invoice',font_size_8)
+			sheet.write(detail_row,detail_col+1,'Invoice Date',font_size_8)
+			sheet.write(detail_row,detail_col+2,'Due Date',font_size_8)
+			sheet.write(detail_row,detail_col+3,'Aging(Days)',font_size_8)
+			sheet.write(detail_row,detail_col+4,'Currency',font_size_8)
+			sheet.write(detail_row,detail_col+5,'Amount',font_size_8)
 
 			
 			detail_row +=1
-
 			for i in get_lines:
-				sheet.write(detail_row,detail_col,i['partner_name'],format99 if i['aging_day'] < 0 else red_mark)
-				sheet.write(detail_row,detail_col+1,i['invoice_name'],format99 if i['aging_day'] < 0 else red_mark)
-				sheet.write(detail_row,detail_col+2,i['invoice_date'],format99 if i['aging_day'] < 0 else red_mark)
-				sheet.write(detail_row,detail_col+3,i['due_date'],format99 if i['aging_day'] < 0 else red_mark)
-				sheet.write(detail_row,detail_col+4,i['aging_day'],format99 if i['aging_day'] < 0 else red_mark)
-				sheet.write(detail_row,detail_col+5,i['currency'],format99 if i['aging_day'] < 0 else red_mark)
-				sheet.write(detail_row,detail_col+6,i['amount'],format99 if i['aging_day'] < 0 else red_mark)
-				amount_total += i['amount']
+				sheet.write(detail_row,detail_col,i['invoice_name'],invoice_header if i['aging_day'] < 0 else invoice_header_mark)
+				sheet.write(detail_row,detail_col+1,i['invoice_date'],invoice_header if i['aging_day'] < 0 else invoice_header_mark)
+				sheet.write(detail_row,detail_col+2,i['due_date'],invoice_header if i['aging_day'] < 0 else invoice_header_mark)
+				sheet.write(detail_row,detail_col+3,i['aging_day'],format99 if i['aging_day'] < 0 else red_mark)
+				sheet.write(detail_row,detail_col+4,i['currency'],format99 if i['aging_day'] < 0 else red_mark)
+				sheet.write(detail_row,detail_col+5,i['amount'],amount_style if i['aging_day'] < 0 else red_mark_amount)
+				amount_total += (i['amount'])
 
 				detail_row += 1
 
 			if get_lines:
-				sheet.write(detail_row,detail_col,"TOTAL",format99)
-				sheet.write(detail_row,detail_col+6,amount_total,format99)
+				sheet.write(detail_row,detail_col,"TOTAL",style_tot)
+				sheet.write(detail_row,detail_col+5,amount_total,style_tot)
 				detail_row += 2
 			
 				
