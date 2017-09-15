@@ -22,6 +22,7 @@
 ##############################################################################
 from datetime import date, datetime, timedelta
 from openerp.addons.report_xlsx.report.report_xlsx import ReportXlsx
+from openerp.tools import DEFAULT_SERVER_DATE_FORMAT
 
 
 class ar_ap_monitoring_xls(ReportXlsx):
@@ -131,50 +132,50 @@ class ar_ap_monitoring_xls(ReportXlsx):
 		for i in get_report_type[2]:
 			sheet.write(4,0,'Filter',format99)
 			sheet.write(4,1,i,format99)
-
-		partner_row = 8
+		
 		partner_col = 0
 
 		detail_row = 9
 		detail_col = 0
 
-		sheet.write(partner_row,detail_col,'Partner',font_size_8)
-		sheet.write(partner_row,detail_col+1,'Invoice',font_size_8)
-		sheet.write(partner_row,detail_col+2,'Invoice Date',font_size_8)
-		sheet.write(partner_row,detail_col+3,'Due Date',font_size_8)
-		sheet.write(partner_row,detail_col+4,'Aging(Days)',font_size_8)
-		sheet.write(partner_row,detail_col+5,'Currency',font_size_8)
-		sheet.write(partner_row,detail_col+6,'Amount',font_size_8)
+		
 
 		total_partner	= len(get_partner)
 		for partner_count in range(0,total_partner):
 			partner_idx 	= get_partner[partner_count]
 			get_lines 		= self.get_lines(data, partner_idx)
 			amount_total	= 0
+
+			sheet.write(detail_row,detail_col,'Partner',font_size_8) # Detail Partner 
+			detail_row +=1
+
+			sheet.write(detail_row,detail_col,'Partner',font_size_8)
+			sheet.write(detail_row,detail_col+1,'Invoice',font_size_8)
+			sheet.write(detail_row,detail_col+2,'Invoice Date',font_size_8)
+			sheet.write(detail_row,detail_col+3,'Due Date',font_size_8)
+			sheet.write(detail_row,detail_col+4,'Aging(Days)',font_size_8)
+			sheet.write(detail_row,detail_col+5,'Currency',font_size_8)
+			sheet.write(detail_row,detail_col+6,'Amount',font_size_8)
+
+			
+			detail_row +=1
+
 			for i in get_lines:
-				if i['aging_day'] < 0:
-					sheet.write(detail_row,detail_col,i['partner_name'],format99)
-					sheet.write(detail_row,detail_col+1,i['invoice_name'],format99)
-					sheet.write(detail_row,detail_col+2,i['invoice_date'],format99)
-					sheet.write(detail_row,detail_col+3,i['due_date'],format99)
-					sheet.write(detail_row,detail_col+4,i['aging_day'],format99)
-					sheet.write(detail_row,detail_col+5,i['currency'],format99)
-					sheet.write(detail_row,detail_col+6,i['amount'],format99)
-					amount_total += i['amount']
-				else:
-					sheet.write(detail_row,detail_col,i['partner_name'],red_mark)
-					sheet.write(detail_row,detail_col+1,i['invoice_name'],red_mark)
-					sheet.write(detail_row,detail_col+2,i['invoice_date'],red_mark)
-					sheet.write(detail_row,detail_col+3,i['due_date'],red_mark)
-					sheet.write(detail_row,detail_col+4,i['aging_day'],red_mark)
-					sheet.write(detail_row,detail_col+5,i['currency'],red_mark)
-					sheet.write(detail_row,detail_col+6,i['amount'],red_mark)
-					amount_total += i['amount']
+				sheet.write(detail_row,detail_col,i['partner_name'],format99 if i['aging_day'] < 0 else red_mark)
+				sheet.write(detail_row,detail_col+1,i['invoice_name'],format99 if i['aging_day'] < 0 else red_mark)
+				sheet.write(detail_row,detail_col+2,i['invoice_date'],format99 if i['aging_day'] < 0 else red_mark)
+				sheet.write(detail_row,detail_col+3,i['due_date'],format99 if i['aging_day'] < 0 else red_mark)
+				sheet.write(detail_row,detail_col+4,i['aging_day'],format99 if i['aging_day'] < 0 else red_mark)
+				sheet.write(detail_row,detail_col+5,i['currency'],format99 if i['aging_day'] < 0 else red_mark)
+				sheet.write(detail_row,detail_col+6,i['amount'],format99 if i['aging_day'] < 0 else red_mark)
+				amount_total += i['amount']
+
 				detail_row += 1
+
 			if get_lines:
 				sheet.write(detail_row,detail_col,"TOTAL",format99)
 				sheet.write(detail_row,detail_col+6,amount_total,format99)
-				detail_row += 1
+				detail_row += 2
 			
 				
 #
