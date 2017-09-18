@@ -33,6 +33,7 @@
                 ],
     'data': [
             'views/account_view.xml',
+            'views/scheduler_run.xml',
             ],
     'license': "AGPL-3",
     'installable': True,
