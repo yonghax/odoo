@@ -15,6 +15,10 @@
                         <label for="default_expense_account"/>
                         <field name="default_expense_account" options="{'no_create': True}" class="oe_inline"/>
                     </div>
+                    <div>
+                        <label for="default_discount_account"/>
+                        <field name="default_discount_account" options="{'no_create': True}" class="oe_inline"/>
+                    </div>
                 </xpath>         
             </field>
         </record>
@@ -25,6 +29,7 @@
             <field name="inherit_id" ref="account.view_bank_statement_form"/>
             <field name="arch" type="xml">
                 <xpath expr="//button[@name='button_cancel']" position="after">
+                    <button name="automate_recon_sales" string="Automate Reconcile" type="object" class="oe_highlight" attrs="{'invisible':['|','|',('all_lines_reconciled','=',True),('line_ids','=',[]),('state', '!=', 'open')]}"/>
                     <button name="recon_unreg" string="Recon to Unreg" type="object" class="oe_highlight" attrs="{'invisible':['|','|',('all_lines_reconciled','=',True),('line_ids','=',[]),('state', '!=', 'open')]}"/>
                 </xpath>
             </field>

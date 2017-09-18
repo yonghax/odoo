@@ -1,7 +1,3 @@
-#################
-## Eclipse
-#################
-
 *.pydevproject
 .project
 .metadata
@@ -111,3 +107,5 @@ ENV/
 
 # Rope project settings
 .ropeproject
+.keep
+*.py[co]
