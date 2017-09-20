@@ -15,38 +15,49 @@ class AccountBankStatement(models.Model):
 class AccountBankStatementLine(models.Model):
     _inherit = 'account.bank.statement.line'
 
-    # @api.multi
-    # def _scheduler_do_reconcile(self):
-    # 	print "============================================================="
-    # 	for data in self.search([('is_processed','=',False)]):
-    # 		print "zzzzzzzz", data
+
+    @api.model
+    def _scheduler_do_reconcile(self):
+    	account_obj = self.env['account.invoice']
+    	account_move_line_obj = self.env['account.move.line']
+    	for data in self.search([('is_processed','=',False)]):
+    		collection = []
+    		account_ids = account_obj.search([('origin','=',data.ref),
+    										   ('state','=','open'),
+    										   ('reconciled','=',False),
+											   ('residual','!=',0)])
+
+    		if account_ids:
+    			account_move_line_invoice_ids = account_move_line_obj.search([('ref','=',data.ref),
+    																		   ('account_id.internal_type','in',['payable','receivable']),
+        																	  	('journal_id.type','=','sale')])
+    			collection.append(account_move_line_invoice_ids)
+
+    			account_move_line_statement_ids = account_move_line_obj.search([('ref','=',data.ref),
+    																			('statement_id','=',data.statement_id.name),
+        																		('account_id.internal_type','in',['payable','receivable'])])
+    			collection.append(account_move_line_statement_ids)
+    			if collection[0].debit - collection[1].credit == 0:
+    				wizard = self.env['account.move.line.reconcile'].with_context(active_ids=[x.id for x in collection]).create({})
+    				wizard.trans_rec_reconcile_full()
+    				data.write({'is_processed': True})
+    			else:
+    				vals = {
+	    				'journal_id' : data.statement_id.journal_id.id,
+	    				'writeoff_acc_id' : 1394,
+    				}
+    				wizard = self.env['account.move.line.reconcile'].with_context(active_ids=[x.id for x in collection]).create({})
+    				wizard.trans_rec_addendum_writeoff()
+    				wizard_write_off = self.env['account.move.line.reconcile.writeoff'].with_context(active_ids=[x.id for x in collection]).create(vals)
+    				wizard_write_off.trans_rec_reconcile()
+    				data.write({'is_processed':True})
+  
 
 
-    def _scheduler_do_reconcile(self, cr, uid):
-        print "=============================+START============================"
-        account_obj = self.pool.get('account.invoice')
-        collection = []
-        account_move_line_obj = self.pool.get('account.move.line')
-        data_ids = self.search(cr, uid, [('is_processed','=',False)], limit=1000)
-        print "--------->", data_ids
-        for data in self.browse(cr, uid, data_ids):
-        	account_ids = account_obj.search(cr, uid, [('origin','=',data.ref),
-        											   ('state','=','open'),
-        											   ('reconciled','=',False),
-        											   ('residual','!=',0)])
-        	print "1111", account_ids
-        	if account_ids:
-        		account_move_line_statement_ids = account_move_line_obj.search(cr, uid,[('ref','=',data.ref),
-        																	  			('account_id.internal_type','in',['payable','receivable']),
-        																	  			])
-        		collection.append(account_move_line_statement_ids)
 
 
 
 
-
-
-        		print "zzzzzzzzzzzz", collection
 
     is_processed 					= fields.Boolean('Is Processed ?', readonly=True)
 
