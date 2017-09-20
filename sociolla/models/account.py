@@ -1,8 +1,8 @@
 from openerp import api, fields, models, _
 
-class MailTemplate(models.Model):
-    _inherit = ['account.config.settings']
-    
+class ResCompany(models.Model):
+    _inherit = 'res.company'
+
     default_expense_account = fields.Many2one(
         string='Default Expense Account',
         comodel_name='account.account',
@@ -10,29 +10,70 @@ class MailTemplate(models.Model):
     )
 
     default_income_account = fields.Many2one(
+        string='Default Expense Account',
+        comodel_name='account.account',
+        domain=[('user_type_id','=',15)]
+    )
+
+    default_discount_account = fields.Many2one(
+        string='Default Expense Account',
+        comodel_name='account.account',
+        domain=[('user_type_id','=',15)]
+    )
+
+class AccountingSetting(models.TransientModel):
+    _inherit = ['account.config.settings']
+    
+    default_expense_account = fields.Many2one(
+        string='Default Expense Account',
+        comodel_name='account.account',
+        related='company_id.default_expense_account',
+        inverse='_set_default_expense_account',
+        domain=[('user_type_id','=',15)]
+    )
+
+    default_income_account = fields.Many2one(
         string='Default Income Account',
         comodel_name='account.account',
+        related='company_id.default_income_account',
+        inverse='_set_default_income_account',
         domain=[('user_type_id','=',12)]
     )
 
-class AccountMoveLine(models.Model):
-    _inherit = 'account.move.line'
+    default_discount_account = fields.Many2one(
+        string='Default Income Account',
+        comodel_name='account.account',
+        related='company_id.default_discount_account',
+        inverse='_set_default_discount_account',
+        domain=[('user_type_id','=',27)]
+    )
 
-    def update_invoice_paid(self, cr, uid, domain=None, context=None):
-        move_line_obj = self.pool.get('account.move.line')
+    @api.one
+    def _set_default_expense_account(self):
+        if self.default_expense_account != self.company_id.default_expense_account:
+            self.company_id.default_expense_account = self.default_expense_account
 
-        lines = move_line_obj.browse(
-            cr, 
-            uid,
-            move_line_obj.search(
-                cr, 
-                uid,
-                [('full_reconcile_id', '!=', False), ('invoice_id', '!=', False)],
-                context=context,
-                limit=10
-            ),
-            context=context
-        )
+    @api.one
+    @api.depends('company_id')
+    def _get_default_expense_account(self):
+        self.default_expense_account = self.company_id.default_expense_account
 
-        for line in lines:
-            line.invoice_id.confirm_paid()
+    @api.one
+    def _set_default_income_account(self):
+        if self.default_income_account != self.company_id.default_income_account:
+            self.company_id.default_income_account = self.default_income_account
+
+    @api.one
+    @api.depends('company_id')
+    def _get_default_income_account(self):
+        self.default_income_account = self.company_id.default_income_account
+
+    @api.one
+    def _set_default_discount_account(self):
+        if self.default_discount_account != self.company_id.default_discount_account:
+            self.company_id.default_discount_account = self.default_discount_account
+
+    @api.one
+    @api.depends('company_id')
+    def _get_default_discount_account(self):
+        self.default_discount_account = self.company_id.default_discount_account

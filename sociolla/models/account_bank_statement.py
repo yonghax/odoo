@@ -58,6 +58,52 @@ class AccountBankStatementLine(models.Model):
         for line in self.line_ids.filtered(lambda x: not x.journal_entry_ids or len(x.journal_entry_ids) < 1):
             line.auto_recon_unreg()
 
+    @api.one
+    def automate_recon_sales(self):
+        for line in self.line_ids.filtered(lambda x: not x.journal_entry_ids or len(x.journal_entry_ids) < 1):
+            ref = line.ref
+            amount_statement = line.amount_currency or line.amount
+            match_moves = self.env['account.move.line'].search(
+            [
+                ('name', 'like', ref), 
+                ('full_reconcile_id', '=', False), 
+                ('account_id.internal_type', 'in', ['payable', 'receivable']),
+                ('account_id.reconcile', '=', True),
+            ])
+            
+            if len(match_moves) > 0:
+                move_line = match_moves[0]
+                if (move_line.currency_id and move_line.amount_residual_currency or move_line.amount_residual) != 0:
+                    counterpart_aml_dicts = []
+                    new_aml_dicts = []
+                    amount = move_line.currency_id and move_line.amount_residual_currency or move_line.amount_residual
+
+                    counterpart_aml_dicts.append({
+                        'name': move_line.name if move_line.name != '/' else move_line.move_id.name,
+                        'debit': amount < 0 and -amount or 0,
+                        'credit': amount > 0 and amount or 0,
+                        'move_line': move_line
+                    })
+
+                    if abs(amount_statement) != abs(amount):
+                        amount = amount_statement - amount
+                    
+                        if abs(amount) >= 100:
+                            new_aml_dicts = [{
+                                'name': line.ref or line.name,
+                                'debit': amount < 0 and -amount or 0,
+                                'credit': amount > 0 and amount or 0,
+                                'account_id': self.env.user.company_id.default_discount_account.id if amount < 0 else  self.env.user.company_id.default_income_account.id
+                            }]
+                        else:
+                            new_aml_dicts = [{
+                                'name': line.ref or line.name,
+                                'debit': amount < 0 and -amount or 0,
+                                'credit': amount > 0 and amount or 0,
+                                'account_id': self.env.user.company_id.default_income_account.id if amount > 0 else self.env.user.company_id.default_expense_account.id
+                            }]
+                    line.process_reconciliation(counterpart_aml_dicts=counterpart_aml_dicts, payment_aml_rec=None,new_aml_dicts=new_aml_dicts)
+
 class AccountBankStatementLine(models.Model):
     
     _inherit = ['account.bank.statement.line']

@@ -1,5 +1,7 @@
 from openerp import models, fields, api, _
 from openerp import SUPERUSER_ID
+from datetime import datetime
+from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT
 
 class stock_picking(models.Model):
     _inherit = 'stock.picking'
@@ -21,6 +23,39 @@ class stock_move(models.Model):
                         
                     if move.state == 'done' or (pick and (pick.picking_type_code == 'incoming' or (pick.picking_type_code == 'outgoing' and move.origin_returned_move_id))):
                         backend_record.update_product_stock_qty(context=context, product=move.product_id)
+
+    def scheduler_push_qty(self, cr, uid, domain=None, context=None):
+        ps_backend_obj = self.pool.get('prestashop.backend')
+        ps_backends = ps_backend_obj.browse(
+            cr,
+            uid, 
+            [1], 
+            context=context
+        )
+        for ps_backend in ps_backends:
+            if ps_backend and ps_backend.export_qty_since:
+                move_obj = self.pool.get('stock.move')
+                moves = move_obj.browse(
+                    cr,
+                    uid,
+                    move_obj.search(
+                        cr,
+                        uid,
+                        [('date', '>=', ps_backend.export_qty_since), ('state', '=', 'done'), ('location_dest_id', '!=', 9)]
+                    )
+                )
+
+                for move in moves:
+                    ps_backend.update_product_stock_qty(context=context, product=move.product_id)
+         
+            ps_backend_obj.write(
+                cr,
+                uid,
+                ps_backend.id,
+                {'import_partners_since': datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)},
+                context=context
+            )
+
 
 class stock_quant(models.Model):
     _inherit = 'stock.quant'

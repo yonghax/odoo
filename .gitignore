@@ -1,4 +1,8 @@
 # Add any directories, files, or patterns you don't want to be tracked by version control
 .keep
+<<<<<<< HEAD
 .pyc
 
+=======
+*.py[co]
+>>>>>>> db912593de5ef051eabe34c4e69d60332b9c943b
