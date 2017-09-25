@@ -198,7 +198,7 @@ class PurchaseOrder(models.Model):
                     'auto_delete' : True,
                     'mail_server_id': su.mail_server.id,
                     'email_from' : 'christa.alycia@sociolla.com',
-                    'email_to' : 'yohanes.ho@sociolla.com',
+                    'email_to' : user_manager.partner_id.email,
                     'reply_to' : 'christa.alycia@sociolla.com',
                     'body_html' : mail_body
                     })
