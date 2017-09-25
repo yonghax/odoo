@@ -57,7 +57,7 @@ class ProductBrand(models.Model):
                 if len(strSplitted) > 1:
                     categ = categ_obj.search(
                         [
-                            ('purchase_type', '=', purchase_type),
+                            ('category_purchase_type', '=', purchase_type),
                             ('name', '=', self.categoryEnum[strSplitted[1]])
                         ]
                     )
