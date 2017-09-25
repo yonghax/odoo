@@ -10,6 +10,21 @@ from operator import itemgetter
 
 _logger = logging.getLogger(__name__)
 
+class stock_picking(osv.osv):
+    _inherit = 'stock.picking'
+
+    def _prepare_pack_ops(self, cr, uid, picking, quants, forced_qties, context=None):
+        vals = super(stock_picking, self)._prepare_pack_ops(cr, uid, picking, quants, forced_qties, context=None)
+        for value in vals:
+            location_to = picking.location_id
+            product = self.pool.get("product.product").browse(cr, uid, value['product_id'], context=context)
+
+            if location_to and location_to.usage == 'supplier' and picking.picking_type_id.code == 'incoming':
+                if product.product_tmpl_id._get_purchase_type() == 'cons':
+                    value['owner_id'] = picking.partner_id.id
+                    
+        return vals
+
 class stock_inventory_line(models.Model):
     
     _inherit = ['stock.inventory.line']
