@@ -145,7 +145,7 @@ class stock_quant(osv.osv):
             tax_amount = taxes['total_included'] - taxes['total_excluded']
             untaxed_amount = taxes['total_excluded']
 
-        if move.company_id.currency_id.is_zero(valuation_amount):
+        if move.company_id.currency_id.is_zero(valuation_amount) and move.product_id.product_tmpl_id.categ_id.id != 29:
             if move.product_id.cost_method == 'standard':
                 raise UserError(_("The found valuation amount for product %s is zero. Which means there is probably a configuration error. Check the costing method and the standard price") % (move.product_id.name,))
             else:
