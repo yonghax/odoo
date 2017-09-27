@@ -30,6 +30,7 @@
     'website': 'google.com',
     'depends': [
                 'account',
+                'connector',
                 ],
     'data': [
             'views/account_view.xml',
