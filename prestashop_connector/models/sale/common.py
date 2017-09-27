@@ -105,6 +105,7 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         if sale_order.invoice_status == 'invoiced':
             for inv in sale_order.invoice_ids:
                 inv.action_move_create()
+                inv.signal_workflow('invoice_open')
 
         return True
     
