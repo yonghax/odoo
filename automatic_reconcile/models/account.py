@@ -1,33 +1,22 @@
 from openerp import api, fields, models, _
 
-
-class AccountBankStatement(models.Model):
-    _inherit = 'account.bank.statement'
-
-
-
-
-    #def collection_reconcile(self):
-
-
-
-
 class AccountBankStatementLine(models.Model):
     _inherit = 'account.bank.statement.line'
 
+	is_processed = fields.Boolean('Is Processed ?', readonly=True)
 
     @api.model
     def _scheduler_do_reconcile(self):
-    	account_obj = self.env['account.invoice']
+    	invoice_obj = self.env['account.invoice']
     	account_move_line_obj = self.env['account.move.line']
     	for data in self.search([('is_processed','=',False)]):
     		collection = []
-    		account_ids = account_obj.search([('origin','=',data.ref),
+    		invoice_ids = invoice_obj.search([('origin','=',data.ref),
     										   ('state','=','open'),
     										   ('reconciled','=',False),
 											   ('residual','!=',0)])
 
-    		if account_ids:
+    		if invoice_ids:
     			account_move_line_invoice_ids = account_move_line_obj.search([('ref','=',data.ref),
     																		   ('account_id.internal_type','in',['payable','receivable']),
         																	  	('journal_id.type','=','sale')])
@@ -51,16 +40,3 @@ class AccountBankStatementLine(models.Model):
     				wizard_write_off = self.env['account.move.line.reconcile.writeoff'].with_context(active_ids=[x.id for x in collection]).create(vals)
     				wizard_write_off.trans_rec_reconcile()
     				data.write({'is_processed':True})
-  
-
-
-
-
-
-
-
-    is_processed 					= fields.Boolean('Is Processed ?', readonly=True)
-
-
-
-
