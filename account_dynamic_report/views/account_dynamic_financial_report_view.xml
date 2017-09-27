@@ -70,7 +70,7 @@
                         </group>
                         <group string="Computation">
                             <field name="formulas"/>
-                            <field name="reseve_balance"/>
+                            <field name="reverse_balance"/>
                             <field name="domain_type"/>
                             <field name="domain" attrs="{'invisible':[('domain_type', '!=', 'custom')]}" />
                             <field name="report_value_id" attrs="{'invisible':[('domain_type', '!=', 'report')]}" options="{'no_create': True}"/>

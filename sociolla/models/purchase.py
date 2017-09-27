@@ -142,8 +142,8 @@ class PurchaseOrder(models.Model):
         list_html_b2c = ''
         list_html_b2b = ''
 
-        message_obj = self.env['mail.message'].sudo()
-        mail_obj = self.env['mail.mail'].sudo()
+        message_obj = self.pool.get('mail.message')
+        mail_obj = self.pool.get('mail.mail')
 
         for order in pending_approvals_b2c:
             list_html_b2c += self.generate_list_html(order.name, order.date_order, order.partner_id.name, format(order.amount_total, '0,.2f'))
@@ -184,13 +184,15 @@ class PurchaseOrder(models.Model):
                 list_html += list_html_b2b
 
             if list_html != '':
-                message_id = message_obj.create({
+                message_id = message_obj.create(
+                cr, SUPERUSER_ID,
+                {
                     'type' : 'email',
                     'subject' : 'Pending RFQ needs your approval (%s)' % datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
                 })
                 mail_body = self.generate_mail_body_html(user_manager.partner_id.name, list_html)
 
-                mail_id = mail_obj.create({
+                mail_id = mail_obj.create(cr, SUPERUSER_ID,{
                     'mail_message_id' : message_id,
                     'state' : 'outgoing',
                     'auto_delete' : True,
@@ -203,7 +205,7 @@ class PurchaseOrder(models.Model):
 
                 mail_ids += [mail_id,]
 
-                mail_obj.send(mail_ids)
+                mail_obj.send(cr, SUPERUSER_ID, mail_ids)
     
     def generate_mail_body_html(self, user_name, list_purchase_html):
         return """
@@ -319,7 +321,6 @@ class PurchaseOrder(models.Model):
                     product_brand.write(vals)
                 except AccessError:  # no write access rights -> just ignore
                     break
-                
 
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'

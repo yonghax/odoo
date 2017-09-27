@@ -6,6 +6,20 @@ from openerp.tools.float_utils import float_compare
 
 import openerp.addons.decimal_precision as dp
 
+class PurchaseOrder(models.Model):
+    _inherit = 'purchase.order'
+
+    @api.multi
+    def _add_supplier_to_product(self):
+        super(PurchaseOrder, self)._add_supplier_to_product()
+
+        for line in self.order_line:
+            product = line.product_id
+
+            if product.product_tmpl_id._get_purchase_type() == 'cons':
+                prod_obj = self.pool.get('product.product')
+                prod_obj.do_change_standard_price(product._cr,product._uid, product.ids, line.price_total / line.product_qty)
+
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'
 

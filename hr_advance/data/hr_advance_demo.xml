@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <record id="advance_transport_by_air_expense" model="hr.advance">
+            <field name="name">Advance for Transport by Air</field>
+            <field eval="800.0" name="amount"/>
+        </record>
+
+        <record id="advance_accomodation_hotel" model="hr.advance">
+            <field name="name">Advance for Hotel</field>
+            <field eval="2250.0" name="amount"/>
+        </record>
+
+    </data>
+</odoo>

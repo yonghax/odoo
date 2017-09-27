@@ -175,9 +175,9 @@ class TemplateMapper(PrestashopImportMapper):
             'active':True
         }
     
-    @mapping
-    def is_product_bundle(self,record):
-        return {'is_product_bundle': record['type']['value'] == 'pack'}
+    # @mapping
+    # def is_product_bundle(self,record):
+    #     return {'is_product_bundle': record['type']['value'] == 'pack'}
 
     @mapping
     def sale_ok(self, record):
