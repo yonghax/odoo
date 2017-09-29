@@ -133,8 +133,8 @@ FROM products p
 LEFT JOIN operationals ops on p.product_id = ops.product_id
 LEFT JOIN adjustments adj on p.product_id = adj.product_id
         """
-        dt_start = datetime.strptime(self.start_date, DEFAULT_SERVER_DATE_FORMAT)
-        dt_end = datetime.strptime(self.end_date, DEFAULT_SERVER_DATE_FORMAT)
+        dt_start = datetime.strftime(self.start_date, DEFAULT_SERVER_DATE_FORMAT)
+        dt_end = datetime.strftime(self.end_date, DEFAULT_SERVER_DATE_FORMAT)
 
         start_date_localize = pytz.timezone(self.env.user.partner_id.tz).localize(datetime(dt_start.year, dt_start.month, dt_start.day, 0, 0, 0)).astimezone(pytz.utc).strftime(DEFAULT_SERVER_DATETIME_FORMAT)
         end_date_localize = pytz.timezone(self.env.user.partner_id.tz).localize(datetime(dt_end.year, dt_end.month, dt_end.day, 23, 59, 59)).astimezone(pytz.utc).strftime(DEFAULT_SERVER_DATETIME_FORMAT)
