@@ -32,7 +32,6 @@ class TemplateMapper(PrestashopImportMapper):
         ('description', 'description_html'),
         ('description_short', 'description_short_html'),
         ('weight', 'weight'),
-        ('wholesale_price', 'standard_price'),
         ('price', 'list_price'),
         ('id_shop_default', 'default_shop_id'),
         ('link_rewrite', 'link_rewrite'),
