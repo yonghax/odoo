@@ -69,7 +69,7 @@ class TemplateMapper(PrestashopImportMapper):
             }
 
         taxes = self.taxes_id(record)
-        if not record['price'] :
+        if not record['price']:
             _logger.debug("Price was not found in the record. Forced to 0")
             record['price'] = '0.0'
         
@@ -92,17 +92,20 @@ class TemplateMapper(PrestashopImportMapper):
                 prices_and_taxes.update({
                     'list_price': float(record['base_price']) / (1 + tax.amount),
                     'final_price': float(record['base_price']) / (1 + tax.amount),
+                    'sale_price': float(record['price']) / (1 + tax.amount),
                 })
             else :
                 prices_and_taxes.update({
                     'list_price': float(record['base_price']),
                     'final_price': float(record['base_price']),
+                    'sale_price': float(record['price']),
                 })
             
         elif record['price']:
             prices_and_taxes.update({
                 'list_price': float(record['base_price']),                
                 'final_price': float(record['base_price']),
+                'sale_price': float(record['price']),
             })
         return prices_and_taxes
 
@@ -174,9 +177,9 @@ class TemplateMapper(PrestashopImportMapper):
             'active':True
         }
     
-    # @mapping
-    # def is_product_bundle(self,record):
-    #     return {'is_product_bundle': record['type']['value'] == 'pack'}
+    @mapping
+    def is_product_bundle(self,record):
+        return {'is_product_bundle': record['type']['value'] == 'pack'}
 
     @mapping
     def sale_ok(self, record):
