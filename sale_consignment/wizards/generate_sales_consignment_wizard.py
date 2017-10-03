@@ -6,6 +6,10 @@ from collections import Counter
 from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT, DEFAULT_SERVER_DATE_FORMAT
 from openerp import api, fields, models, _
 
+import logging
+_logger = logging.getLogger(__name__)
+
+
 class wizard_sale_consignment_history(models.TransientModel):
     _name = 'wizard.sale.consignment.history'
     _description = 'Wizard that open sales consignment history'
@@ -74,10 +78,11 @@ class wizard_sale_consignment_history(models.TransientModel):
             rows = self._generate_data_source()
 
     def _prepare_report_sale_consignment_history(self):
+        _logger.info(self.start_date)
         self.ensure_one()
         return {
-            'date_from': self.start_date,
-            'date_to': self.end_date,
+            'date_from': self.date_range_id.date_start,
+            'date_to': self.date_range_id.date_end,
             'sale_history_brands': self._create_sale_history_brand()
         }
 
@@ -133,9 +138,8 @@ FROM products p
 LEFT JOIN operationals ops on p.product_id = ops.product_id
 LEFT JOIN adjustments adj on p.product_id = adj.product_id
         """
-        dt_start = datetime.strftime(self.start_date, DEFAULT_SERVER_DATE_FORMAT)
-        dt_end = datetime.strftime(self.end_date, DEFAULT_SERVER_DATE_FORMAT)
-
+        dt_start = self.date_range_id.date_start
+        dt_end = self.date_range_id.date_end
         start_date_localize = pytz.timezone(self.env.user.partner_id.tz).localize(datetime(dt_start.year, dt_start.month, dt_start.day, 0, 0, 0)).astimezone(pytz.utc).strftime(DEFAULT_SERVER_DATETIME_FORMAT)
         end_date_localize = pytz.timezone(self.env.user.partner_id.tz).localize(datetime(dt_end.year, dt_end.month, dt_end.day, 23, 59, 59)).astimezone(pytz.utc).strftime(DEFAULT_SERVER_DATETIME_FORMAT)
 
@@ -143,8 +147,8 @@ LEFT JOIN adjustments adj on p.product_id = adj.product_id
         if self.product_brand_ids:
             params += (tuple(self.product_brand_ids.ids),)
 
-        params += (self.start_date,)
-        params += (self.end_date,)
+        params += (dt_start,)
+        params += (dt_end,)
         params += (start_date_localize,)
         params += (end_date_localize,)
 
