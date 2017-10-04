@@ -44,7 +44,7 @@
                     <div>
                         <label for="account_id" string="Asset Account ID" attrs="{'invisible': [('type','!=','purchase')]}"/>
                     </div>
-                    <field name="account_id" required="1" attrs="{'invisible': [('type','=', False)], required: True}"/>
+                    <field name="account_id" required="1" attrs="{'invisible': [('type','=', False)]}"/>
                 </field>
             </field>
         </record>
