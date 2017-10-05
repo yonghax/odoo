@@ -1,0 +1,90 @@
+<openerp>
+  <data>
+    <!-- explicit list view definition -->
+    <record model="ir.ui.view" id="gift_card_list">
+      <field name="name">gift.card.tree</field>
+      <field name="model">gift.card</field>
+      <field name="type">tree</field>
+
+      <field name="arch" type="xml">
+        <tree string ='List Gift Card'>
+          <field name="code"/>
+          <field name="name"/>
+          <field name="type"/>
+          <field name="amount"/>
+          <field name="residual_amount"/>
+        </tree>
+      </field>
+    </record>
+    
+    <record model="ir.ui.view" id="gift_card_form">
+      <field name="name">gift.card.form</field>
+      <field name="model">gift.card</field>
+      <field name="type">form</field>
+      <field name="arch" type="xml">
+        <form string="description">
+          <sheet>
+            <h1><field name="name" placeholder="Gift Cards"></field></h1>
+
+            <group class="col-lg-6">
+              <field name="code"/>
+              <field name="type"/>
+              <field name="amount"/>
+            </group>
+
+            <group class="col-lg-6">
+              <field name="date_start"/>
+              <field name="date_end"/>
+              <field name="residual_amount" attrs="{'invisible':'[('type', '!=', 'amount')]'}"/>
+            </group>
+          </sheet>
+        </form>
+      </field>
+    </record>
+
+    <!-- actions opening views on models -->
+    <!--
+    <record model="ir.actions.act_window" id="gift_card.action_window">
+      <field name="name">gift_card window</field>
+      <field name="res_model">gift_card.gift_card</field>
+      <field name="view_mode">tree,form</field>
+    </record>
+    -->
+
+    <!-- server action to the one above -->
+    <!--
+    <record model="ir.actions.server" id="gift_card.action_server">
+      <field name="name">gift_card server</field>
+      <field name="model_id" ref="model_gift_card_gift_card"/>
+      <field name="code">
+        action = {
+          "type": "ir.actions.act_window",
+          "view_mode": "tree,form",
+          "res_model": self._name,
+        }
+      </field>
+    </record>
+    -->
+
+    <record id="gift_card_action" model="ir.actions.act_window">
+      <field name="name">gift.card.action</field>
+      <field name="res_model">gift.card</field>
+      <field name="view_type">form</field>
+      <field name="view_mode">tree,form</field>
+      <field name="view_id" ref='gift_card_list'/>
+    </record>
+
+    <!-- Top menu item -->
+    <menuitem name="gift_card" id="gift_card_menu" parent="base.menu_sales" action='gift_card_action' />
+    
+    <!-- menu categories -->
+    <!--
+    <menuitem name="Menu 1" id="gift_card.menu_1" parent="gift_card.menu_root"/>
+    <menuitem name="Menu 2" id="gift_card.menu_2" parent="gift_card.menu_root"/>
+    -->
+    <!-- actions -->
+    <!-- <menuitem name="List" id="gift_card.menu_1_list" parent="gift_card.menu_1" action="gift_card.action_window"/>
+    <menuitem name="Server to list" id="gift_card" parent="gift_card.menu_2" action="gift_card.action_server"/> -->
+    
+  </data>
+</openerp>
