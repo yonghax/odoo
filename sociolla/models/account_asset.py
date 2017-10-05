@@ -22,7 +22,6 @@ class AccountAssetAsset(models.Model):
     @api.multi
     def compute_depreciation_board(self):
         self.ensure_one()
-        obj = self.env['account.account'].search()
 
         datas = obj.search([('internal_type', '=', 1)])
         for data in datas:
