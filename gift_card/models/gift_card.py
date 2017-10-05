@@ -29,8 +29,16 @@ class gift_card(models.Model):
 		selection = ([('import', 'Import'),('manual', 'Manual')])
 	)
 
+	prestashop_id = fields.Integer(
+		string='Preshtashop ID'
+	)
+	
+	is_voucher = fields.Boolean(
+		string='Is Voucher',
+	)
+
 	_sql_constraints = [
-	    ('code_uniques', 'unique (code)', ('The code must be unique !')),
+		('code_uniques', 'unique (code)', ('The code must be unique !')),
 	]
 
 	@api.onchange('amount')
@@ -41,7 +49,7 @@ class gift_card(models.Model):
 		else:
 			self.residual_amount = 0
 
-	@api.constraint('amount')
+	@api.constrains('amount')
 	@api.one
 	def contraint_val(self):
 		_logger.info('runnn contstrain amount')
@@ -51,8 +59,10 @@ class gift_card(models.Model):
 			elif self.amount < 0:
 				raise("Amonut can't less than 0")
 
-	@api.constraint('date_start')
+	@api.constrains('date_start')
 	@api.one
 	def date_val(self):
 		if self.date_start > self.date_end:
 			raise("Start Date can't be greater than End Date")
+
+
