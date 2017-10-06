@@ -1,0 +1,16 @@
+<openerp>
+	<data>
+		<record id="ir_cron_import_gift_card" model="ir.cron">
+			<field name="name">Scheduler Import Gift Card</field>
+			<field name="active" eval="True"></field>
+			<field name="interval_number">1</field>
+			<field name="interval_type">days</field>
+			<field name="numbercall">1</field>
+			<field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')"></field>
+			<field name="doall" eval="False"></field>
+			<field name="model">gift.card</field>
+			<field name="function">_scheduler_iport_data</field>
+			<field name="priority">1</field>
+		</record>
+	</data>
+</openerp>

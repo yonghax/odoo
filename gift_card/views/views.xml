@@ -52,7 +52,7 @@
     </record>
 
     <!-- Top menu item -->
-    <menuitem name="Gift Card" id="gift_card_menu" parent="base.menu_sales" action='gift_card_action'/>
+    <menuitem name="Gift Cards" id="gift_card_menu" parent="base.menu_sales" action='gift_card_action'/>
     
   </data>
 </openerp>

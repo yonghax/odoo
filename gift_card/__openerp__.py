@@ -27,6 +27,6 @@
         # 'security/ir.model.access.csv',
         'views/views.xml',
         'views/prestashop_backend_view.xml',
-        #'views/templates.xml',
+        'data/scheduler_cron.xml',
     ],
 }

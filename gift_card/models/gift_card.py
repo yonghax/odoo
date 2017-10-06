@@ -2,8 +2,18 @@
 
 from openerp import models, fields, api, _
 from openerp.exceptions import ValidationError
+from openerp.addons.connector.session import ConnectorSession
+from openerp.addons.connector.queue.job import job
+from datetime import datetime
+
 import logging
 _logger = logging.getLogger(__name__)
+
+@job(default_channel='root')
+def proses_import_data_ps(session, model_name, prestashop_id):
+	_logger.info('proses_import_data_ps run ..')
+	obj = session.env['gift.card']
+	obj.import_data_ps(prestashop_id)
 
 class gift_card(models.Model):
 	_name = 'gift.card'
@@ -23,11 +33,12 @@ class gift_card(models.Model):
 
 	amount = fields.Float( string='Amount' )
 	residual_amount = fields.Float( string='Residual Amount' )
-	used = fields.Boolean( string='Used' )
+	used = fields.Boolean( string='Used', default=False )
 
 	data_type = fields.Selection(
 		string = 'Data Type',
-		selection = ([('import', 'Import'),('manual', 'Manual')])
+		selection = ([('import', 'Import'),('manual', 'Manual')]),
+		default = 'manual'
 	)
 
 	prestashop_id = fields.Integer(
@@ -36,6 +47,7 @@ class gift_card(models.Model):
 	
 	is_voucher = fields.Boolean(
 		string='Is Voucher',
+		default = False
 	)
 
 	_sql_constraints = [
@@ -65,5 +77,86 @@ class gift_card(models.Model):
 	def date_val(self):
 		if self.date_start > self.date_end:
 			raise ValidationError("Start Date can't be greater than End Date")
+
+
+	@api.model
+	def _scheduler_iport_data(self):
+		session = ConnectorSession(self._cr, self._uid, context=self._context)
+		for x in self.go_query_import_data_ps():
+			proses_import_data_ps.delay(session,'gift.card', x['id_cart_rule'],priority=1)
+
+		self.env['prestashop.backend'].browse(1).write({'import_gift_card_since':datetime.now()})
+
+	def import_data_ps(self, prestashop_id):
+		prestashop_cart_rule = self.go_query_import_data_ps(prestashop_id)
+
+		gift_card_obj = self.env['gift.card']
+		data = {}
+		for x in prestashop_cart_rule:
+			listing = dict(
+				code=x['code'],
+				name=x['description'],
+				date_start = x['date_from'],
+				date_end = x['date_to'],
+				type = 'amount' if x['reduction_amount'] > 0 else 'percent',
+				amount = x['reduction_amount'] if x['reduction_amount'] > 0 else x['reduction_percent'],
+				residual_amount = x['reduction_amount'] if x['reduction_amount'] > 0 else x['reduction_percent'],
+				data_type = 'import',
+				used = False,
+				is_voucher = False if x['sociolla_giftcard'] == 1 else True,
+				prestashop_id = prestashop_id
+			)
+			data.update(listing)
+			_logger.info('create DATA ...')
+			# create db
+			gift_card_obj.create(data)
+
+
+	def go_query_import_data_ps(self, id=None):
+		import MySQLdb
+
+		host = self.env['ir.config_parameter'].get_param('mysql.host')
+		user = self.env['ir.config_parameter'].get_param('mysql.user')
+		passwd = self.env['ir.config_parameter'].get_param('mysql.passwd')
+		dbname = self.env['ir.config_parameter'].get_param('mysql.dbname')
+
+		db = MySQLdb.connect(host, user, passwd, dbname, cursorclass=MySQLdb.cursors.DictCursor)
+		cur = db.cursor()
+
+		pres_back = self.env['prestashop.backend'].browse(1)
+		_logger.info('date time === : %s'%(pres_back) )
+		if id:
+			add_query = 'AND id_cart_rule = %s '%(id)
+		else:
+			add_query = "AND date_upd >= '%s' "%(pres_back.import_gift_card_since)
+
+		query = '''
+			SELECT 
+				id_cart_rule,
+				code,
+				description,
+				date_from,
+				date_to,
+				reduction_amount,
+				reduction_percent,
+				sociolla_giftcard
+			FROM ps_cart_rule
+			WHERE active = 1 %s
+		'''%(add_query)
+		
+		_logger.info('query %s'%(query))
+
+		cur.execute(query)
+		result = cur.fetchall()
+		_logger.info('Count Data Result: %s'%(len(result)))
+
+		cur.close()
+		db.close()
+
+		return result
+
+
+
+
 
 
