@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from openerp import models, fields, api, _
-
+from openerp.exceptions import ValidationError
 import logging
 _logger = logging.getLogger(__name__)
 
@@ -17,7 +17,8 @@ class gift_card(models.Model):
 	)
 	type = fields.Selection(
 		string = 'Type',
-		selection = ([('amount', 'Amount'),('percent', 'Percent')])
+		selection = ([('amount', 'Amount'),('percent', 'Percent')]),
+		default = 'amount'
 	)
 
 	amount = fields.Float( string='Amount' )
@@ -55,14 +56,14 @@ class gift_card(models.Model):
 		_logger.info('runnn contstrain amount')
 		if self.type == 'percent':
 			if self.amount > 100:
-				raise("Amount can't greater than 100")
+				raise ValidationError("Amount can't greater than 100")
 			elif self.amount < 0:
-				raise("Amonut can't less than 0")
+				raise ValidationError("Amonut can't less than 0")
 
 	@api.constrains('date_start')
 	@api.one
 	def date_val(self):
 		if self.date_start > self.date_end:
-			raise("Start Date can't be greater than End Date")
+			raise ValidationError("Start Date can't be greater than End Date")
 
 

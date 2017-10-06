@@ -25,17 +25,18 @@
         <form string="description">
           <sheet>
             <h1><field name="name" placeholder="Gift Cards"></field></h1>
+            <group>  
+              <group>
+                <field name="code"/>
+                <field name="type"/>
+                <field name="amount"/>
+              </group>
 
-            <group class="col-lg-6">
-              <field name="code"/>
-              <field name="type"/>
-              <field name="amount"/>
-            </group>
-
-            <group class="col-lg-6">
-              <field name="date_start"/>
-              <field name="date_end"/>
-              <field name="residual_amount" attrs="{'invisible':[('type', '!=', 'amount')]}"/>
+              <group>
+                <field name="date_start"/>
+                <field name="date_end"/>
+                <field name="residual_amount" attrs="{'invisible':[('type', '!=', 'amount')]}"/>
+              </group>
             </group>
           </sheet>
         </form>
@@ -43,7 +44,7 @@
     </record>
 
     <record id="gift_card_action" model="ir.actions.act_window">
-      <field name="name">gift.card.action</field>
+      <field name="name">Gift Cards</field>
       <field name="res_model">gift.card</field>
       <field name="view_type">form</field>
       <field name="view_mode">tree,form</field>
@@ -51,7 +52,7 @@
     </record>
 
     <!-- Top menu item -->
-    <menuitem name="gift_card" id="gift_card_menu" parent="base.menu_sales" action='gift_card_action' />
+    <menuitem name="Gift Card" id="gift_card_menu" parent="base.menu_sales" action='gift_card_action'/>
     
   </data>
 </openerp>

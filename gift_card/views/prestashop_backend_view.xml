@@ -8,7 +8,7 @@
 		<field name="type">form</field>
 
 	  	<field name="arch" type="xml">
-			<xpath xpr="////group[@name='group_sales_order']" position="after">
+			<xpath expr="////group[@name='group_sales_order']" position="after">
 				<div>
 	               <label string="Import Gift Card since" class="oe_inline"/>
 	               <field name="import_gift_card_since"
