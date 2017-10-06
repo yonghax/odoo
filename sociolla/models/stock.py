@@ -5,6 +5,9 @@ from openerp.exceptions import UserError
 from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT, DEFAULT_SERVER_DATE_FORMAT
 from openerp.tools.float_utils import float_compare, float_round
 
+import logging
+_logger = logging.getLogger(__name__)
+
 class stock_inventory(models.Model):
     _inherit = ['stock.inventory']
     
@@ -88,6 +91,84 @@ class stock_inventory(models.Model):
 
         for item in items:
             item.action_done()
+
+    @api.one
+    def request_approval(self):
+        user_obj = self.env['res.users']
+        group_obj = self.env['res.groups']
+        mail_obj = self.env['mail.mail']
+        message_obj = self.env['mail.message']
+        module_category_obj = self.env['ir.module.category']
+
+        user_purchase_managers = user_obj.search([
+            ('groups_id', 'in', group_obj.search([ 
+                ('category_id', 'in', module_category_obj.search([ ('name', '=', 'Inventory') ]).ids ),
+                ('name','=','Reviewer')
+            ]).ids)
+        ]) 
+
+        su = self.env['res.users'].sudo().browse(SUPERUSER_ID)
+
+        for user_manager in user_purchase_managers:
+            mail_ids = []
+
+            message_id = message_obj.create({
+                'type' : 'email',
+                'subject' : 'Pending Inventory Adjusment Approval (%s)' % datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
+            })
+            mail_body = self.generate_mail_body_html(user_manager.partner_id.name, self.name)
+
+            subtype_id = self.env['mail.message.subtype'].sudo().browse(
+                self.env['mail.message.subtype'].sudo().search([
+                    ('res_model', '=', 'stock.inventory'), 
+                    ('name', '=', 'Stock Adjustment Approval')
+                ]).ids
+            )
+
+            user_approved = self.env['res.users'].sudo().browse([self.env.uid])
+            
+            msg = self.env['mail.message'].sudo().create({
+                'message_type' : 'comment',
+                'subject' : 'Request Approveal Adjustment: ' + self.name,
+                'subtype_id': subtype_id.id,
+                'res_id': user_manager.partner_id.id,
+                'body': """<p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>RFQ Number: %s; has been Approved</p>""" % (user_manager.partner_id.name),
+                'email_from': user_approved.partner_id.email,
+            })
+            
+            _logger.info('Msg ID: %s'%(msg.id))
+
+
+            mail = self.env['mail.mail'].sudo().create({
+                'mail_message_id' : msg.id,
+                'state' : 'outgoing',
+                'auto_delete' : True,
+                'email_from' : msg.email_from,
+                'email_to' : user_manager.partner_id.email,
+                'reply_to' : msg.email_from,
+                'body_html' : msg.body
+            })
+
+            mail_ids += [mail.id,]
+            
+            _logger.info('mail_ids : %s'%(mail_ids))
+
+            # mail_obj.sudo().send(mail_ids)
+
+        self.env['mail.mail'].sudo().send(mail_ids)
+
+    def generate_mail_body_html(self, user_name, inventory_name):
+        return """
+            <p style="margin:0px 0px 10px 0px;"></p>
+            <div style="font-family: 'Lucida Grande', Ubuntu, Arial, Verdana, sans-serif; font-size: 12px; color: rgb(34, 34, 34); background-color: #FFF; ">
+                <p style="margin:0px 0px 10px 0px;">Hello Mr / Mrs %s,</p>
+                <p style="margin:0px 0px 10px 0px;">Here is the waiting request for quotation: </p>
+                <ul style="margin:0px 0 10px 0;">%s
+                </ul>
+                <p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>Kindly review the RFQ.</p>
+                <p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>Thank you.</p>
+            </div>
+        """ % (user_name, inventory_name)
 
 class stock_inventory_line(models.Model):
     _inherit = 'stock.inventory.line'
