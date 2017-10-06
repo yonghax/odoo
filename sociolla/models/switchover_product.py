@@ -99,6 +99,16 @@ class switchover_product(models.Model):
 
         return res
 
+class stock_pack_operation(models.Model):
+    _inherit = ['stock.pack.operation']
+    barcode = fields.Char(string=u'Barcode',compute='_get_barcode')
+    
+    def _get_barcode(self):
+        for data in self:
+            _logger.info('==== %s' % (data.product_id.barcode))
+            if data.product_id:
+                data.barcode = data.product_id.barcode
+
 class switchover_product_line(models.Model):
     _name = 'switchover.product.line'
 
