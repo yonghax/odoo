@@ -32,7 +32,6 @@ class TemplateMapper(PrestashopImportMapper):
         ('description', 'description_html'),
         ('description_short', 'description_short_html'),
         ('weight', 'weight'),
-        ('wholesale_price', 'standard_price'),
         ('price', 'list_price'),
         ('id_shop_default', 'default_shop_id'),
         ('link_rewrite', 'link_rewrite'),
@@ -70,7 +69,7 @@ class TemplateMapper(PrestashopImportMapper):
             }
 
         taxes = self.taxes_id(record)
-        if not record['price'] :
+        if not record['price']:
             _logger.debug("Price was not found in the record. Forced to 0")
             record['price'] = '0.0'
         
@@ -93,17 +92,20 @@ class TemplateMapper(PrestashopImportMapper):
                 prices_and_taxes.update({
                     'list_price': float(record['base_price']) / (1 + tax.amount),
                     'final_price': float(record['base_price']) / (1 + tax.amount),
+                    'sale_price': float(record['price']) / (1 + tax.amount),
                 })
             else :
                 prices_and_taxes.update({
                     'list_price': float(record['base_price']),
                     'final_price': float(record['base_price']),
+                    'sale_price': float(record['price']),
                 })
             
         elif record['price']:
             prices_and_taxes.update({
                 'list_price': float(record['base_price']),                
                 'final_price': float(record['base_price']),
+                'sale_price': float(record['price']),
             })
         return prices_and_taxes
 

@@ -146,6 +146,12 @@ class AccountInvoice(models.Model):
                 'move_name': move.name,
             }
             inv.with_context(ctx).write(vals)
+
+            if inv.number:
+                asset_ids = self.env['account.asset.asset'].sudo().search([('invoice_id', '=', inv.id), ('company_id', '=', inv.company_id.id)])
+                if asset_ids:
+                    asset_ids.write({'active': False})
+            inv.invoice_line_ids.asset_create()
         return True
 
     @api.model
@@ -428,6 +434,15 @@ class AccountInvoiceLine(models.Model):
     discount_account_id = fields.Many2one('account.account', string='Discount Account', domain=[('deprecated', '=', False)])
     is_from_product_bundle = fields.Boolean(string='Flag from Product Bundle',default=False)
     flag_disc = fields.Char(string='Discount Flag',size=50,)
+
+    @api.onchange('asset_category_id')
+    def onchange_asset_category_id(self):
+        if not self.asset_category_id:
+            self.account_id = self.get_invoice_line_account(self.invoice_id.type, self.product_id, self.invoice_id.fiscal_position_id, self.invoice_id.company_id)
+        if self.invoice_id.type == 'out_invoice' and self.asset_category_id:
+            self.account_id = self.asset_category_id.account_id.id
+        elif self.invoice_id.type == 'in_invoice' and self.asset_category_id:
+            self.account_id = self.asset_category_id.account_id.id
 
     @api.onchange('product_id')
     def _onchange_product_id(self):

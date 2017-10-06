@@ -58,7 +58,7 @@ class AccountDynamicFinancialReportLine(models.Model):
         required=True,
         default='normal',
         selection=[('from_beginning', 'From the beginning'), ('fiscal_start', 'At the beginning of the year'), ('period_start', 'At the beginning of the period'), ('normal', 'Use given dates')])
-    reseve_balance = fields.Boolean(string='Reserve Balance Sign',)
+    reverse_balance = fields.Boolean(string='Reverse Balance Sign', oldname='reseve_balance')
     report_style = fields.Selection([('normal', 'Normal Style'),('account', 'Account')], string='Style', default='normal')
 
     _sql_constraints = [
@@ -74,7 +74,7 @@ class AccountDynamicFinancialReportLine(models.Model):
             'credit': "COALESCE(SUM(credit), 0) as credit",
         }
 
-        if line.reseve_balance:
+        if line.reverse_balance:
             mapping = {
                 'balance': "COALESCE(SUM(credit),0) - COALESCE(SUM(debit), 0) as balance",
                 'debit': "COALESCE(SUM(debit), 0) as debit",
@@ -134,7 +134,7 @@ class AccountDynamicFinancialReportLine(models.Model):
                     'code': report.code,
                     'name': report.name,
                     'balance': (res[report.code]['balance'] or 0.0),
-                    'type': 'report',
+                    'type': 'footer',
                     'level': report.level,
                     'show_balance': True,
                 }
@@ -260,39 +260,45 @@ class DynamicReportFinancial(models.AbstractModel):
                 else:
                     res2 = self._compute_report_balance(report.report_value_id.with_context(date_from=False))
 
-                formulas = report.formulas
+                formulas = '+' + report.formulas
                 code = ''
                 operator = '+'
 
                 while True:
                     code = formulas[:formulas.find('.balance')]
-                    formulas = formulas[len(code+'.balance'):]
-                    if formulas == '':
-                        if operator == '+':
-                            for field in fields:
-                                res[report.code][field] += res2[code][field]
-                        elif operator == '-':
-                            for field in fields:
-                                res[report.code][field] -= res2[code][field]
-                        break
-                    operator = formulas[0]
-                    formulas = formulas[len(operator):]
+                    operator = code[0]
+                    code = code[1:len(code)]
+                    formulas = formulas[len(code+'.balance')+1:]
+
                     if operator == '+':
                         for field in fields:
-                            res[report.code][field] += res2[code][field]
+                            res[report.code][field] += res2[code][field] * -1 if report.reverse_balance else 1
                     elif operator == '-':
                         for field in fields:
-                            res[report.code][field] -= res2[code][field]
+                            res[report.code][field] -= res2[code][field] * -1 if report.reverse_balance else 1
+
+                    if formulas == '':
+                        break
                 
             elif not report.domain_type and 'sum.balance' not in report.formulas.lower():
-                res2 = self._compute_report_balance(report.children_ids)
-                formulas = report.formulas
+                res2 = {}
+
+                if report.children_ids: 
+                    res2 = self._compute_report_balance(report.children_ids)
+                    
+                formulas = '+' + report.formulas
                 code = ''
                 operator = '+'
 
                 while True:
                     code = formulas[:formulas.find('.balance')]
-                    formulas = formulas[len(code+'.balance'):]
+                    operator = code[0]
+                    code = code[1:len(code)]
+                    formulas = formulas[len(code+'.balance')+1:]
+                    
+                    if not report.children_ids and len(report.children_ids) > 0:
+                        res2[code] = res[code]
+                        
                     if not res2.has_key(code):
                         obj = self.env['account.dynamic.financial.report.line'].with_context(report._context)
                         report2 = obj.browse(
@@ -301,22 +307,15 @@ class DynamicReportFinancial(models.AbstractModel):
                         if report2:
                             res2.update(self._compute_report_balance(report2))
 
-                    if formulas == '':
-                        if operator == '+':
-                            for field in fields:
-                                res[report.code][field] += res2[code][field]
-                        elif operator == '-':
-                            for field in fields:
-                                res[report.code][field] -= res2[code][field]
-                        break
-                    operator = formulas[0]
-                    formulas = formulas[len(operator):]
                     if operator == '+':
                         for field in fields:
                             res[report.code][field] += res2[code][field]
                     elif operator == '-':
                         for field in fields:
                             res[report.code][field] -= res2[code][field]
+
+                    if formulas == '':
+                        break
         return res
 
     def get_account_lines(self, data):

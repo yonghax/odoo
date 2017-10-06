@@ -105,6 +105,7 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         if sale_order.invoice_status == 'invoiced':
             for inv in sale_order.invoice_ids:
                 inv.action_move_create()
+                inv.signal_workflow('invoice_open')
 
         return True
     
@@ -237,7 +238,13 @@ select op.id_cart, o.id_order, o.date_add, o.reference as reference_order, o.cur
                     price = 0
                     discount_amount = 0
                     discount = 0
-                    
+                
+                if discount_amount < 0:
+                    unit_price = price
+                    discount_amount = 0
+                    discount = 0
+                    price_undiscounted = unit_price * qty
+
                 taxes = line.tax_id.compute_all(price, line.order_id.currency_id, qty, product=product, partner=line.order_id.partner_id)
                 price_undiscounted = qty * unit_price
 
