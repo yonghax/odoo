@@ -141,6 +141,15 @@ class stock_inventory_line(models.Model):
                         quant_obj._quant_reconcile_negative(cr, uid, quant, move, context=context)
         return move_id
 
+class stock_pack_operation(models.Model):
+    _inherit = ['stock.pack.operation']
+    barcode = fields.Char(string=u'Barcode',compute='_get_barcode')
+    
+    def _get_barcode(self):
+        for data in self:
+            if data.product_id:
+                data.barcode = data.product_id.barcode
+
 class stock_move(models.Model):
     _inherit = 'stock.move'
     
