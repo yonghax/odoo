@@ -47,12 +47,6 @@ class TemplateMapper(PrestashopImportMapper):
         return {'name': 'noname'}
 
     @mapping
-    def standard_price(self, record):
-        if record['wholesale_price']:
-            return {'standard_price': float(record['wholesale_price'])}
-        return {}
-
-    @mapping
     def list_price(self, record):
         is_product_switchover = record['is_product_switchover']
         mapping_product_switchover_id = record['switchover_product_mapping']
