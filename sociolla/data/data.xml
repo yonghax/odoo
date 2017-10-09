@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+	<data noupdate="1">
+		<record model="mail.message.subtype" id="stock_adjustment_approval">
+            <field name="name">Stock Adjustment Approval</field>
+            <field name="sequence_id" eval="1"/>
+            <field name="res_model">stock.inventory</field>
+        </record>
+	</data>
+</openerp>

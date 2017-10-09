@@ -11,7 +11,6 @@ _logger = logging.getLogger(__name__)
 
 @job(default_channel='root')
 def proses_import_data_ps(session, model_name, prestashop_id):
-	_logger.info('proses_import_data_ps run ..')
 	obj = session.env['gift.card']
 	obj.import_data_ps(prestashop_id)
 
@@ -65,7 +64,6 @@ class gift_card(models.Model):
 	@api.constrains('amount')
 	@api.one
 	def contraint_val(self):
-		_logger.info('runnn contstrain amount')
 		if self.type == 'percent':
 			if self.amount > 100:
 				raise ValidationError("Amount can't greater than 100")
@@ -107,10 +105,9 @@ class gift_card(models.Model):
 				prestashop_id = prestashop_id
 			)
 			data.update(listing)
-			_logger.info('create DATA ...')
+
 			# create db
 			gift_card_obj.create(data)
-
 
 	def go_query_import_data_ps(self, id=None):
 		import MySQLdb
@@ -124,32 +121,21 @@ class gift_card(models.Model):
 		cur = db.cursor()
 
 		pres_back = self.env['prestashop.backend'].browse(1)
-		_logger.info('date time === : %s'%(pres_back) )
 		if id:
 			add_query = 'AND id_cart_rule = %s '%(id)
 		else:
 			add_query = "AND date_upd >= '%s' "%(pres_back.import_gift_card_since)
 
 		query = '''
-			SELECT 
-				id_cart_rule,
-				code,
-				description,
-				date_from,
-				date_to,
-				reduction_amount,
-				reduction_percent,
-				sociolla_giftcard
+			SELECT id_cart_rule, code, description, date_from, date_to,
+				reduction_amount, reduction_percent, sociolla_giftcard
 			FROM ps_cart_rule
-			WHERE active = 1 %s
+				WHERE active = 1 %s
 		'''%(add_query)
-		
-		_logger.info('query %s'%(query))
 
 		cur.execute(query)
 		result = cur.fetchall()
-		_logger.info('Count Data Result: %s'%(len(result)))
-
+		
 		cur.close()
 		db.close()
 
