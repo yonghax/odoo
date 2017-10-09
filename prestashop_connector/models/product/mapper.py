@@ -37,6 +37,7 @@ class TemplateMapper(PrestashopImportMapper):
         ('link_rewrite', 'link_rewrite'),
         ('reference', 'reference'),
         ('available_for_order', 'available_for_order'),
+        ('warehouse', 'warehouse_location'),
     ]
 
     @mapping
