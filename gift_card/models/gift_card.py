@@ -15,6 +15,8 @@ def proses_import_data_ps(session, model_name, prestashop_id):
 	obj = session.env['gift.card']
 	obj.import_data_ps(prestashop_id)
 
+
+
 class gift_card(models.Model):
 	_name = 'gift.card'
 
