@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+  <data>
+    <record id="product_template_tree_hide_price" model="ir.ui.view">
+      <field name="name">product.template.product.tree.hide.price</field>
+      <field name="model">product.template</field>
+      <field name="inherit_id" ref="product.product_template_tree_view"/>
+      <field name="arch" type="xml">
+        <field name="standard_price" position="replace">
+          <field name="standard_price" groups="account.group_account_user"/>
+        </field>
+      </field>
+    </record>
+
+    <record id="product_template_hide_price" model="ir.ui.view">
+      <field name="name">product.template.hide.price</field>
+      <field name="model">product.template</field>
+      <field name="inherit_id" ref="product.product_template_form_view"/>
+      <field name="arch" type="xml">
+        <field name="list_price" position="replace">
+          <field name="list_price" widget="monetary" options="{'currency_field': 'currency_id'}" groups="base.group_sale_salesman"/>
+        </field>
+        <field name="standard_price" position="replace">
+          <field name="standard_price" widget="monetary" options="{'currency_field': 'currency_id'}" class="oe_inline" groups="account.group_account_user"/>
+        </field>
+      </field>
+    </record>
+
+    <record id="product_product_hide_price" model="ir.ui.view">
+      <field name="name">product.product.hide.price</field>
+      <field name="model">product.product</field>
+      <field name="inherit_id" ref="product.product_variant_easy_edit_view"/>
+      <field name="arch" type="xml">
+        <field name="lst_price" position="replace">
+          <field name="lst_price" widget="monetary" options="{'currency_field': 'currency_id'}" groups="base.group_sale_salesman"/>
+        </field>
+        <field name="standard_price" position="replace">
+          <field name="standard_price" widget="monetary" options="{'currency_field': 'currency_id'}" class="oe_inline" groups="account.group_account_user"/>
+        </field>
+      </field>
+    </record>
+
+    <record id="product_product_tree_hide_price" model="ir.ui.view">
+      <field name="name">product.product.hide.price</field>
+      <field name="model">product.product</field>
+      <field name="inherit_id" ref="product.product_product_tree_view"/>
+      <field name="arch" type="xml">
+        <field name="price" position="replace">
+          <field name="price" invisible="not context.get('pricelist',False)" groups="account.group_sale_salesman"/>
+        </field>
+      </field>
+    </record>
+
+    <record id="stock_quant_tree_hide_price" model="ir.ui.view">
+      <field name="name">stock.quant.tree.hide.price</field>
+      <field name="model">stock.quant</field>
+      <field name="inherit_id" ref="stock.view_stock_quant_tree"/>
+      <field name="arch" type="xml">
+        <field name="inventory_value" position="replace">
+          <field name="inventory_value" groups="account.group_account_user"/>
+        </field>
+      </field>
+    </record>
+
+    <record id="view_stock_quant_hide_price" model="ir.ui.view">
+      <field name="name">stock.quant.form.hide.price</field>
+      <field name="model">stock.quant</field>
+      <field name="inherit_id" ref="stock.view_stock_quant_form"/>
+      <field name="arch" type="xml">
+        <field name="inventory_value" position="replace">
+          <field name="inventory_value" groups="account.group_account_user"/>
+        </field>
+      </field>
+    </record>
+
+    <record id="product_template_form_view" model="ir.ui.view">
+      <field name="name">product.template.form.inherit</field>
+      <field name="model">product.template</field>
+      <field name="priority">6</field>
+      <field name="inherit_id" ref="account.product_template_form_view"/>
+      <field name="arch" type="xml">
+        <field name="property_account_income_id" position="after">
+          <field name="property_account_sales_discount_id"
+              domain="[('internal_type','=','other'),('deprecated', '=', False)]"
+              groups="account.group_account_user"/>
+          <field name="property_account_sales_return_id"
+              domain="[('internal_type','=','other'),('deprecated', '=', False)]"
+              groups="account.group_account_user"/>
+        </field>
+      </field>
+    </record>
+
+    <record id="view_category_property_form" model="ir.ui.view">
+      <field name="name">product.category.stock.property.form.inherit</field>
+      <field name="model">product.category</field>
+      <field name="inherit_id" ref="account.view_category_property_form"/>
+      <field name="arch" type="xml">
+        <group name="account_property" position="inside">
+          <field name="property_account_sales_discount_categ_id" domain="[('internal_type','=','other'),('deprecated', '=', False)]"/>
+          <field name="property_account_sales_return_categ_id" domain="[('internal_type','=','other'),('deprecated', '=', False)]"/>
+        </group>
+      </field>
+    </record>
+
+    <record id="product_template_common_form" model="ir.ui.view">
+      <field name="name">product.template.form</field>
+      <field name="model">product.template</field>
+      <field name="inherit_id" ref="product.product_template_form_view" />
+      <field name="arch" type="xml">
+        <xpath expr="/form/sheet/notebook" position="inside">
+          <page string="Bundle Configure" name="bundle" attrs="{'invisible':[('is_product_bundle','=',False)]}">
+            <separator string="List Products Contains"/>
+            <field name="product_bundles">
+              <tree editable="top">
+                <field name="product_id"/>
+                <field name="qty"/>
+                <field name="choose_variant"/>
+              </tree>
+            </field>
+          </page>
+        </xpath>
+      </field>
+    </record>
+
+    <record id="view_product_template_for_bundle_conf" model="ir.ui.view">
+      <field name="name">product.template.bundle.conf</field>
+      <field name="model">product.template</field>
+      <field name="priority" eval="20" />
+      <field name="inherit_id" ref="product.product_template_form_view"/>
+      <field name="arch" type="xml">
+        <div name="options" position="inside">
+          <div>
+            <field name="is_product_bundle"/>
+            <label for="is_product_bundle"/>
+          </div>
+        </div>
+      </field>
+    </record>
+
+    <record id="view_product_product_for_bundle_conf" model="ir.ui.view">
+      <field name="name">product.product.bundle.conf</field>
+      <field name="model">product.product</field>
+      <field name="priority" eval="20" />
+      <field name="inherit_id" ref="product.product_variant_easy_edit_view"/>
+      <field name="arch" type="xml">
+        <field name="active" position="after">
+            <field name="is_product_bundle"/>
+        </field>
+      </field>
+    </record>
+
+    <record id="view_product_product_shop" model="ir.ui.view">
+      <field name="name">product.product.shop</field>
+      <field name="model">product.template</field>
+      <field name="priority" eval="99" />
+      <field name="inherit_id" ref="product.product_template_form_view"/>
+      <field name="arch" type="xml">
+        <group name="sale_condition" position="inside">
+            <field name="shop_id" required="True" options="{'no_create': True}"/>
+        </group>
+      </field>
+    </record>
+
+    <record id="product_variant_bundle_view" model="ir.ui.view">
+      <field name="name">product.product.view.form.easy</field>
+      <field name="model">product.product</field>
+      <field name="inherit_id" ref="product.product_variant_easy_edit_view" />
+      <field name="arch" type="xml">
+        <sheet position="inside">
+          <group name="bundles" attrs="{'invisible':[('is_product_bundle','=',False)]}">
+            <field name="product_bundles">
+              <tree editable="top">
+                <field name="product_id"/>
+                <field name="qty"/>
+                <field name="choose_variant"/>
+              </tree>
+            </field>
+          </group>
+        </sheet>
+      </field>
+    </record>
+
+    <record id="product_supplierinfo_form_view" model="ir.ui.view">
+      <field name="name">product.supplierinfo.form.view.inherit</field>
+      <field name="model">product.supplierinfo</field>
+      <field name="inherit_id" ref="product.product_supplierinfo_form_view"/>
+      <field name="arch" type="xml">
+        <xpath expr="//label[@for='date_start']" position="before">
+          <field name="discount" string="Disc(%)" />
+        </xpath>
+      </field>
+    </record>
+
+    <record id="product_supplierinfo_tree_view" model="ir.ui.view">
+      <field name="name">product.supplierinfo.tree.view.inherit</field>
+      <field name="model">product.supplierinfo</field>
+      <field name="inherit_id" ref="product.product_supplierinfo_tree_view"/>
+      <field name="arch" type="xml">
+        <field name="price" position="after">
+          <field name="discount" string="Disc(%)" />
+        </field>
+      </field>
+    </record>
+
+  </data>
+</openerp>

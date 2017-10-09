@@ -1,0 +1,17 @@
+<odoo>
+    <template id="report_delivery_document_inherited" inherit_id="stock.report_delivery_document">
+        <xpath expr="//span[@class='row']" position="replace">
+            <div class="row" t-if="o.picking_type_id.code == 'outgoing'">
+                <div class="col-xs-6">
+                    <div>
+                        <span><strong>Customer Address:</strong></span>
+                    </div>
+                    <div t-if="o.partner_id" name="partner_header">
+                        <div t-field="o.partner_id"
+                            t-field-options='{"widget": "contact", "fields": ["address", "name", "phone", "fax"], "no_marker": true}'/>
+                    </div>
+                </div>    
+            </div>
+        </xpath>
+    </template>
+</odoo>

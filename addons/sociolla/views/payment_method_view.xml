@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+        <record id="payment_method_form" model="ir.ui.view">
+            <field name="name">sociolla.payment.method.form</field>
+            <field name="model">sociolla.payment.method</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Payment Method">
+                    <group>
+                        <field name="name"/>
+                        <field name="partner_id"/>
+                        <field name="payment_term_id"/>
+                    </group>
+                </form>
+            </field>
+        </record>
+
+        <record id="payment_method_tree" model="ir.ui.view">
+            <field name="name">sociolla.payment.method.tree</field>
+            <field name="model">sociolla.payment.method</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Payment Method">
+                    <field name="name"/>
+                    <field name="partner_id"/>
+                    <field name="payment_term_id"/>
+                </tree>
+            </field>
+        </record>       
+        
+        <record id="payment_method_action" model="ir.actions.act_window">
+            <field name="name">Payment Method</field>
+            <field name="res_model">sociolla.payment.method</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+            <field name="view_id" ref="payment_method_tree"/>
+        </record>
+
+        <menuitem id="menu_sociolla_payment_method" name="Payment Methods" parent="account.account_management_menu" sequence="3" action="payment_method_action" groups="account.group_account_manager"/>
+    </data>
+</openerp>

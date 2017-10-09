@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+         <record id="purchase_order_form" model="ir.ui.view">
+            <field name="name">purchase.order.form.inherit</field>
+            <field name="model">purchase.order</field>
+            <field name="inherit_id" ref="purchase.purchase_order_form"/>
+            <field name="arch" type="xml">
+                <data>
+                    <xpath expr="//field[@name='order_line']/tree/field[@name='taxes_id']" position="before">
+                        <field name="discount"/>
+                    </xpath>
+                    <xpath expr="//field[@name='order_line']/tree" position="attributes">
+                        <attribute name="editable"/>
+                    </xpath>
+                    <xpath expr="//field[@name='order_line']/form/sheet/group/group/field[@name='price_unit']" position="after">
+                        <field name="discount"/>
+                    </xpath>
+                </data>
+            </field>
+        </record>
+
+        <record id="purchase_order_form_receive_status" model="ir.ui.view">
+            <field name="name">product.order.form.receive.status.inherit</field>
+            <field name="model">purchase.order</field>
+            <field name="inherit_id" ref="purchase.purchase_order_form"/>
+            <field name="arch" type="xml">
+                <field name="incoterm_id" position="after">
+                    <field name="picking_status"/>
+                </field>
+            </field>
+        </record>
+
+        <record id="purchase_order_form_shop" model="ir.ui.view">
+            <field name="name">product.order.form.shop</field>
+            <field name="model">purchase.order</field>
+            <field name="inherit_id" ref="purchase.purchase_order_form"/>
+            <field name="arch" type="xml">
+                <field name="date_order" position="after">
+                    <field name="shop_id" required="True" options="{'no_create': True}" />
+                </field>
+            </field>
+        </record>
+
+        <record id="purchase_order_tree" model="ir.ui.view">
+            <field name="name">purchase.order.tree.inherit</field>
+            <field name="model">purchase.order</field>
+            <field name="inherit_id" ref="purchase.purchase_order_tree"/>
+            <field name="arch" type="xml">
+                <field name="state" position="after">
+                    <field name="picking_status"/>
+                </field>
+            </field>
+        </record>
+    </data>
+</openerp>

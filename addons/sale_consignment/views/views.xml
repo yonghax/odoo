@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_sales_consignment_wizard" model="ir.ui.view">
+        <field name="name">Sale Consignment Report</field>
+        <field name="model">wizard.sale.consignment.history</field>
+        <field name="arch" type="xml">
+            <form>
+                <div>
+                    <group name="main_info">
+	                    <field name="company_id" options="{'no_create': True}" groups="base.group_multi_company"/>
+	                </group>
+                    <group name="date_range">
+                    	<group>
+	                        <field name="date_range_id" domain="[('company_id','=',company_id)]"/>
+	                        <field name="start_date"/>
+	                        <field name="end_date"/>
+	                	</group>
+	                	<group>
+	                	</group>
+                    </group>
+                    <label string="Filter by Brand" style="font-weight:bold"/>
+                    <field name="product_brand_ids" options="{'no_create': True}"/>
+                </div>
+                <footer>
+                    <div>
+                        <button name="button_export_xlsx" string="Export xlsx" type="object"/>
+                        or
+                        <button string="Cancel" class="oe_link" special="cancel"/>
+                    </div>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <act_window id="action_generate_sale_consignment"
+                name="Generate Sale Consignment"
+                res_model="wizard.sale.consignment.history"
+                view_type="form"
+                view_mode="form"
+                view_id="view_sales_consignment_wizard"
+                target="new" />
+</odoo>

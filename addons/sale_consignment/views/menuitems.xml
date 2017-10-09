@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem 
+        parent="account.menu_finance_receivables"
+        id="menu_generate_sale_consignment"
+        action="action_generate_sale_consignment"
+        sequence="30"
+        groups="account.group_account_manager,account.group_account_user"/>
+</odoo>

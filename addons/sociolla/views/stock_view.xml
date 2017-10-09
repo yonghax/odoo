@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+        <record id="addon_view_inventory_form_inherit" model="ir.ui.view">
+            <field name="name">stock.inventory.form.addon.inherit</field>
+            <field name="model">stock.inventory</field>
+            <field name="inherit_id" ref="stock.view_inventory_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='date']" position="after">
+                    <field name="brand_id" attrs="{'invisible': [('filter', '!=', 'brand')], 'required': [('filter', '=', 'brand')]}"/>
+                </xpath>
+            </field>
+        </record>
+        
+        <record id="view_picking_form_inherit" model="ir.ui.view">
+            <field name="name">stock.picking.form.inherit</field>
+            <field name="model">stock.picking</field>
+            <field name="inherit_id" ref="stock.view_picking_form"/>
+            <field name="arch" type="xml">
+                <data>
+                    <xpath expr="////tree/field[@name='product_id']" position="after">
+                        <field name="barcode" readonly="1"/>
+                    </xpath>
+                    <xpath expr="////tree/field[@name='to_loc']" position="after">
+                        <field name="warehouse_location" readonly="1"/>
+                    </xpath>
+                </data>
+            </field>
+        </record>
+    </data>
+</openerp>
