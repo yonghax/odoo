@@ -9,7 +9,7 @@
 			<field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')"></field>
 			<field name="doall" eval="False"></field>
 			<field name="model">gift.card</field>
-			<field name="function">_scheduler_iport_data</field>
+			<field name="function">_scheduler_import_data</field>
 			<field name="priority">1</field>
 		</record>
 	</data>

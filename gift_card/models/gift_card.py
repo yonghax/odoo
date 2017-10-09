@@ -78,7 +78,7 @@ class gift_card(models.Model):
 
 
 	@api.model
-	def _scheduler_iport_data(self):
+	def _scheduler_import_data(self):
 		session = ConnectorSession(self._cr, self._uid, context=self._context)
 		for x in self.go_query_import_data_ps():
 			proses_import_data_ps.delay(session,'gift.card', x['id_cart_rule'],priority=1)
