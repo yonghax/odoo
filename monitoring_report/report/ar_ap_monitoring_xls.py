@@ -1,33 +1,8 @@
-# -*- coding: utf-8 -*-
-##############################################################################
-#
-#    Cybrosys Technologies Pvt. Ltd.
-#    Copyright (C) 2017-TODAY Cybrosys Technologies(<http://www.cybrosys.com>).
-#    Author: Jesni Banu(<https://www.cybrosys.com>)
-#    you can modify it under the terms of the GNU LESSER
-#    GENERAL PUBLIC LICENSE (LGPL v3), Version 3.
-#
-#    It is forbidden to publish, distribute, sublicense, or sell copies
-#    of the Software or modified copies of the Software.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU LESSER GENERAL PUBLIC LICENSE (LGPL v3) for more details.
-#
-#    You should have received a copy of the GNU LESSER GENERAL PUBLIC LICENSE
-#    GENERAL PUBLIC LICENSE (LGPL v3) along with this program.
-#    If not, see <http://www.gnu.org/licenses/>.
-#
-##############################################################################
 from datetime import date, datetime, timedelta
 from openerp.addons.report_xlsx.report.report_xlsx import ReportXlsx
 from openerp.tools import DEFAULT_SERVER_DATE_FORMAT
-import locale
-
 
 class ar_ap_monitoring_xls(ReportXlsx):
-
 	
 	def get_report_type(self,data):
 		if data.get('form', False) and data['form'].get('report_type', False):
@@ -43,8 +18,6 @@ class ar_ap_monitoring_xls(ReportXlsx):
 			filter_report.append(filter_report_val)
 		return report_type,cut_off_date,filter_report
 
-
-
 	def get_partner(self,data):
 		if data.get('form', False) and data['form'].get('filter_partner', False):
 			partner_id = []
@@ -53,13 +26,11 @@ class ar_ap_monitoring_xls(ReportXlsx):
 				partner_id.append(j.id)
 		return partner_id
 
-
 	def get_lines(self,data,partner):
 		lines = []
 		cut_off_date_val = data['form']['cut_off_date']
 		filter_report_val = data['form']['filter_report']
 		total_all = 0.0
-
 
 		if filter_report_val == 'overdue':
 			invoice_history = self.env['account.invoice'].search([('partner_id', '=', partner),
@@ -69,8 +40,6 @@ class ar_ap_monitoring_xls(ReportXlsx):
 			invoice_history = self.env['account.invoice'].search([('partner_id', '=', partner),
 																	('state','=','open')])
 
-			
-
 		for x in invoice_history:
 			total_all += x.amount_total
 			fmt = '%Y-%m-%d'
@@ -79,9 +48,6 @@ class ar_ap_monitoring_xls(ReportXlsx):
 			diff_date = int(str((cut_off_date_formatted-date_due_formatted).days))
 
 			amount_obj = x.residual
-
-	
-
 			vals = {
 				'partner_name'	: x.partner_id.name,
 				'invoice_name'  : x.number,
@@ -95,12 +61,7 @@ class ar_ap_monitoring_xls(ReportXlsx):
 			lines.append(vals)
 
 		sorting_lines = sorted(lines, key=lambda k: k['aging_day'], reverse=True) 
-
 		return sorting_lines
-
-
-
-
 
 	def generate_xlsx_report(self, workbook, data, lines):
 		get_report_type = self.get_report_type(data)
