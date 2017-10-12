@@ -106,101 +106,77 @@ class ar_ap_monitoring_xls(ReportXlsx):
 		get_report_type = self.get_report_type(data)
 		get_partner = self.get_partner(data)
 
-		sheet = workbook.add_worksheet('Stock Info')
-		format1 = workbook.add_format({'font_size': 14, 'bottom': True, 'right': True, 'left': True, 'top': True, 'align': 'vcenter', 'bold': True})
-		format11 = workbook.add_format({'font_size': 12, 'align': 'center', 'right': True, 'left': True, 'bottom': True, 'top': True, 'bold': True})
-		format21 = workbook.add_format({'font_size': 10, 'align': 'center', 'right': True, 'left': True,'bottom': True, 'top': True, 'bold': True})
-		format3 = workbook.add_format({'bottom': True, 'top': True, 'font_size': 12})
-		format99 = workbook.add_format({'font_size': 10, 'align': 'center',})
-		font_size_8 = workbook.add_format({'bottom': True, 'top': True, 'right': True, 'left': True, 'font_size': 10,'bold':True})
-		red_mark = workbook.add_format({'font_size': 10,
-		                                'font_color': 'red'})
+		sheet = workbook.add_worksheet('Monitoring %s' % ('AR' if get_report_type[0] == 'receivable' else 'AP'))
+		title = workbook.add_format({'font_size': 12, 'align': 'center', 'bold': True})
 
-		red_mark_amount = workbook.add_format({'font_size': 10,
-		                                'font_color': 'red'})
-		justify = workbook.add_format({'bottom': True, 'top': True, 'right': True, 'left': True, 'font_size': 12})
-
-		invoice_header =  workbook.add_format({'font_size': 10, 'align': 'left',})
-		invoice_header_mark = workbook.add_format({'font_size': 10, 'align': 'left','font_color':'red'})
-
-		style_tot = workbook.add_format({'font_size': 10,'bold':True})
-		amount_style = workbook.add_format({'font_size': 10,'align':'right'})
-		style_tot.set_align('right')
-		red_mark_amount.set_align('right')
-		format3.set_align('center')
-		font_size_8.set_align('center')
-		justify.set_align('justify')
-		format1.set_align('center')
-		red_mark.set_align('center')
-
+		group_header = workbook.add_format({'font_size': 10,'bold':True, 'align': 'left'})
+		header = workbook.add_format({'font_size': 10,'bold':True, 'align': 'center', 'bottom': True, 'right': True, 'left': True, 'top': True})
 		
+		normal = workbook.add_format({'font_size': 10, 'align': 'left','right': True, 'left': True})
+		normal_redmark = workbook.add_format({'font_size': 10, 'align': 'left','font_color':'red','right': True, 'left': True})
 
-		# sheet.write(1,0,'PT Social Bella Indonesia',format99)
-		sheet.merge_range('A2:F2','PT Social Bella Indonesia',format1)
-		sheet.write(3,0,'Cut Off Date',format99)
-		sheet.write(4,0,'Filter',format99)
+		normal_amount = workbook.add_format({'font_size': 10, 'align': 'right','right': True, 'left': True})
+		normal_amount_redmark = workbook.add_format({'font_size': 10, 'align': 'right','font_color':'red','right': True, 'left': True})
 
-		if get_report_type[0] == 'receivable':
-			sheet.merge_range('A3:F3','AR Monitoring Report',format1)
-		else:
-			sheet.merge_range('A3:F3','AP Monitoring Report',format1)
+		group_footer = workbook.add_format({'font_size': 10,'bold':True, 'align': 'right', 'bottom': True, 'right': True, 'left': True, 'top': True})
+		group_footer_amount = workbook.add_format({'font_size': 10,'bold':True, 'align': 'right', 'bottom': True, 'right': True, 'left': True, 'top': True})
+
+		normal_amount.set_num_format('#,##0.00')
+		normal_amount_redmark.set_num_format('#,##0.00')
+		group_footer_amount.set_num_format('#,##0.00')
+
+		for i in range(0, 6):
+			sheet.set_column(i, i, 15)
+
+		sheet.merge_range('A1:F1',self.env.user.company_id.name,title)
+		sheet.merge_range('A2:F2','%s Monitoring Report' %  ('AR' if get_report_type[0] == 'receivable' else 'AP'),title)
 
 		for i in get_report_type[1]:
-			sheet.write(3,0,'Cut Off Date',format99)
-			sheet.write(3,1,i,format99)
+			sheet.write_string(3,0,'Cut Off Date')
+			sheet.write_string(3,1,i)
 
 		for i in get_report_type[2]:
-			sheet.write(4,0,'Filter',format99)
-			sheet.write(4,1,i,format99)
+			sheet.write_string(4,0,'Filter')
+			sheet.write_string(4,1,i)
 		
-		partner_col = 0
-
-		detail_row = 9
+		detail_row = 6
 		detail_col = 0
 
-		
-
-		total_partner	= len(get_partner)
+		total_partner = len(get_partner)
 		for partner_count in range(0,total_partner):
-			partner_idx 	= get_partner[partner_count]
-			get_lines 		= self.get_lines(data, partner_idx)
-			amount_total	= 0
-
-			partner_id = self.env['res.partner'].search([('id','=',partner_idx)])
-
-			concat_partner = str(partner_id.name) + " " + "(TOP" +" " + str(partner_id.property_payment_term_id.name) + ")" or str(partner_id.name) +" " + "(TOP" +" "  + str(partner_id.property_supplier_payment_term_id.name+")")
-
-			sheet.write(detail_row,detail_col,str(concat_partner),font_size_8) # Detail Partner 
-			detail_row +=1
-
-			sheet.write(detail_row,detail_col+0,'Invoice',font_size_8)
-			sheet.write(detail_row,detail_col+1,'Invoice Date',font_size_8)
-			sheet.write(detail_row,detail_col+2,'Due Date',font_size_8)
-			sheet.write(detail_row,detail_col+3,'Aging(Days)',font_size_8)
-			sheet.write(detail_row,detail_col+4,'Currency',font_size_8)
-			sheet.write(detail_row,detail_col+5,'Amount',font_size_8)
-
-			
-			detail_row +=1
-			for i in get_lines:
-				sheet.write(detail_row,detail_col,i['invoice_name'],invoice_header if i['aging_day'] < 0 else invoice_header_mark)
-				sheet.write(detail_row,detail_col+1,i['invoice_date'],invoice_header if i['aging_day'] < 0 else invoice_header_mark)
-				sheet.write(detail_row,detail_col+2,i['due_date'],invoice_header if i['aging_day'] < 0 else invoice_header_mark)
-				sheet.write(detail_row,detail_col+3,i['aging_day'],format99 if i['aging_day'] < 0 else red_mark)
-				sheet.write(detail_row,detail_col+4,i['currency'],format99 if i['aging_day'] < 0 else red_mark)
-				sheet.write(detail_row,detail_col+5,i['amount'],amount_style if i['aging_day'] < 0 else red_mark_amount)
-				amount_total += (i['amount'])
-
-				detail_row += 1
+			partner_idx = get_partner[partner_count]
+			get_lines = self.get_lines(data, partner_idx)
+			amount_total = 0
 
 			if get_lines:
-				sheet.write(detail_row,detail_col,"TOTAL",style_tot)
-				sheet.write(detail_row,detail_col+5,amount_total,style_tot)
-				detail_row += 2
-			
+				partner_id = self.env['res.partner'].search([('id','=',partner_idx)])
+				concat_partner = "%s (TOP %s)" % (partner_id.name, partner_id.property_payment_term_id.name or partner_id.property_supplier_payment_term_id.name) 
+
+				sheet.merge_range(detail_row,0, detail_row, 5, str(concat_partner),group_header)
+				detail_row +=1
+
+				sheet.write(detail_row,detail_col+0,'Invoice',header)
+				sheet.write(detail_row,detail_col+1,'Invoice Date',header)
+				sheet.write(detail_row,detail_col+2,'Due Date',header)
+				sheet.write(detail_row,detail_col+3,'Aging(Days)',header)
+				sheet.write(detail_row,detail_col+4,'Currency',header)
+				sheet.write(detail_row,detail_col+5,'Amount',header)
+
 				
-#
+				detail_row +=1
+				for i in get_lines:
+					sheet.write(detail_row,detail_col,i['invoice_name'],normal if i['aging_day'] < 0 else normal_redmark)
+					sheet.write(detail_row,detail_col+1,i['invoice_date'],normal if i['aging_day'] < 0 else normal_redmark)
+					sheet.write(detail_row,detail_col+2,i['due_date'],normal if i['aging_day'] < 0 else normal_redmark)
+					sheet.write_number(detail_row, detail_col+3, float(i['aging_day']), normal_amount if i['aging_day'] < 0 else normal_amount_redmark)
+					sheet.write(detail_row,detail_col+4,i['currency'],normal if i['aging_day'] < 0 else normal_redmark)
+					sheet.write_number(detail_row, detail_col+5, float(i['amount']), normal_amount if i['aging_day'] < 0 else normal_amount_redmark)
+					amount_total += (i['amount'])
 
+					detail_row += 1
 
+				sheet.merge_range(detail_row, 0, detail_row, 4, "TOTAL", group_footer)
+				sheet.write_number(detail_row, 5, float(amount_total), group_footer_amount)
+				detail_row += 2
 
 ar_ap_monitoring_xls('report.monitoring_report.monitoring_report_xls.xlsx', 'account.invoice')
