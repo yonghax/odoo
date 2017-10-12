@@ -54,3 +54,12 @@ class MonitoringReportXLS(models.TransientModel):
                     'datas': datas,
                     'name': 'AR AP Monitoring'
                     }
+
+    @api.onchange('report_type')
+    def onchange_report_type(self):
+        self.filter_partner = [(5,)]
+        
+        if self.report_type == 'receivable':
+            return {'domain': {'filter_partner': [('customer', '=', True)]}}
+        elif self.report_type == 'payable':
+            return {'domain':  {'filter_partner': [('supplier', '=', True)]}}
