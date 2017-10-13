@@ -64,7 +64,7 @@ class TemplateMapper(PrestashopImportMapper):
             }
 
         taxes = self.taxes_id(record)
-        if not record['price']:
+        if not record['price'] :
             _logger.debug("Price was not found in the record. Forced to 0")
             record['price'] = '0.0'
         
@@ -197,7 +197,7 @@ class TemplateMapper(PrestashopImportMapper):
         if is_product_switchover:
             return {'categ_id': record['categ_id']}
 
-        if not code or not record['categ_id']:  
+        if not code or not record['product_purchase_type']:
             return {'categ_id': self.backend_record.unrealized_product_category_id.id}
 
         categ_adapter = self.unit_for(BackendAdapter,'prestashop.product.category')
@@ -218,9 +218,9 @@ class TemplateMapper(PrestashopImportMapper):
                         categ_obj.search(self.session.cr, SUPERUSER_ID, [('name', '=', 'Sample')])
                     )
                     if sample:
-                        return {'categ_id': sample.id}
+                        return {'categ_id': sample.id, 'product_purchase_type': record['product_purchase_type']}
                     else:
-                        return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+                        return {'categ_id': self.backend_record.unrealized_product_category_id.id, 'product_purchase_type': record['product_purchase_type']}
                 else:
                     strSplittedDash = code.split('-')
                     strSplitted = strSplittedDash[0].split('.')
@@ -231,7 +231,7 @@ class TemplateMapper(PrestashopImportMapper):
                                 self.session.cr,
                                 SUPERUSER_ID, 
                                 [
-                                    ('parent_id', '=', record['categ_id']),
+                                    ('category_purchase_type', '=', record['product_purchase_type']),
                                     ('name', '=', categoryEnum[strSplitted[1]])
                                 ]
                             )
@@ -241,13 +241,14 @@ class TemplateMapper(PrestashopImportMapper):
                                 categ_search
                             )
                             if categ:
-                                return {'categ_id': categ.id}
+                                return {'categ_id': categ.id, 'product_purchase_type': record['product_purchase_type']}
                             else:
-                                return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+                                return {'categ_id': self.backend_record.unrealized_product_category_id.id, 'product_purchase_type': record['product_purchase_type']}
                         except:
-                            return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+                            return {'categ_id': self.backend_record.unrealized_product_category_id.id, 'product_purchase_type': record['product_purchase_type']}
                     else:
-                        return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+                        return {'categ_id': self.backend_record.unrealized_product_category_id.id, 'product_purchase_type': record['product_purchase_type']}
+                    
     @mapping
     def backend_id(self, record):
         return {'backend_id': self.backend_record.id}
