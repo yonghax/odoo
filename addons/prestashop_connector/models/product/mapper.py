@@ -37,6 +37,7 @@ class TemplateMapper(PrestashopImportMapper):
         ('link_rewrite', 'link_rewrite'),
         ('reference', 'reference'),
         ('available_for_order', 'available_for_order'),
+        ('warehouse', 'warehouse_location'),
     ]
 
     @mapping
@@ -44,12 +45,6 @@ class TemplateMapper(PrestashopImportMapper):
         if record['name']:
             return {'name': record['name']}
         return {'name': 'noname'}
-
-    @mapping
-    def standard_price(self, record):
-        if record['wholesale_price']:
-            return {'standard_price': float(record['wholesale_price'])}
-        return {}
 
     @mapping
     def list_price(self, record):
@@ -92,17 +87,20 @@ class TemplateMapper(PrestashopImportMapper):
                 prices_and_taxes.update({
                     'list_price': float(record['base_price']) / (1 + tax.amount),
                     'final_price': float(record['base_price']) / (1 + tax.amount),
+                    'sale_price': float(record['price']) / (1 + tax.amount),
                 })
             else :
                 prices_and_taxes.update({
                     'list_price': float(record['base_price']),
                     'final_price': float(record['base_price']),
+                    'sale_price': float(record['price']),
                 })
             
         elif record['price']:
             prices_and_taxes.update({
                 'list_price': float(record['base_price']),                
                 'final_price': float(record['base_price']),
+                'sale_price': float(record['price']),
             })
         return prices_and_taxes
 
@@ -174,9 +172,9 @@ class TemplateMapper(PrestashopImportMapper):
             'active':True
         }
     
-    # @mapping
-    # def is_product_bundle(self,record):
-    #     return {'is_product_bundle': record['type']['value'] == 'pack'}
+    @mapping
+    def is_product_bundle(self,record):
+        return {'is_product_bundle': record['type']['value'] == 'pack'}
 
     @mapping
     def sale_ok(self, record):
@@ -199,7 +197,7 @@ class TemplateMapper(PrestashopImportMapper):
         if is_product_switchover:
             return {'categ_id': record['categ_id']}
 
-        if not code or not record['categ_id']:  
+        if not code or not record['product_purchase_type']:
             return {'categ_id': self.backend_record.unrealized_product_category_id.id}
 
         categ_adapter = self.unit_for(BackendAdapter,'prestashop.product.category')
@@ -220,9 +218,9 @@ class TemplateMapper(PrestashopImportMapper):
                         categ_obj.search(self.session.cr, SUPERUSER_ID, [('name', '=', 'Sample')])
                     )
                     if sample:
-                        return {'categ_id': sample.id}
+                        return {'categ_id': sample.id, 'product_purchase_type': record['product_purchase_type']}
                     else:
-                        return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+                        return {'categ_id': self.backend_record.unrealized_product_category_id.id, 'product_purchase_type': record['product_purchase_type']}
                 else:
                     strSplittedDash = code.split('-')
                     strSplitted = strSplittedDash[0].split('.')
@@ -233,7 +231,7 @@ class TemplateMapper(PrestashopImportMapper):
                                 self.session.cr,
                                 SUPERUSER_ID, 
                                 [
-                                    ('parent_id', '=', record['categ_id']),
+                                    ('category_purchase_type', '=', record['product_purchase_type']),
                                     ('name', '=', categoryEnum[strSplitted[1]])
                                 ]
                             )
@@ -243,13 +241,14 @@ class TemplateMapper(PrestashopImportMapper):
                                 categ_search
                             )
                             if categ:
-                                return {'categ_id': categ.id}
+                                return {'categ_id': categ.id, 'product_purchase_type': record['product_purchase_type']}
                             else:
-                                return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+                                return {'categ_id': self.backend_record.unrealized_product_category_id.id, 'product_purchase_type': record['product_purchase_type']}
                         except:
-                            return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+                            return {'categ_id': self.backend_record.unrealized_product_category_id.id, 'product_purchase_type': record['product_purchase_type']}
                     else:
-                        return {'categ_id': self.backend_record.unrealized_product_category_id.id}
+                        return {'categ_id': self.backend_record.unrealized_product_category_id.id, 'product_purchase_type': record['product_purchase_type']}
+                    
     @mapping
     def backend_id(self, record):
         return {'backend_id': self.backend_record.id}
