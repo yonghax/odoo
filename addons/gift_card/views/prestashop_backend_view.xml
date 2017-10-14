@@ -1,0 +1,22 @@
+<openerp>
+  <data>
+	<!-- explicit list view definition -->
+	<record model="ir.ui.view" id="prestashop_backend_form_inherit">
+		<field name="name">prestashop.backend.form.inherit</field>
+		<field name="inherit_id" ref='prestashop_connector.view_prestashop_backend_form'></field>
+		<field name="model">prestashop.backend</field>
+		<field name="type">form</field>
+
+	  	<field name="arch" type="xml">
+			<xpath expr="////group[@name='group_sales_order']" position="after">
+				<div>
+	               <label string="Import Gift Card since" class="oe_inline"/>
+	               <field name="import_gift_card_since"
+	                    class="oe_inline"
+	                    nolabel="1"/>
+	            </div>
+			</xpath>
+  		</field>
+	</record>
+  </data>
+</openerp>

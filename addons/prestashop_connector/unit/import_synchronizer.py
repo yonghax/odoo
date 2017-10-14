@@ -526,7 +526,7 @@ def import_products(session, model_name, backend_id, since_date):
     #     context=session.context
     # )
 
-    import_record(session, 'prestashop.product.template', backend_id, 5113, force=False)
+    import_record(session, 'prestashop.product.template', backend_id, 8478, force=False)
 
 @job
 def import_refunds(session, backend_id, since_date):

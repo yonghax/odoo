@@ -74,6 +74,7 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         if sale_order.amount_total <= self.backend_record.ship_free_order_amount:
             self.add_shipping_cost(sale_order, prestashop_id)
 
+        self.update_order_cart_rule(sale_order, prestashop_id)
         self.work_with_product_bundle(sale_order, prestashop_id)
         self.calculate_discount_proportional(sale_order)
         sale_order.recompute()
@@ -108,6 +109,37 @@ class SaleOrderImport(PrestashopImportSynchronizer):
                 inv.signal_workflow('invoice_open')
 
         return True
+
+    def update_order_cart_rule(self, sale_order, prestashop_id):
+        host = self.env['ir.config_parameter'].get_param('mysql.host')
+        user = self.env['ir.config_parameter'].get_param('mysql.user')
+        passwd = self.env['ir.config_parameter'].get_param('mysql.passwd')
+        dbname = self.env['ir.config_parameter'].get_param('mysql.dbname')
+
+        db = MySQLdb.connect(host, user, passwd, dbname, cursorclass=MySQLdb.cursors.DictCursor)
+        cur = db.cursor()
+
+        query = """
+select o.reference, cr.id_cart_rule 
+    from ps_orders o 
+    inner join ps_order_cart_rule ocr on o.id_order = ocr.id_order 
+    inner join ps_cart_rule cr on cr.id_cart_rule = ocr.id_cart_rule
+    where o.id_order = %s""" % (str(prestashop_id))
+
+        cur.execute(query)
+        rows = cur.fetchall()
+        cur.close()
+        db.close()
+
+        for data_ps in rows:
+            gift_card_obj = self.env['gift.card']
+            gift_card = gift_card_obj.search([('prestashop_id', '=', data_ps['id_cart_rule']), ('data_type', '=', 'import')])
+            if gift_card:
+                sale_order.write({'gift_card_id': gift_card.id})
+                if gift_card.residual_amount > prestashop_id.total_amount:
+                    gift_card.write({'residual_amount': gift_card.residual_amount - gift_card.total_amount})
+                else:
+                    gift_card.write({'residual_amount': gift_card.residual_amount - gift_card.total_amount})
     
     def add_shipping_cost(self, sale_order, prestashop_id):
         order_adapter = self.unit_for(GenericAdapter, 'prestashop.sale.order')
