@@ -73,7 +73,8 @@ class SaleOrderImport(PrestashopImportSynchronizer):
 
         if sale_order.amount_total <= self.backend_record.ship_free_order_amount:
             self.add_shipping_cost(sale_order, prestashop_id)
-
+        
+        self.check_gwp_module(sale_order, prestashop_id)
         self.work_with_product_bundle(sale_order, prestashop_id)
         self.calculate_discount_proportional(sale_order)
         sale_order.recompute()
@@ -109,6 +110,59 @@ class SaleOrderImport(PrestashopImportSynchronizer):
 
         return True
     
+    def check_gwp_module(self, sale_order, prestashop_id):
+        host = self.env['ir.config_parameter'].get_param('mysql.host')
+        user = self.env['ir.config_parameter'].get_param('mysql.user')
+        passwd = self.env['ir.config_parameter'].get_param('mysql.passwd')
+        dbname = self.env['ir.config_parameter'].get_param('mysql.dbname')
+
+        ps_prd_tmpl_obj  = self.env['prestashop.product.template']
+
+        db = MySQLdb.connect(host, user, passwd, dbname, cursorclass=MySQLdb.cursors.DictCursor)
+        cur = db.cursor()
+
+        query = """
+select o.reference, gwpo.id_gwp, gwpo.free_product, gwpo.qty
+from ps_gift_with_purchase_order gwpo
+    inner join ps_orders o on o.id_cart = gwpo.id_cart
+    inner join ps_order_history oh on oh.id_order = o.id_order
+where o.id_order = %s and gwpo.free_product <> 0 limit 1 
+        """ % prestashop_id 
+
+        cur.execute(query)
+        rows = cur.fetchall()
+        cur.close()
+        db.close()
+
+        for row in rows:
+            id_products = row['free_product'].split(',')
+
+            for id_product in id_products:
+                ps_product = ps_prd_tmpl_obj.search([('prestashop_id', '=', id_product)])
+                if ps_product and ps_product.openerp_id:
+                    product = ps_product.openerp_id.product_variant_ids[0]
+                    line = sale_order.order_line[0]
+                    vals = {
+                        'price_unit': 0,
+                        'product_id': product.id,
+                        'name': ('Free GWP - (product:%s)' % (product.default_code)),
+                        'product_uom_qty': row['qty'],
+                        'customer_lead': line.customer_lead,
+                        'product_uom': line.product_uom.id,
+                        'company_id': line.company_id.id,
+                        'state': line.state,
+                        'order_id': sale_order.id,
+                        'qty_invoiced': row['qty'],
+                        'currency_id':line.currency_id.id,
+                        'price_tax': 0,
+                        'price_total': 0,
+                        'price_subtotal': 0,
+                        'is_gwp_free': True,
+                        'gwp_prestashop_id': row['id_gwp']
+                    }
+                    
+                    self.env['sale.order.line'].with_context(self.session.context).create(vals)
+
     def add_shipping_cost(self, sale_order, prestashop_id):
         order_adapter = self.unit_for(GenericAdapter, 'prestashop.sale.order')
         ps_order = order_adapter.read(prestashop_id)
