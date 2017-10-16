@@ -14,6 +14,7 @@ class product_template(orm.Model):
             'openerp_id',
             string='PrestaShop Bindings'
         ),
+        'warehouse_location': fields.char('Prestashop Warehouse Location')
     }
 
     def copy(self, cr, uid, id, default=None, context=None):

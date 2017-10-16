@@ -69,7 +69,8 @@ class SaleOrderLine(models.Model):
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_compute_amount', track_visibility='always')
     is_from_product_bundle = fields.Boolean(string='Flag from Product Bundle',default=False)
     flag_disc = fields.Char(string='Discount Flag',size=50,)
-    
+    is_gwp_free = fields.Boolean(string=u'GWP line',)
+    gwp_prestashop_id = fields.Integer(string=u'Prestashop GWP',)
     
     @api.depends('product_uom_qty', 'discount', 'price_unit', 'tax_id', 'discount_amount','flag_disc')
     def _compute_amount(self):
