@@ -18,8 +18,8 @@ class ProductCategory(models.Model):
         string="Sales Return", 
         domain=[('deprecated', '=', False)],
         help="This account will be used for invoices to value sales return.")
-
-
+    free_category = fields.Boolean(string=u'For Sample',)
+        
 class ProductTemplate(models.Model):
     _inherit = "product.template"
 
