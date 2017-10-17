@@ -25,16 +25,34 @@ TYPE2REFUND = {
 MAGIC_COLUMNS = ('id', 'create_uid', 'create_date', 'write_uid', 'write_date')
 
 
-# @job(default_channel='root')
-# def proses_send_mai_invoice_alert(session, model_name, invoice_id):
-#     obj = session.env['account.invoice']
-#     obj.mail_senders(invoice_id)
+@job(default_channel='root')
+def proses_send_mail_invoice_alert(session, model_name, invoice_id):
+    obj = session.env['account.invoice']
+    obj.mail_senders(invoice_id)
 
 class AccountInvoice(models.Model):
     _inherit = "account.invoice"
 
     discount_amount = fields.Monetary(string='Discount Amount', readonly=True, default=0.0)
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, default=0.0)
+
+    @api.model
+    def invoice_reminder(self):
+        session = ConnectorSession(self._cr, self._uid, context=self._context)
+        for x in self.GetInvoice():
+            proses_send_mail_invoice_alert.delay(session,'account.invoice', x['id'], priority=1)
+
+        self.env['account.invoice'].browse(1).write({'invoice_reminder_alert':datetime.now()})
+
+    def GetInvoice(self):
+        acc_inv_obj = self.env['account.invoice']
+        data = acc_inv_obj.search([('state','=','open'), ('type', '=', 'out_invoice'), ('team_id', 'in', [2, 3] )])
+        print 'GetInvoice=========== here ============='
+        return data
+
+    def mail_senders(self, invoice_id):
+        print '===================== mail_senders  : ', self.invoice_id
+        return 'mailer progress here.................'
 
     @api.multi
     def action_move_create(self):
@@ -433,17 +451,6 @@ class AccountInvoice(models.Model):
                 else:
                     tax_grouped[key]['amount'] += val['amount']
         return tax_grouped
-
-    # @api.model
-    # def invoice_reminder(self):
-    #     session = ConnectorSession(self._cr, self._uid, context=self._context)
-    #     self.GetInvoice()
-
-    # def GetInvoice(self):
-    #     print 'self : -==-=-=-=-=> : ', self
-
-    # def mail_senders(self, invoice_id):
-    #     print 'self mail_senders  : ', self, invoice_id
 
 class AccountInvoiceLine(models.Model):
     _inherit = "account.invoice.line"

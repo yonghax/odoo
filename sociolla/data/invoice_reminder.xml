@@ -1,16 +1,16 @@
 <openerp>
-    <data>
+    <data noupdate="1">
         <record id="ir_cron_invoice_reminder_mail" model="ir.cron">
-            <field name="name">Invoice Reminder</field>
-            <field name="active" eval="True"></field>
+            <field name="name">Invoice Reminder Mail</field>
+            <field name="user_id" ref="base.user_root"/>
             <field name="interval_number">1</field>
-            <field name="interval_type">days</field>
+            <field name="interval_type">minutes</field>
             <field name="numbercall">1</field>
-            <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')"></field>
-            <field name="doall" eval="False"></field>
-            <field name="model">account.invoice</field>
-            <field name="function">invoice_reminder</field>
+            <field name="nextcall" eval="(DateTime.now() + timedelta(minutes=1)).strftime('%Y-%m-%d %H:%M:%S')"></field>
+            <field eval="False" name="doall"/>
+            <field eval="'account.invoice'" name="model"/>
+            <field eval="'invoice_reminder'" name="function"/>
             <field name="priority">1</field>
         </record>
-    </data>
+   </data>
 </openerp>
