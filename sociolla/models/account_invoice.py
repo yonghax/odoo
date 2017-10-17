@@ -30,6 +30,7 @@ MAGIC_COLUMNS = ('id', 'create_uid', 'create_date', 'write_uid', 'write_date')
 #     obj = session.env['account.invoice']
 #     obj.mail_senders(invoice_id)
 
+
 class AccountInvoice(models.Model):
     _inherit = "account.invoice"
 
