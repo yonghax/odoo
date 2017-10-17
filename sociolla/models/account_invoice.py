@@ -2,6 +2,9 @@ from openerp import api, fields, models, _
 from decimal import *
 
 import openerp.addons.decimal_precision as dp
+from openerp.addons.connector.session import ConnectorSession
+from openerp.addons.connector.queue.job import job
+from datetime import datetime
 
 # mapping invoice type to journal type
 TYPE2JOURNAL = {
@@ -20,6 +23,12 @@ TYPE2REFUND = {
 }
 
 MAGIC_COLUMNS = ('id', 'create_uid', 'create_date', 'write_uid', 'write_date')
+
+
+# @job(default_channel='root')
+# def proses_send_mai_invoice_alert(session, model_name, invoice_id):
+#     obj = session.env['account.invoice']
+#     obj.mail_senders(invoice_id)
 
 class AccountInvoice(models.Model):
     _inherit = "account.invoice"
@@ -425,6 +434,16 @@ class AccountInvoice(models.Model):
                     tax_grouped[key]['amount'] += val['amount']
         return tax_grouped
 
+    # @api.model
+    # def invoice_reminder(self):
+    #     session = ConnectorSession(self._cr, self._uid, context=self._context)
+    #     self.GetInvoice()
+
+    # def GetInvoice(self):
+    #     print 'self : -==-=-=-=-=> : ', self
+
+    # def mail_senders(self, invoice_id):
+    #     print 'self mail_senders  : ', self, invoice_id
 
 class AccountInvoiceLine(models.Model):
     _inherit = "account.invoice.line"
