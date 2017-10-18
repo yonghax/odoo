@@ -27,7 +27,6 @@ MAGIC_COLUMNS = ('id', 'create_uid', 'create_date', 'write_uid', 'write_date')
 
 @job(default_channel='root')
 def proses_send_mail_invoice_alert(session, model_name, invoice_id, invoice_number):
-    print 'masyuk proses_send_mail_invoice_alert =========='
     obj = session.env['account.invoice']
     obj.progress_mail_sender(invoice_id, invoice_number)
 
@@ -42,8 +41,11 @@ class AccountInvoice(models.Model):
         session = ConnectorSession(self._cr, self._uid, context=self._context)
         due_date_7_days_before = (datetime.now().date() - timedelta(days=7)).strftime(DEFAULT_SERVER_DATE_FORMAT)
         for x in self.GetInvoice():
-            
-            proses_send_mail_invoice_alert(session,'account.invoice', x['id'], x['number'])
+            todays = datetime.now()
+            dd = datetime.strptime(x['date_due'], "%Y-%m-%d")
+            count_less_day = (dd-todays).days
+            if count_less_day <= 7 and count_less_day > -7:
+                proses_send_mail_invoice_alert(session,'account.invoice', x['id'], x['number'])
 
     def GetInvoice(self):
         acc_inv_obj = self.env['account.invoice']
@@ -72,7 +74,7 @@ class AccountInvoice(models.Model):
                 'type' : 'email',
                 'subject' : 'Invoice Status Reminder : (%s)' % datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
             })
-
+            
             mail_body = self.generate_mail_body_html(user_manager.partner_id.name, invoice_number)
 
             subtype_id = self.env['mail.message.subtype'].sudo().browse(
