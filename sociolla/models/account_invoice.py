@@ -1,10 +1,10 @@
-from openerp import api, fields, models, _
+from openerp import api, fields, models, SUPERUSER_ID, _
 from decimal import *
-
 import openerp.addons.decimal_precision as dp
 from openerp.addons.connector.session import ConnectorSession
 from openerp.addons.connector.queue.job import job
-from datetime import datetime
+from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT, DEFAULT_SERVER_DATE_FORMAT
+from datetime import datetime, timedelta
 
 # mapping invoice type to journal type
 TYPE2JOURNAL = {
@@ -26,9 +26,10 @@ MAGIC_COLUMNS = ('id', 'create_uid', 'create_date', 'write_uid', 'write_date')
 
 
 @job(default_channel='root')
-def proses_send_mail_invoice_alert(session, model_name, invoice_id):
+def proses_send_mail_invoice_alert(session, model_name, invoice_id, invoice_number):
+    print 'masyuk proses_send_mail_invoice_alert =========='
     obj = session.env['account.invoice']
-    obj.mail_senders(invoice_id)
+    obj.progress_mail_sender(invoice_id, invoice_number)
 
 class AccountInvoice(models.Model):
     _inherit = "account.invoice"
@@ -39,20 +40,85 @@ class AccountInvoice(models.Model):
     @api.model
     def invoice_reminder(self):
         session = ConnectorSession(self._cr, self._uid, context=self._context)
+        due_date_7_days_before = (datetime.now().date() - timedelta(days=7)).strftime(DEFAULT_SERVER_DATE_FORMAT)
         for x in self.GetInvoice():
-            proses_send_mail_invoice_alert.delay(session,'account.invoice', x['id'], priority=1)
-
-        self.env['account.invoice'].browse(1).write({'invoice_reminder_alert':datetime.now()})
+            
+            proses_send_mail_invoice_alert(session,'account.invoice', x['id'], x['number'])
 
     def GetInvoice(self):
         acc_inv_obj = self.env['account.invoice']
-        data = acc_inv_obj.search([('state','=','open'), ('type', '=', 'out_invoice'), ('team_id', 'in', [2, 3] )])
-        print 'GetInvoice=========== here ============='
+        data = acc_inv_obj.search([('state','=','open'), ('type', '=', 'out_invoice'), ('team_id', 'in', [2, 3])])
         return data
 
-    def mail_senders(self, invoice_id):
-        print '===================== mail_senders  : ', self.invoice_id
-        return 'mailer progress here.................'
+    def progress_mail_sender(self, invoice_id, invoice_number):
+        user_obj = self.env['res.users']
+        group_obj = self.env['res.groups']
+        mail_obj = self.env['mail.mail']
+        message_obj = self.env['mail.message']
+        module_category_obj = self.env['ir.module.category']
+
+        user_purchase_managers = user_obj.search([
+            ('groups_id', 'in', group_obj.search([ 
+                ('category_id', 'in', module_category_obj.search([ ('name', '=', 'Accounting & Finance') ]).ids ),
+                ('name','=','Billing')
+            ]).ids)
+        ]) 
+
+        su = self.env['res.users'].sudo().browse(SUPERUSER_ID)
+
+        for user_manager in user_purchase_managers:
+            mail_ids = []
+            message_id = message_obj.create({
+                'type' : 'email',
+                'subject' : 'Invoice Status Reminder : (%s)' % datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
+            })
+
+            mail_body = self.generate_mail_body_html(user_manager.partner_id.name, invoice_number)
+
+            subtype_id = self.env['mail.message.subtype'].sudo().browse(
+                self.env['mail.message.subtype'].sudo().search([
+                    ('res_model', '=', 'sale.order'), 
+                    ('name', '=', 'Invoice Status Reminder')
+                ]).ids
+            )
+
+            user_approved = self.env['res.users'].sudo().browse([self.env.uid])
+
+            msg = self.env['mail.message'].sudo().create({
+                'message_type' : 'comment',
+                'subject' : 'Invoice Status Reminder : ' + invoice_number,
+                'subtype_id': subtype_id.id,
+                'res_id': user_manager.partner_id.id,
+                'body': """<p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>RFQ Number: %s; has been Proccess</p>""" % (user_manager.partner_id.name),
+                'email_from': user_approved.partner_id.email,
+            })
+
+            mail = self.env['mail.mail'].sudo().create({
+                'mail_message_id' : msg.id,
+                'state' : 'outgoing',
+                'auto_delete' : True,
+                'email_from' : msg.email_from,
+                'email_to' : user_manager.partner_id.email,
+                'reply_to' : msg.email_from,
+                'body_html' : msg.body
+            })
+
+            mail_ids += [mail.id,]
+            mail_obj.sudo().send(mail_ids)
+
+    def generate_mail_body_html(self, user_name, target_name):
+        return """
+            <p style="margin:0px 0px 10px 0px;"></p>
+            <div style="font-family: 'Lucida Grande', Ubuntu, Arial, Verdana, sans-serif; font-size: 12px; color: rgb(34, 34, 34); background-color: #FFF; ">
+                <p style="margin:0px 0px 10px 0px;">Hello Mr / Mrs %s,</p>
+                <p style="margin:0px 0px 10px 0px;">Here is the waiting request for Approval: </p>
+                <ul style="margin:0px 0 10px 0;">%s
+                </ul>
+                <p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>Kindly review the RFQ.</p>
+                <p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>Thank you.</p>
+            </div>
+        """ % (user_name, target_name)
+
 
     @api.multi
     def action_move_create(self):
