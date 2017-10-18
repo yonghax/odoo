@@ -30,7 +30,4 @@ class EquipmentLocation(models.Model):
     active = fields.Boolean(string=u'Active',default=True,)
     branch_id = fields.Many2one(string=u'Branch',comodel_name='hr.equipment.branch',ondelete='cascade',)
     equipment_ids = fields.One2many(string=u'Equipments',comodel_name='hr.equipment',inverse_name='location_id',)
-
-class EquipmentHistory(models.Model):
-    _name = 'hr.equipment.history'
     

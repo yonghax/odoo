@@ -19,6 +19,7 @@ class AccountBankStatementLine(models.Model):
 	is_processed = fields.Boolean(string='Processed')
 
 	@api.multi
+	@job
 	def process_backend_recon(self):
 		line = self
 

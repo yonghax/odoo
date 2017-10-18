@@ -296,6 +296,7 @@ select op.id_cart, o.id_order, o.date_add, o.reference as reference_order, o.cur
                 if discount_amount < 0:
                     unit_price = price
                     discount_amount = 0
+                    discount = 0
                     price_undiscounted = unit_price * qty
 
                 taxes = line.tax_id.compute_all(price, line.order_id.currency_id, qty, product=product, partner=line.order_id.partner_id)

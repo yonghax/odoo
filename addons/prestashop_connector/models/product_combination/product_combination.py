@@ -18,6 +18,7 @@ class product_product(orm.Model):
             'id',
             type='integer',            
             string='PrestaShop Combination ID', store = True),
+            
     }
     
     def _check_default_on(self, cr, uid, ids, context=None):

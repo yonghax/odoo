@@ -134,7 +134,6 @@ class TemplateRecordImport(TranslatableRecordImport):
                     product.with_context(self.session.context).write({
                         'is_product_switchover': template.is_product_switchover,
                         'switchover_product_mapping': product_mapped.id,
-                        'standard_price': product_mapped.standard_price,
                         'active': True})
 
     def deactivate_default_product(self, erp_id):
@@ -156,6 +155,7 @@ class TemplateRecordImport(TranslatableRecordImport):
             279, # Sample-1 
             280, # Sample-2
         ]
+
 
         if template.product_variant_count != 1:
             for product in template.product_variant_ids:

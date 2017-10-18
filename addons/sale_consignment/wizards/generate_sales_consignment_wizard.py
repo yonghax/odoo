@@ -153,8 +153,6 @@ LEFT JOIN adjustments adj on p.product_id = adj.product_id
 
         return rows
 
-    @api.model
-    @api.one
     def _create_sale_history_brand(self):
         vals = []
         rows = self._generate_data_source()

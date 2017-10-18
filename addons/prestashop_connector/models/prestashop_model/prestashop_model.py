@@ -241,7 +241,7 @@ class prestashop_backend(orm.Model):
         products = product_obj.browse(
             cr,
             uid,
-            product_obj.search(cr, uid, [('is_product_bundle', '=', False), ('product_tmpl_id.is_product_bundle', '=', False), ('active', '=', True)], context=context),
+            product_obj.search(cr, uid, [('is_product_bundle', '=', False), ('product_tmpl_id.is_product_bundle', '=', False)], context=context),
             context=context
         )
 

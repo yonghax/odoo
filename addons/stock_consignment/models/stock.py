@@ -56,6 +56,20 @@ class stock_inventory_line(models.Model):
             res['value']['product_qty'] = th_qty
         return res
 
+    # def _get_theoretical_qty(self, cr, uid, ids, name, args, context=None):
+    #     res = {}
+    #     quant_obj = self.pool["stock.quant"]
+    #     uom_obj = self.pool["product.uom"]
+    #     for line in self.browse(cr, uid, ids, context=context):
+    #         quant_ids = self._get_quants(cr, uid, line, context=context)
+    #         quants = quant_obj.browse(cr, uid, quant_ids, context=context)
+    #         tot_qty = sum([x.qty for x in quants])
+    #         if line.product_uom_id and line.product_id.uom_id.id != line.product_uom_id.id:
+    #             tot_qty = uom_obj._compute_qty_obj(cr, uid, line.product_id.uom_id, tot_qty, line.product_uom_id, context=context)
+    #         res[line.id] = tot_qty
+    #     return res
+    
+
 class stock_quant(osv.osv):
     _inherit = 'stock.quant'
 
@@ -131,7 +145,7 @@ class stock_quant(osv.osv):
             tax_amount = taxes['total_included'] - taxes['total_excluded']
             untaxed_amount = taxes['total_excluded']
 
-        if move.company_id.currency_id.is_zero(valuation_amount):
+        if move.company_id.currency_id.is_zero(valuation_amount) and move.product_id.product_tmpl_id.categ_id.id != 29:
             if move.product_id.cost_method == 'standard':
                 raise UserError(_("The found valuation amount for product %s is zero. Which means there is probably a configuration error. Check the costing method and the standard price") % (move.product_id.name,))
             else:

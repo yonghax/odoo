@@ -8,7 +8,6 @@ from openerp.osv.orm import browse_record_list
 
 _logger = logging.getLogger(__name__)
 
-
 @prestashop
 class ProductCombinationMapper(PrestashopImportMapper):
     _model_name = 'prestashop.product.combination'
@@ -61,16 +60,14 @@ class ProductCombinationMapper(PrestashopImportMapper):
         main_template = self.main_template(record)
         result = {}
         for attribute in record:
-            _logger.debug(
-                "Attribute from product to be mapped : %s ", attribute)
+            _logger.debug("Attribute from product to be mapped : %s ", attribute)
             if attribute not in main_template:
                 continue
             if attribute == 'ean13':
                 # DOn't map the ean13 because of product_attribute
                 # EAN13 and default code displayed on template are now those
                 # of the default_on product
-                _logger.debug(
-                    "Attribute ean 13 from product won't be mapped from template")
+                _logger.debug("Attribute ean 13 from product won't be mapped from template")
                 continue
             if hasattr(main_template[attribute], 'id'):
                 result[attribute] = main_template[attribute].id
@@ -87,8 +84,7 @@ class ProductCombinationMapper(PrestashopImportMapper):
         if hasattr(self, '_main_template'):
             return self._main_template
         template_id = self.get_main_template_id(record)
-        self._main_template = self.env[
-            'prestashop.product.template'].browse(template_id)
+        self._main_template = self.env['prestashop.product.template'].browse(template_id)
         return self._main_template
 
     def get_main_template_id(self, record):
@@ -102,12 +98,9 @@ class ProductCombinationMapper(PrestashopImportMapper):
             option_values = [option_values]
 
         for option_value in option_values:
-            option_value_binder = self.binder_for(
-                'prestashop.product.attribute.value')
-            option_value_openerp_id = option_value_binder.to_openerp(option_value[
-                                                                     'id'])
-            option_value_object = self.env[
-                'prestashop.product.attribute.value'].browse(option_value_openerp_id)
+            option_value_binder = self.binder_for('prestashop.product.attribute.value')
+            option_value_openerp_id = option_value_binder.to_openerp(option_value['id'])
+            option_value_object = self.env['prestashop.product.attribute.value'].browse(option_value_openerp_id)
             yield option_value_object
 
     @mapping

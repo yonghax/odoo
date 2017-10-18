@@ -44,7 +44,6 @@ class PrestashopImportSynchronizer(Importer):
     def _before_import(self):
         """ Hook called before the import, when we have the Magento
         data"""
-        pass
 
     def _has_to_skip(self):
         """ Return True if the import can be skipped """
@@ -487,46 +486,42 @@ def import_customers_since(session, model_name, backend_id, since_date=None):
 def import_orders_since(session, model_name, backend_id, since_date=None):
     """ Prepare the import of orders modified on Prestashop """
 
-    # filters = None
-    # if since_date:
-    #     date_str = since_date.strftime('%Y-%m-%d %H:%M:%S')
-    #     filters = {'date': '1', 'filter[date_upd]': '>[%s]' % (date_str), 'filter[current_state]':'4|5'}
+    filters = None
+    if since_date:
+        date_str = since_date.strftime('%Y-%m-%d %H:%M:%S')
+        filters = {'date': '1', 'filter[date_upd]': '>[%s]' % (date_str), 'filter[current_state]':'4|5'}
     
-    # now_fmt = datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
-    # import_batch(session, 'prestashop.sale.order', backend_id, filters)
+    now_fmt = datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
+    import_batch(session, 'prestashop.sale.order', backend_id, filters)
 
-    # session.pool.get('prestashop.backend').write(
-    #     session.cr,
-    #     session.uid,
-    #     backend_id,
-    #     {'import_orders_since': now_fmt},
-    #     context=session.context
-    # )
-
-    import_record(session, 'prestashop.sale.order', backend_id, 238072, force=False)
+    session.pool.get('prestashop.backend').write(
+        session.cr,
+        session.uid,
+        backend_id,
+        {'import_orders_since': now_fmt},
+        context=session.context
+    )
 
 @job
 def import_products(session, model_name, backend_id, since_date):
-    # filters = {'filter[active]': 1}
-    # if since_date:
-    #     date_str = since_date.strftime('%Y-%m-%d %H:%M:%S')
-    #     filters.update({'date': '1', 'filter[date_upd]': '>[%s]' % (date_str)})
-    # now_fmt = datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
-    # import_batch(
-    #     session,
-    #     model_name,
-    #     backend_id,
-    #     filters,
-    # )
-    # session.pool.get('prestashop.backend').write(
-    #     session.cr,
-    #     session.uid,
-    #     backend_id,
-    #     {'import_products_since': now_fmt},
-    #     context=session.context
-    # )
-
-    import_record(session, 'prestashop.product.template', backend_id, 5113, force=False)
+    filters = {'filter[active]': 1}
+    if since_date:
+        date_str = since_date.strftime('%Y-%m-%d %H:%M:%S')
+        filters.update({'date': '1', 'filter[date_upd]': '>[%s]' % (date_str)})
+    now_fmt = datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)
+    import_batch(
+        session,
+        model_name,
+        backend_id,
+        filters,
+    )
+    session.pool.get('prestashop.backend').write(
+        session.cr,
+        session.uid,
+        backend_id,
+        {'import_products_since': now_fmt},
+        context=session.context
+    )
 
 @job
 def import_refunds(session, backend_id, since_date):
