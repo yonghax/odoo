@@ -158,7 +158,7 @@ class AccountInvoice(models.Model):
     def invoice_line_move_line_get(self):
         res = []
         for line in self.invoice_line_ids:
-            if not line.product_id.categ_id.free_category:
+            if not line.product_id.categ_id.free_category or line.account_id.user_type_id == 15:
                 tax_ids = []
                 for tax in line.invoice_line_tax_ids:
                     tax_ids.append((4, tax.id, None))
