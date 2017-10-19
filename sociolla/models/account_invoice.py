@@ -39,27 +39,42 @@ class AccountInvoice(models.Model):
     @api.model
     def invoice_reminder(self):
         session = ConnectorSession(self._cr, self._uid, context=self._context)
-        due_date_7_days_before = (datetime.now().date() - timedelta(days=7)).strftime(DEFAULT_SERVER_DATE_FORMAT)
+        todays = datetime.now()
+        stack = { 'invoices_will_due': [], 'invoices_over_due': [] }
         for x in self.GetInvoice():
-            todays = datetime.now()
             dd = datetime.strptime(x['date_due'], "%Y-%m-%d")
             count_less_day = (dd-todays).days
-            if count_less_day <= 7 and count_less_day > -7:
-                proses_send_mail_invoice_alert(session,'account.invoice', x['id'], x['number'])
+            if 7 >= count_less_day >= 0:
+            # if count_less_day < 7:
+                stack['invoices_will_due'].append(x['id'])
+                invoices_will_due = dict(id=x['id'], number=x['number'])
+
+            if dd < todays:
+                stack['invoices_over_due'].append(x['id'])
+                invoices_over_due = dict(id=x['id'], number=x['number'])
+
+        self.progress_mail_sender(stack)
 
     def GetInvoice(self):
+        due_date_plus_7_days = (datetime.now().date() + timedelta(days=7)).strftime(DEFAULT_SERVER_DATE_FORMAT)
         acc_inv_obj = self.env['account.invoice']
-        data = acc_inv_obj.search([('state','=','open'), ('type', '=', 'out_invoice'), ('team_id', 'in', [2, 3])])
+        data = acc_inv_obj.search([
+            ('state','=','open'), 
+            ('type', '=', 'out_invoice'), 
+            ('team_id', 'in', [2, 3]), 
+            ('date_due', '<=', due_date_plus_7_days), 
+            ('residual', '!=', 0)
+        ])
         return data
 
-    def progress_mail_sender(self, invoice_id, invoice_number):
+    def progress_mail_sender(self, data):
         user_obj = self.env['res.users']
         group_obj = self.env['res.groups']
         mail_obj = self.env['mail.mail']
         message_obj = self.env['mail.message']
         module_category_obj = self.env['ir.module.category']
 
-        user_purchase_managers = user_obj.search([
+        user_accounting_finance_bill = user_obj.search([
             ('groups_id', 'in', group_obj.search([ 
                 ('category_id', 'in', module_category_obj.search([ ('name', '=', 'Accounting & Finance') ]).ids ),
                 ('name','=','Billing')
@@ -68,15 +83,14 @@ class AccountInvoice(models.Model):
 
         su = self.env['res.users'].sudo().browse(SUPERUSER_ID)
 
-        for user_manager in user_purchase_managers:
+        for item_user in user_accounting_finance_bill:
             mail_ids = []
             message_id = message_obj.create({
                 'type' : 'email',
                 'subject' : 'Invoice Status Reminder : (%s)' % datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
             })
             
-            mail_body = self.generate_mail_body_html(user_manager.partner_id.name, invoice_number)
-
+            mail_body = self.generate_mail_body_html(item_user.partner_id.name, data)
             subtype_id = self.env['mail.message.subtype'].sudo().browse(
                 self.env['mail.message.subtype'].sudo().search([
                     ('res_model', '=', 'sale.order'), 
@@ -88,10 +102,10 @@ class AccountInvoice(models.Model):
 
             msg = self.env['mail.message'].sudo().create({
                 'message_type' : 'comment',
-                'subject' : 'Invoice Status Reminder : ' + invoice_number,
+                'subject' : 'Invoice Status Reminder',
                 'subtype_id': subtype_id.id,
-                'res_id': user_manager.partner_id.id,
-                'body': """<p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>RFQ Number: %s; has been Proccess</p>""" % (user_manager.partner_id.name),
+                'res_id': item_user.partner_id.id,
+                'body': mail_body,
                 'email_from': user_approved.partner_id.email,
             })
 
@@ -100,7 +114,7 @@ class AccountInvoice(models.Model):
                 'state' : 'outgoing',
                 'auto_delete' : True,
                 'email_from' : msg.email_from,
-                'email_to' : user_manager.partner_id.email,
+                'email_to' : item_user.partner_id.email,
                 'reply_to' : msg.email_from,
                 'body_html' : msg.body
             })
@@ -108,18 +122,35 @@ class AccountInvoice(models.Model):
             mail_ids += [mail.id,]
             mail_obj.sudo().send(mail_ids)
 
-    def generate_mail_body_html(self, user_name, target_name):
-        return """
-            <p style="margin:0px 0px 10px 0px;"></p>
-            <div style="font-family: 'Lucida Grande', Ubuntu, Arial, Verdana, sans-serif; font-size: 12px; color: rgb(34, 34, 34); background-color: #FFF; ">
-                <p style="margin:0px 0px 10px 0px;">Hello Mr / Mrs %s,</p>
-                <p style="margin:0px 0px 10px 0px;">Here is the waiting request for Approval: </p>
-                <ul style="margin:0px 0 10px 0;">%s
-                </ul>
-                <p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>Kindly review the RFQ.</p>
-                <p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>Thank you.</p>
-            </div>
-        """ % (user_name, target_name)
+    def generate_mail_body_html(self, user_name, data):
+        if data:
+            ul_will = ''
+            if data['invoices_will_due']:
+                ul_will = '''<h3>Here is the invoice due within 7 days again:</h3><ul style="margin:0px 0 10px 0;">'''
+                for x in data['invoices_will_due']:
+                    ul_will = ul_will + '<li>Invoice ID: {}</li> '.format(x)
+
+                ul_will = ul_will + '</ul>'
+
+            ul_over = ''
+            if data['invoices_over_due']:
+                ul_over = '''<h3>Here the invoice has been overdue:</h3><ul style="margin:0px 0 10px 0;">'''
+                for o in data['invoices_over_due']:
+                    ul_over = ul_over + '<li>Invoice ID: {}</li> '.format(o)
+
+                ul_over = ul_over + '</ul>'
+
+            return """
+                <p style="margin:0px 0px 10px 0px;"></p>
+                <div style="font-family: 'Lucida Grande', Ubuntu, Arial, Verdana, sans-serif; font-size: 12px; color: rgb(34, 34, 34); background-color: #FFF; ">
+                    <p style="margin:0px 0px 10px 0px;">Hello Mr / Mrs %s,</p>
+                    <p style="margin:0px 0px 10px 0px;">Here is the waiting request for Approval: </p>
+                    %s
+                    %s
+                    <p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>Kindly review the RFQ.</p>
+                    <p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>Thank you.</p>
+                </div>
+            """ % (user_name, ul_will, ul_over)
 
 
     @api.multi
