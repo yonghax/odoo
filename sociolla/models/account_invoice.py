@@ -24,12 +24,6 @@ TYPE2REFUND = {
 
 MAGIC_COLUMNS = ('id', 'create_uid', 'create_date', 'write_uid', 'write_date')
 
-
-@job(default_channel='root')
-def proses_send_mail_invoice_alert(session, model_name, invoice_id, invoice_number):
-    obj = session.env['account.invoice']
-    obj.progress_mail_sender(invoice_id, invoice_number)
-
 class AccountInvoice(models.Model):
     _inherit = "account.invoice"
 
@@ -38,20 +32,17 @@ class AccountInvoice(models.Model):
 
     @api.model
     def invoice_reminder(self):
-        session = ConnectorSession(self._cr, self._uid, context=self._context)
         todays = datetime.now()
         stack = { 'invoices_will_due': [], 'invoices_over_due': [] }
         for x in self.GetInvoice():
             dd = datetime.strptime(x['date_due'], "%Y-%m-%d")
             count_less_day = (dd-todays).days
-            if 7 >= count_less_day >= 0:
-            # if count_less_day < 7:
-                stack['invoices_will_due'].append(x['id'])
-                invoices_will_due = dict(id=x['id'], number=x['number'])
+            # if 7 >= count_less_day >= 0:
+            if dd >= todays:
+                stack['invoices_will_due'].append(dict(id=x['id'],amount=x['residual_company_signed'], due_date=x['date_due']))
 
             if dd < todays:
-                stack['invoices_over_due'].append(x['id'])
-                invoices_over_due = dict(id=x['id'], number=x['number'])
+                stack['invoices_over_due'].append(dict(id=x['id'],amount=x['residual_company_signed'], due_date=x['date_due']))
 
         self.progress_mail_sender(stack)
 
@@ -128,7 +119,7 @@ class AccountInvoice(models.Model):
             if data['invoices_will_due']:
                 ul_will = '''<h3>Here is the invoice due within 7 days again:</h3><ul style="margin:0px 0 10px 0;">'''
                 for x in data['invoices_will_due']:
-                    ul_will = ul_will + '<li>Invoice ID: {}</li> '.format(x)
+                    ul_will = ul_will + '<li> - %s , Partner Name: %s | Remaining Amount: %s | Due Date: %s "</li>'%(x['id'], user_name, x['amount'], x['due_date'])
 
                 ul_will = ul_will + '</ul>'
 
@@ -136,7 +127,7 @@ class AccountInvoice(models.Model):
             if data['invoices_over_due']:
                 ul_over = '''<h3>Here the invoice has been overdue:</h3><ul style="margin:0px 0 10px 0;">'''
                 for o in data['invoices_over_due']:
-                    ul_over = ul_over + '<li>Invoice ID: {}</li> '.format(o)
+                    ul_over = ul_over + '<li>- %s , Partner Name: %s | Remaining Amount: %s | Due Date: %s "</li>'%(o['id'], user_name, o['amount'], o['due_date'])
 
                 ul_over = ul_over + '</ul>'
 
@@ -147,10 +138,9 @@ class AccountInvoice(models.Model):
                     <p style="margin:0px 0px 10px 0px;">Here is the waiting request for Approval: </p>
                     %s
                     %s
-                    <p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>Kindly review the RFQ.</p>
                     <p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>Thank you.</p>
                 </div>
-            """ % (user_name, ul_will, ul_over)
+            """ % (user_name, ul_over, ul_will)
 
 
     @api.multi
