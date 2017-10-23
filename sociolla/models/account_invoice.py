@@ -120,7 +120,6 @@ class AccountInvoice(models.Model):
                 ul_will = '''<h3>Here is the invoice due within 7 days again:</h3><ul style="margin:0px 0 10px 0;">'''
                 for x in data['invoices_will_due']:
                     ul_will = ul_will + '<li> - %s , Partner Name: %s | Remaining Amount: %s | Due Date: %s "</li>'%(x['id'], user_name, x['amount'], x['due_date'])
-
                 ul_will = ul_will + '</ul>'
 
             ul_over = ''
@@ -128,14 +127,12 @@ class AccountInvoice(models.Model):
                 ul_over = '''<h3>Here the invoice has been overdue:</h3><ul style="margin:0px 0 10px 0;">'''
                 for o in data['invoices_over_due']:
                     ul_over = ul_over + '<li>- %s , Partner Name: %s | Remaining Amount: %s | Due Date: %s "</li>'%(o['id'], user_name, o['amount'], o['due_date'])
-
                 ul_over = ul_over + '</ul>'
 
             return """
                 <p style="margin:0px 0px 10px 0px;"></p>
                 <div style="font-family: 'Lucida Grande', Ubuntu, Arial, Verdana, sans-serif; font-size: 12px; color: rgb(34, 34, 34); background-color: #FFF; ">
                     <p style="margin:0px 0px 10px 0px;">Hello Mr / Mrs %s,</p>
-                    <p style="margin:0px 0px 10px 0px;">Here is the waiting request for Approval: </p>
                     %s
                     %s
                     <p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>Thank you.</p>
