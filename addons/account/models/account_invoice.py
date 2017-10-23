@@ -42,7 +42,7 @@ class AccountInvoice(models.Model):
     _order = "date_invoice desc, number desc, id desc"
 
     @api.one
-    @api.depends('invoice_line_ids.price_subtotal', 'tax_line_ids.amount', 'currency_id', 'company_id', 'date_invoice')
+    @api.depends('invoice_line_ids.price_subtotal', 'tax_line_ids.amount', 'currency_id', 'company_id', 'date_invoice', 'type')
     def _compute_amount(self):
         self.amount_untaxed = sum(line.price_subtotal for line in self.invoice_line_ids)
         self.amount_tax = sum(line.amount for line in self.tax_line_ids)
@@ -74,7 +74,7 @@ class AccountInvoice(models.Model):
     @api.model
     def _default_currency(self):
         journal = self._default_journal()
-        return journal.currency_id or journal.company_id.currency_id
+        return journal.currency_id or journal.company_id.currency_id or self.env.user.company_id.currency_id
 
     @api.model
     def _get_reference_type(self):
@@ -313,7 +313,7 @@ class AccountInvoice(models.Model):
         default=lambda self: self.env.user)
     fiscal_position_id = fields.Many2one('account.fiscal.position', string='Fiscal Position', oldname='fiscal_position',
         readonly=True, states={'draft': [('readonly', False)]})
-    commercial_partner_id = fields.Many2one('res.partner', string='Commercial Entity',
+    commercial_partner_id = fields.Many2one('res.partner', string='Commercial Entity', compute_sudo=True,
         related='partner_id.commercial_partner_id', store=True, readonly=True,
         help="The commercial entity that will be used on Journal Entries for this invoice")
 
@@ -393,7 +393,7 @@ class AccountInvoice(models.Model):
             default_model='account.invoice',
             default_res_id=self.id,
             default_use_template=bool(template),
-            default_template_id=template.id,
+            default_template_id=template and template.id or False,
             default_composition_mode='comment',
             mark_invoice_as_sent=True,
         )
@@ -445,7 +445,7 @@ class AccountInvoice(models.Model):
     @api.onchange('invoice_line_ids')
     def _onchange_invoice_line_ids(self):
         taxes_grouped = self.get_taxes_values()
-        tax_lines = self.tax_line_ids.browse([])
+        tax_lines = self.tax_line_ids.filtered('manual')
         for tax in taxes_grouped.values():
             tax_lines += tax_lines.new(tax)
         self.tax_line_ids = tax_lines
@@ -488,14 +488,19 @@ class AccountInvoice(models.Model):
             else:
                 account_id = pay_account.id
                 payment_term_id = p.property_supplier_payment_term_id.id
-            fiscal_position = p.property_account_position_id.id
-            bank_id = p.bank_ids and p.bank_ids.ids[0] or False
+            addr = p.address_get(['delivery'])
+            fiscal_position = self.env['account.fiscal.position'].get_fiscal_position(p.id, delivery_id=addr['delivery'])
+
         self.account_id = account_id
         self.payment_term_id = payment_term_id
         self.fiscal_position_id = fiscal_position
 
-        if type in ('in_invoice', 'in_refund'):
+        if type in ('in_invoice', 'out_refund'):
+            bank_ids = p.commercial_partner_id.bank_ids
+            bank_id = bank_ids[0].id if bank_ids else False
             self.partner_bank_id = bank_id
+            return {'domain': {'partner_bank_id': [('id', 'in', bank_ids.ids)]}}
+        return {}
 
     @api.onchange('journal_id')
     def _onchange_journal_id(self):
@@ -512,7 +517,7 @@ class AccountInvoice(models.Model):
             self.date_due = self.date_due or self.date_invoice
         else:
             pterm = self.payment_term_id
-            pterm_list = pterm.with_context(currency_id=self.currency_id.id).compute(value=1, date_ref=date_invoice)[0]
+            pterm_list = pterm.with_context(currency_id=self.company_id.currency_id.id).compute(value=1, date_ref=date_invoice)[0]
             self.date_due = max(line[0] for line in pterm_list)
 
     @api.multi
@@ -600,7 +605,7 @@ class AccountInvoice(models.Model):
         credit_aml = self.pool.get('account.move.line').browse(cr, uid, credit_aml_id, context=context)
         inv = self.browse(cr, uid, id, context=context)
         if not credit_aml.currency_id and inv.currency_id != inv.company_id.currency_id:
-            credit_aml.with_context(allow_amount_currency=True).write({
+            credit_aml.with_context(allow_amount_currency=True, check_move_validity=False).write({
                 'amount_currency': inv.company_id.currency_id.with_context(date=credit_aml.date).compute(credit_aml.balance, inv.currency_id),
                 'currency_id': inv.currency_id.id})
         if credit_aml.payment_id:
@@ -692,7 +697,6 @@ class AccountInvoice(models.Model):
                 if tax.amount_type == "group":
                     for child_tax in tax.children_tax_ids:
                         done_taxes.append(child_tax.id)
-                done_taxes.append(tax.id)
                 res.append({
                     'invoice_tax_line_id': tax_line.id,
                     'tax_line_id': tax_line.tax_id.id,
@@ -704,8 +708,9 @@ class AccountInvoice(models.Model):
                     'account_id': tax_line.account_id.id,
                     'account_analytic_id': tax_line.account_analytic_id.id,
                     'invoice_id': self.id,
-                    'tax_ids': [(6, 0, done_taxes)] if tax_line.tax_id.include_base_amount else []
+                    'tax_ids': [(6, 0, list(done_taxes))] if tax_line.tax_id.include_base_amount else []
                 })
+                done_taxes.append(tax.id)
         return res
 
     def inv_line_characteristic_hashcode(self, invoice_line):
@@ -713,8 +718,9 @@ class AccountInvoice(models.Model):
         will be grouped together if the journal has the 'group line' option. Of course a module
         can add fields to invoice lines that would need to be tested too before merging lines
         or not."""
-        return "%s-%s-%s-%s-%s" % (
+        return "%s-%s-%s-%s-%s-%s" % (
             invoice_line['account_id'],
+            invoice_line.get('tax_ids', 'False'),
             invoice_line.get('tax_line_id', 'False'),
             invoice_line.get('product_id', 'False'),
             invoice_line.get('analytic_account_id', 'False'),
@@ -773,7 +779,7 @@ class AccountInvoice(models.Model):
 
             name = inv.name or '/'
             if inv.payment_term_id:
-                totlines = inv.with_context(ctx).payment_term_id.with_context(currency_id=inv.currency_id.id).compute(total, date_invoice)[0]
+                totlines = inv.with_context(ctx).payment_term_id.with_context(currency_id=company_currency.id).compute(total, date_invoice)[0]
                 res_amount_currency = total_currency
                 ctx['date'] = date_invoice
                 for i, t in enumerate(totlines):
@@ -856,7 +862,7 @@ class AccountInvoice(models.Model):
         return {
             'date_maturity': line.get('date_maturity', False),
             'partner_id': part,
-            'name': line['name'][:64],
+            'name': line['name'],
             'debit': line['price'] > 0 and line['price'],
             'credit': line['price'] < 0 and -line['price'],
             'account_id': line['account_id'],
@@ -963,7 +969,7 @@ class AccountInvoice(models.Model):
 
         values['invoice_line_ids'] = self._refund_cleanup_lines(invoice.invoice_line_ids)
 
-        tax_lines = filter(lambda l: l.manual, invoice.tax_line_ids)
+        tax_lines = invoice.tax_line_ids
         values['tax_line_ids'] = self._refund_cleanup_lines(tax_lines)
 
         if journal_id:
@@ -1148,11 +1154,11 @@ class AccountInvoiceLine(models.Model):
     account_analytic_id = fields.Many2one('account.analytic.account',
         string='Analytic Account')
     company_id = fields.Many2one('res.company', string='Company',
-        related='invoice_id.company_id', store=True, readonly=True)
+        related='invoice_id.company_id', store=True, readonly=True, related_sudo=False)
     partner_id = fields.Many2one('res.partner', string='Partner',
-        related='invoice_id.partner_id', store=True, readonly=True)
-    currency_id = fields.Many2one('res.currency', related='invoice_id.currency_id', store=True)
-    company_currency_id = fields.Many2one('res.currency', related='invoice_id.company_currency_id', readonly=True)
+        related='invoice_id.partner_id', store=True, readonly=True, related_sudo=False)
+    currency_id = fields.Many2one('res.currency', related='invoice_id.currency_id', store=True, related_sudo=False)
+    company_currency_id = fields.Many2one('res.currency', related='invoice_id.company_currency_id', readonly=True, related_sudo=False)
 
     @api.model
     def fields_view_get(self, view_id=None, view_type='form', toolbar=False, submenu=False):
@@ -1390,6 +1396,12 @@ class AccountPaymentTerm(models.Model):
             last_date = result and result[-1][0] or fields.Date.today()
             result.append((last_date, dist))
         return result
+
+    @api.multi
+    def unlink(self):
+        property_recs = self.env['ir.property'].search([('value_reference', 'in', ['account.payment.term,%s'%payment_term.id for payment_term in self])])
+        property_recs.unlink()
+        return super(AccountPaymentTerm, self).unlink()
 
 
 class AccountPaymentTermLine(models.Model):

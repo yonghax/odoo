@@ -4,14 +4,11 @@
 from lxml import etree
 import os
 import base64
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
 import random
 import datetime
 from openerp.release import version_info
 from openerp.osv import fields, osv
+from openerp.tools import pickle
 from openerp.tools.translate import _
 from openerp.tools.safe_eval import safe_eval as eval
 
@@ -399,7 +396,7 @@ class ir_model_fields_anonymize_wizard(osv.osv_memory):
             table_name = self.pool[model_name]._table
 
             # get the current value
-            sql = "select id, %s from %s" % (field_name, table_name)
+            sql = "select id, \"%s\" from \"%s\"" % (field_name, table_name)
             cr.execute(sql)
             records = cr.dictfetchall()
             for record in records:
@@ -436,7 +433,7 @@ class ir_model_fields_anonymize_wizard(osv.osv_memory):
                 if anonymized_value is None:
                     self._raise_after_history_update(cr, uid, history_id, _('Error !'), _("Anonymized value can not be empty."))
 
-                sql = "update %(table)s set %(field)s = %%(anonymized_value)s where id = %%(id)s" % {
+                sql = "update \"%(table)s\" set \"%(field)s\" = %%(anonymized_value)s where id = %%(id)s" % {
                     'table': table_name,
                     'field': field_name,
                 }
@@ -447,7 +444,7 @@ class ir_model_fields_anonymize_wizard(osv.osv_memory):
 
         # save pickle:
         fn = open(abs_filepath, 'w')
-        pickle.dump(data, fn, pickle.HIGHEST_PROTOCOL)
+        pickle.dump(data, fn, -1)
 
         # update the anonymization fields:
         values = {
@@ -544,7 +541,7 @@ class ir_model_fields_anonymize_wizard(osv.osv_memory):
                     custom_updates.sort(key=itemgetter('sequence'))
                     queries = [(record['query'], record['query_type']) for record in custom_updates if record['query_type']]
                 elif table_name:
-                    queries = [("update %(table)s set %(field)s = %%(value)s where id = %%(id)s" % {
+                    queries = [("update \"%(table)s\" set \"%(field)s\" = %%(value)s where id = %%(id)s" % {
                         'table': table_name,
                         'field': line['field_id'],
                     }, 'sql')]

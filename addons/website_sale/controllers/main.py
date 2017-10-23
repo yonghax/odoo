@@ -569,6 +569,8 @@ class website_sale(http.Controller):
 
         # vat validation
         if data.get("vat") and hasattr(registry["res.partner"], "check_vat"):
+            if data.get("country_id"):
+                data["vat"] = registry["res.partner"].fix_eu_vat_number(cr, uid, data.get("country_id"), data.get("vat"), context)
             if request.website.company_id.vat_check_vies:
                 # force full VIES online check
                 check_func = registry["res.partner"].vies_vat_check
@@ -632,7 +634,6 @@ class website_sale(http.Controller):
             partner_id = orm_partner.create(cr, SUPERUSER_ID, billing_info, context=context)
         order.write({'partner_id': partner_id})
         order_obj.onchange_partner_id(cr, SUPERUSER_ID, [order.id], context=context)
-        order.write({'partner_invoice_id': partner_id})
 
         # create a new shipping partner
         if checkout.get('shipping_id') == -1:
@@ -641,11 +642,10 @@ class website_sale(http.Controller):
                 shipping_info['lang'] = partner_lang
             shipping_info['parent_id'] = partner_id
             checkout['shipping_id'] = orm_partner.create(cr, SUPERUSER_ID, shipping_info, context)
-        if checkout.get('shipping_id'):
-            order.write({'partner_shipping_id': checkout['shipping_id']})
 
         order_info = {
             'message_partner_ids': [(4, partner_id), (3, request.website.partner_id.id)],
+            'partner_shipping_id': checkout.get('shipping_id') or partner_id,
         }
         order_obj.write(cr, SUPERUSER_ID, [order.id], order_info, context=context)
 
@@ -682,9 +682,6 @@ class website_sale(http.Controller):
             return request.website.render("website_sale.checkout", values)
 
         self.checkout_form_save(values["checkout"])
-
-        if not int(post.get('shipping_id', 0)):
-            order.partner_shipping_id = order.partner_invoice_id
 
         order.onchange_partner_shipping_id()
         order.order_line._compute_tax_id()
