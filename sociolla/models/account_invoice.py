@@ -1,7 +1,10 @@
-from openerp import api, fields, models, _
+from openerp import api, fields, models, SUPERUSER_ID, _
 from decimal import *
-
 import openerp.addons.decimal_precision as dp
+from openerp.addons.connector.session import ConnectorSession
+from openerp.addons.connector.queue.job import job
+from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT, DEFAULT_SERVER_DATE_FORMAT
+from datetime import datetime, timedelta
 
 # mapping invoice type to journal type
 TYPE2JOURNAL = {
@@ -26,6 +29,116 @@ class AccountInvoice(models.Model):
 
     discount_amount = fields.Monetary(string='Discount Amount', readonly=True, default=0.0)
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, default=0.0)
+
+    @api.model
+    def invoice_reminder(self):
+        todays = datetime.now()
+        stack = { 'invoices_will_due': [], 'invoices_over_due': [] }
+        for x in self.GetInvoice():
+            dd = datetime.strptime(x['date_due'], "%Y-%m-%d")
+            count_less_day = (dd-todays).days
+            # if 7 >= count_less_day >= 0:
+            if dd >= todays:
+                stack['invoices_will_due'].append(dict(id=x['id'],amount=x['residual_company_signed'], due_date=x['date_due']))
+
+            if dd < todays:
+                stack['invoices_over_due'].append(dict(id=x['id'],amount=x['residual_company_signed'], due_date=x['date_due']))
+
+        self.progress_mail_sender(stack)
+
+    def GetInvoice(self):
+        due_date_plus_7_days = (datetime.now().date() + timedelta(days=7)).strftime(DEFAULT_SERVER_DATE_FORMAT)
+        acc_inv_obj = self.env['account.invoice']
+        data = acc_inv_obj.search([
+            ('state','=','open'), 
+            ('type', '=', 'out_invoice'), 
+            ('team_id', 'in', [2, 3]), 
+            ('date_due', '<=', due_date_plus_7_days), 
+            ('residual', '!=', 0)
+        ])
+        return data
+
+    def progress_mail_sender(self, data):
+        user_obj = self.env['res.users']
+        group_obj = self.env['res.groups']
+        mail_obj = self.env['mail.mail']
+        message_obj = self.env['mail.message']
+        module_category_obj = self.env['ir.module.category']
+
+        user_accounting_finance_bill = user_obj.search([
+            ('groups_id', 'in', group_obj.search([ 
+                ('category_id', 'in', module_category_obj.search([ ('name', '=', 'Accounting & Finance') ]).ids ),
+                ('name','=','Billing')
+            ]).ids)
+        ]) 
+
+        su = self.env['res.users'].sudo().browse(SUPERUSER_ID)
+
+        for item_user in user_accounting_finance_bill:
+            mail_ids = []
+            message_id = message_obj.create({
+                'type' : 'email',
+                'subject' : 'Invoice Status Reminder : (%s)' % datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
+            })
+            
+            mail_body = self.generate_mail_body_html(item_user.partner_id.name, data)
+            subtype_id = self.env['mail.message.subtype'].sudo().browse(
+                self.env['mail.message.subtype'].sudo().search([
+                    ('res_model', '=', 'sale.order'), 
+                    ('name', '=', 'Invoice Status Reminder')
+                ]).ids
+            )
+
+            user_approved = self.env['res.users'].sudo().browse([self.env.uid])
+
+            msg = self.env['mail.message'].sudo().create({
+                'message_type' : 'comment',
+                'subject' : 'Invoice Status Reminder',
+                'subtype_id': subtype_id.id,
+                'res_id': item_user.partner_id.id,
+                'body': mail_body,
+                'email_from': user_approved.partner_id.email,
+            })
+
+            mail = self.env['mail.mail'].sudo().create({
+                'mail_message_id' : msg.id,
+                'state' : 'outgoing',
+                'auto_delete' : True,
+                'email_from' : msg.email_from,
+                'email_to' : item_user.partner_id.email,
+                'reply_to' : msg.email_from,
+                'body_html' : msg.body
+            })
+
+            mail_ids += [mail.id,]
+            mail_obj.sudo().send(mail_ids)
+
+    def generate_mail_body_html(self, user_name, data):
+        if data:
+            ul_will = ''
+            if data['invoices_will_due']:
+                ul_will = '''<h3>Here is the invoice due within 7 days again:</h3><ul style="margin:0px 0 10px 0;">'''
+                for x in data['invoices_will_due']:
+                    ul_will = ul_will + '<li> - %s , Partner Name: %s | Remaining Amount: %s | Due Date: %s "</li>'%(x['id'], user_name, x['amount'], x['due_date'])
+                ul_will = ul_will + '</ul>'
+
+            ul_over = ''
+            if data['invoices_over_due']:
+                ul_over = '''<h3>Here the invoice has been overdue:</h3><ul style="margin:0px 0 10px 0;">'''
+                for o in data['invoices_over_due']:
+                    ul_over = ul_over + '<li>- %s , Partner Name: %s | Remaining Amount: %s | Due Date: %s "</li>'%(o['id'], user_name, o['amount'], o['due_date'])
+                ul_over = ul_over + '</ul>'
+
+            return """
+                <p style="margin:0px 0px 10px 0px;"></p>
+                <div style="font-family: 'Lucida Grande', Ubuntu, Arial, Verdana, sans-serif; font-size: 12px; color: rgb(34, 34, 34); background-color: #FFF; ">
+                    <p style="margin:0px 0px 10px 0px;">Hello Mr / Mrs %s,</p>
+                    %s
+                    %s
+                    <p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>Thank you.</p>
+                </div>
+            """ % (user_name, ul_over, ul_will)
+
 
     @api.multi
     def action_move_create(self):
@@ -424,7 +537,6 @@ class AccountInvoice(models.Model):
                 else:
                     tax_grouped[key]['amount'] += val['amount']
         return tax_grouped
-
 
 class AccountInvoiceLine(models.Model):
     _inherit = "account.invoice.line"
