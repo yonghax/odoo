@@ -68,11 +68,7 @@ class AccountInvoice(models.Model):
 
         for item_user in user_accounting_finance_bill:
             mail_ids = []
-            message_id = message_obj.create({
-                'type' : 'email',
-                'subject' : 'Invoice Status Reminder : (%s)' % datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
-            })
-            
+           
             mail_body = self.generate_mail_body_html(item_user.partner_id.name, data)
             subtype_id = self.env['mail.message.subtype'].sudo().browse(
                 self.env['mail.message.subtype'].sudo().search([
@@ -81,27 +77,21 @@ class AccountInvoice(models.Model):
                 ]).ids
             )
 
-            msg = self.env['mail.message'].sudo().create({
-                'message_type' : 'comment',
-                'subject' : 'Invoice Status Reminder',
-                'subtype_id': subtype_id.id,
-                'res_id': item_user.partner_id.id,
+            message_id = message_obj.create({
+                'type' : 'email',
+                'subject' : 'Invoice Status Reminder : (%s)' % datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
                 'body': mail_body,
-                'email_from': su.partner_id.email,
-            })
-            mail_ids += [msg.id,]
-            mail = self.env['mail.mail'].sudo().create({
-                'mail_message_id' : msg.id,
-                'state' : 'outgoing',
-                'auto_delete' : True,
-                'email_from' : msg.email_from,
-                'email_to' : item_user.partner_id.email,
-                'reply_to' : msg.email_from,
-                'body_html' : msg.body
             })
 
-            mail_ids += [mail.id,]
-            mail_obj.sudo().send(mail_ids)
+            mail = mail_obj.create({
+                'mail_message_id' : message_id.id,
+                'state' : 'outgoing',
+                'auto_delete' : True,
+                'email_from' :  su.partner_id.email,
+                'email_to' : item_user.partner_id.email,
+                'body_html' : mail_body
+            })
+            mail.send()
 
     def generate_mail_body_html(self, user_name, data):
         if data:
