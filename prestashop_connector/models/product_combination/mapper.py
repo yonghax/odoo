@@ -17,54 +17,58 @@ class ProductCombinationMapper(PrestashopImportMapper):
     from_main = []
 
     @mapping
-    def active(self,record):
+    def active(self, record):
         return {'active': True}
 
     @mapping
     def default_on(self, record):
         return {'default_on': bool(int(record['default_on']))}
-    
+
     @mapping
     def type(self, record):
         main_template = self.main_template(record)
-        return {'type':main_template['type']}
-    
+        return {'type': main_template['type']}
+
     @mapping
     def product_tmpl_id(self, record):
         template = self.main_template(record)
         return {'product_tmpl_id': template.openerp_id.id}
-    
+
     @mapping
     def list_price(self, record):
         main_template = self.main_template(record)
-        prices_and_taxes = {'list_price' : main_template['list_price']}
+        prices_and_taxes = {'list_price': main_template['list_price']}
         prices_and_taxes.update({
-                    "taxes_id": [(6, 0, [t.id for t in main_template['taxes_id']])]
-                    })
-                    
+            "taxes_id": [(6, 0, [t.id for t in main_template['taxes_id']])]
+        })
+
         _logger.debug(prices_and_taxes)
         _logger.debug(main_template['taxes_id'])
         return prices_and_taxes
 
     @mapping
+    def sale_price(self, record):
+        return {'sale_price': record['price'], }
+
+    @mapping
     def categ_id(self, record):
         main_template = self.main_template(record)
-        return {'categ_id' : main_template['categ_id'].id}
-            
+        return {'categ_id': main_template['categ_id'].id}
+
     @mapping
-    def from_main_template(self, record):        
+    def from_main_template(self, record):
         main_template = self.main_template(record)
-        result = {}           
+        result = {}
         for attribute in record:
             _logger.debug("Attribute from product to be mapped : %s ", attribute)
             if attribute not in main_template:
-                continue                
-            if attribute == 'ean13' :
+                continue
+            if attribute == 'ean13':
                 # DOn't map the ean13 because of product_attribute
                 # EAN13 and default code displayed on template are now those
                 # of the default_on product
                 _logger.debug("Attribute ean 13 from product won't be mapped from template")
-                continue                
+                continue
             if hasattr(main_template[attribute], 'id'):
                 result[attribute] = main_template[attribute].id
             elif type(main_template[attribute]) is browse_record_list:
@@ -73,7 +77,7 @@ class ProductCombinationMapper(PrestashopImportMapper):
                     ids.append(element.id)
                 result[attribute] = [(6, 0, ids)]
             else:
-                result[attribute] = main_template[attribute]            
+                result[attribute] = main_template[attribute]
         return result
 
     def main_template(self, record):
@@ -118,7 +122,7 @@ class ProductCombinationMapper(PrestashopImportMapper):
         return {'attribute_value_ids': [(6, 0, results)]}
 
     @mapping
-    def main_template_id(self, record):    
+    def main_template_id(self, record):
         return {'main_template_id': self.get_main_template_id(record)}
 
     def _template_code_exists(self, code):
@@ -131,7 +135,7 @@ class ProductCombinationMapper(PrestashopImportMapper):
         return template_ids and not combination_binder.to_backend(template_ids, wrap=True)
 
     @mapping
-    def default_code(self, record):        
+    def default_code(self, record):
         code = record.get('reference')
         if not code:
             code = "%s_%s" % (record['id_product'], record['id'])
@@ -149,19 +153,19 @@ class ProductCombinationMapper(PrestashopImportMapper):
         return {'backend_id': self.backend_record.id}
 
     # @mapping
-    # def length(self, record):          
+    # def length(self, record):
     #     backend_adapter = self.unit_for(GenericAdapter, 'prestashop.product.template')
     #     main_template = backend_adapter.read(record['id_product'])
     #     return {'length': main_template['depth']}
-    
+
     # @mapping
     # def height (self, record):
     #     backend_adapter = self.unit_for(GenericAdapter, 'prestashop.product.template')
     #     main_template = backend_adapter.read(record['id_product'])
     #     return {'height': main_template['height']}
-    
+
     # @mapping
-    # def width(self, record):  
+    # def width(self, record):
     #     backend_adapter = self.unit_for(GenericAdapter, 'prestashop.product.template')
     #     main_template = backend_adapter.read(record['id_product'])
     #     return {'width': main_template['width']}

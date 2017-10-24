@@ -32,7 +32,8 @@
       <field name="inherit_id" ref="product.product_variant_easy_edit_view"/>
       <field name="arch" type="xml">
         <field name="lst_price" position="replace">
-          <field name="lst_price" widget="monetary" options="{'currency_field': 'currency_id'}" groups="base.group_sale_salesman"/>
+          <field name="lst_price" widget="monetary" options="{'currency_field': 'currency_id'}" groups="base.group_sale_salesman" invisible="1"/>
+          <field name="sale_price" widget="monetary" options="{'currency_field': 'currency_id'}" groups="base.group_sale_salesman"/>
         </field>
         <field name="standard_price" position="replace">
           <field name="standard_price" widget="monetary" options="{'currency_field': 'currency_id'}" class="oe_inline" groups="account.group_account_user"/>
@@ -95,10 +96,15 @@
       <field name="model">product.category</field>
       <field name="inherit_id" ref="account.view_category_property_form"/>
       <field name="arch" type="xml">
-        <group name="account_property" position="inside">
-          <field name="property_account_sales_discount_categ_id" domain="[('internal_type','=','other'),('deprecated', '=', False)]"/>
-          <field name="property_account_sales_return_categ_id" domain="[('internal_type','=','other'),('deprecated', '=', False)]"/>
-        </group>
+        <data>
+          <field name="parent_id" position="after">
+            <field name="free_category"/>
+          </field>
+          <group name="account_property" position="inside">
+            <field name="property_account_sales_discount_categ_id" domain="[('internal_type','=','other'),('deprecated', '=', False)]"/>
+            <field name="property_account_sales_return_categ_id" domain="[('internal_type','=','other'),('deprecated', '=', False)]"/>
+          </group>
+        </data>
       </field>
     </record>
 

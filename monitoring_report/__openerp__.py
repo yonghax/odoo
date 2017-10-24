@@ -21,20 +21,24 @@
 #
 ##############################################################################
 {
-    'name': 'Automatic Reconcile ',
+    'name': 'AR AP Monitoring Report ',
     'version': '9',
-    'summary': "Automatic Reconcile",
+    'summary': "AR AP Monitoring Report",
     'category': 'Account',
     'author': 'Sociolla',
     'company': 'Sociolla',
     'website': 'google.com',
     'depends': [
-                'account',
+                'base',
+                'stock',
+                'sale',
+                'purchase',
+                'report_xlsx'
                 ],
     'data': [
-            'views/account_view.xml',
-            'views/scheduler_run.xml',
+            'views/wizard_view.xml',
             ],
+    #'images': ['static/description/banner.jpg'],
     'license': "AGPL-3",
     'installable': True,
     'auto_install': False,

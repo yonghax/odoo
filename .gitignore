@@ -11,6 +11,8 @@ local.properties
 .classpath
 .settings/
 .loadpath
+*.pyc
+*.DS_Store
 
 # External tool builders
 .externalToolBuilders/

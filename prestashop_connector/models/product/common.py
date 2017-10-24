@@ -6,6 +6,7 @@ from openerp.addons.connector.unit.synchronizer import Exporter
 from ...unit.backend_adapter import GenericAdapter
 from ...backend import prestashop
 from ...unit.import_synchronizer import TranslatableRecordImport,import_record
+from openerp.addons.connector.unit.backend_adapter import BackendAdapter
 
 _logger = logging.getLogger(__name__)
 
@@ -115,9 +116,9 @@ class TemplateRecordImport(TranslatableRecordImport):
                 'name': manufacturer_name.strip(),
             }
             brand = self.env['product.brand'].with_context(self.session.context).create(brand_set)
-            
+        
         self.prestashop_record['product_brand_id'] = brand.id
-        self.prestashop_record['categ_id'] = brand.categ_id.id
+        self.prestashop_record['product_purchase_type'] = brand.purchase_type
 
     def _after_import(self, erp_id):
         self.import_combinations()
@@ -133,14 +134,74 @@ class TemplateRecordImport(TranslatableRecordImport):
                     product.with_context(self.session.context).write({
                         'is_product_switchover': template.is_product_switchover,
                         'switchover_product_mapping': product_mapped.id,
-                        'standard_price': product_mapped.standard_price,
                         'active': True})
 
     def deactivate_default_product(self, erp_id):
         template = self.env['prestashop.product.template'].browse(erp_id)
-                
+        categoryEnum = {
+            'BB': 'Bath & Body',
+            'BT': 'Beauty Tools',
+            'MU': 'Cosmetic',
+            'FG': 'Fragrance',
+            'HC': 'Haircare',
+            'NL': 'Nailcare',
+            'SC': 'Skincare',
+        }
+
+        hardcodedPSSampleCategory = [
+            375, # Sociolla Box GWP
+            381, # Masami Shouko GWP
+            444, # GWP Product
+            279, # Sample-1 
+            280, # Sample-2
+        ]
+
+
         if template.product_variant_count != 1:
             for product in template.product_variant_ids:
+                if template.product_purchase_type == '' or not template.product_purchase_type:
+                    code = product.default_code
+                    if code: 
+                        id_category_default = int(self.prestashop_record['id_category_default'])
+                        categ_adapter = self.unit_for(BackendAdapter,'prestashop.product.category')
+                        categ_ids = categ_adapter.search({'filter[id]': self.prestashop_record['id_category_default']})
+                        for categ_id in categ_ids:
+                            categ = categ_adapter.read(categ_id)
+                            categ_name = categ['name']['language']['value']
+                            
+                            if categ_name.lower() == 'special price':
+                                pass
+                            else:
+                                categ_obj = self.env['product.category']
+                                if id_category_default in hardcodedPSSampleCategory:
+                                    sample = categ_obj.search([('name', '=', 'Sample')])
+
+                                    if sample:
+                                        template.write({'categ_id': sample.id, 'product_purchase_type': template.product_brand_id.purchase_type})
+                                    else:
+                                        template.write({'categ_id': 2, 'product_purchase_type': template.product_brand_id.purchase_type})
+                                else:
+                                    strSplittedDash = code.split('-')
+                                    strSplitted = strSplittedDash[0].split('.')
+
+                                    if len(strSplitted) > 1:
+                                        try:
+                                            categ = categ_obj.search(
+                                                [
+                                                    ('category_purchase_type', '=', template.product_brand_id.purchase_type),
+                                                    ('name', '=', categoryEnum[strSplitted[1]])
+                                                ]
+                                            )
+
+                                            if categ:
+                                                template.write({'categ_id': categ.id, 'product_purchase_type': template.product_brand_id.purchase_type})
+                                            else:
+                                                template.write({'categ_id': 2, 'product_purchase_type': template.product_brand_id.purchase_type})
+                                        except:
+                                            template.write({'categ_id': 2, 'product_purchase_type': template.product_brand_id.purchase_type})
+                                    else:
+                                        template.write({'categ_id': 2, 'product_purchase_type': template.product_brand_id.purchase_type})
+
                 if len(product.attribute_value_ids) < 1:
                     product.unlink()
 

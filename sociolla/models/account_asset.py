@@ -8,11 +8,17 @@ from openerp.exceptions import UserError, ValidationError
 from openerp.tools import DEFAULT_SERVER_DATE_FORMAT as DF
 from openerp.tools import float_compare, float_is_zero
 
+class AccountAssetCategory(models.Model):
+    
+    _inherit = ['account.asset.category']
+    
+    account_id = fields.Many2one(string=u'Asset Account',comodel_name='account.account',ondelete='cascade',domain="[('user_type_id','=',7)]",)
+    
 
 class AccountAssetAsset(models.Model):
     
     _inherit = ['account.asset.asset']
-    
+
     @api.multi
     def compute_depreciation_board(self):
         self.ensure_one()
