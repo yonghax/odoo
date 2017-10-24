@@ -1,8 +1,6 @@
 from openerp import api, fields, models, SUPERUSER_ID, _
 from decimal import *
 import openerp.addons.decimal_precision as dp
-from openerp.addons.connector.session import ConnectorSession
-from openerp.addons.connector.queue.job import job
 from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT, DEFAULT_SERVER_DATE_FORMAT
 from datetime import datetime, timedelta
 
@@ -34,19 +32,18 @@ class AccountInvoice(models.Model):
     def invoice_reminder(self):
         todays = datetime.now()
         stack = { 'invoices_will_due': [], 'invoices_over_due': [] }
-        for x in self.GetInvoice():
+        for x in self._get_outstanding_invoice():
             dd = datetime.strptime(x['date_due'], "%Y-%m-%d")
             count_less_day = (dd-todays).days
-            # if 7 >= count_less_day >= 0:
             if dd >= todays:
-                stack['invoices_will_due'].append(dict(id=x['id'],amount=x['residual_company_signed'], due_date=x['date_due']))
+                stack['invoices_will_due'].append(dict(invoice_ref=x.number,amount=x.residual_company_signed, due_date=x.date_due, partner_name=x.partner_id.name, currency_symbol=x.currency_id.symbol))
 
             if dd < todays:
-                stack['invoices_over_due'].append(dict(id=x['id'],amount=x['residual_company_signed'], due_date=x['date_due']))
+                stack['invoices_over_due'].append(dict(invoice_ref=x.number,amount=x.residual_company_signed, due_date=x.date_due, partner_name=x.partner_id.name, currency_symbol=x.currency_id.symbol))
 
         self.progress_mail_sender(stack)
 
-    def GetInvoice(self):
+    def _get_outstanding_invoice(self):
         due_date_plus_7_days = (datetime.now().date() + timedelta(days=7)).strftime(DEFAULT_SERVER_DATE_FORMAT)
         acc_inv_obj = self.env['account.invoice']
         data = acc_inv_obj.search([
@@ -65,12 +62,7 @@ class AccountInvoice(models.Model):
         message_obj = self.env['mail.message']
         module_category_obj = self.env['ir.module.category']
 
-        user_accounting_finance_bill = user_obj.search([
-            ('groups_id', 'in', group_obj.search([ 
-                ('category_id', 'in', module_category_obj.search([ ('name', '=', 'Accounting & Finance') ]).ids ),
-                ('name','=','Billing')
-            ]).ids)
-        ]) 
+        user_accounting_finance_bill = self.env.ref('sociolla.ar_monitoring').users
 
         su = self.env['res.users'].sudo().browse(SUPERUSER_ID)
 
@@ -89,17 +81,15 @@ class AccountInvoice(models.Model):
                 ]).ids
             )
 
-            user_approved = self.env['res.users'].sudo().browse([self.env.uid])
-
             msg = self.env['mail.message'].sudo().create({
                 'message_type' : 'comment',
                 'subject' : 'Invoice Status Reminder',
                 'subtype_id': subtype_id.id,
                 'res_id': item_user.partner_id.id,
                 'body': mail_body,
-                'email_from': user_approved.partner_id.email,
+                'email_from': su.partner_id.email,
             })
-
+            mail_ids += [msg.id,]
             mail = self.env['mail.mail'].sudo().create({
                 'mail_message_id' : msg.id,
                 'state' : 'outgoing',
@@ -119,14 +109,14 @@ class AccountInvoice(models.Model):
             if data['invoices_will_due']:
                 ul_will = '''<h3>Here is the invoice due within 7 days again:</h3><ul style="margin:0px 0 10px 0;">'''
                 for x in data['invoices_will_due']:
-                    ul_will = ul_will + '<li> - %s , Partner Name: %s | Remaining Amount: %s | Due Date: %s "</li>'%(x['id'], user_name, x['amount'], x['due_date'])
+                    ul_will = ul_will + '<li>%s , Partner Name: %s | Remaining Amount: %s %s | Due Date: %s</li>'%(x['invoice_ref'], x['partner_name'], x['currency_symbol'], format(x['amount'], '0,.2f'), x['due_date'])
                 ul_will = ul_will + '</ul>'
 
             ul_over = ''
             if data['invoices_over_due']:
                 ul_over = '''<h3>Here the invoice has been overdue:</h3><ul style="margin:0px 0 10px 0;">'''
                 for o in data['invoices_over_due']:
-                    ul_over = ul_over + '<li>- %s , Partner Name: %s | Remaining Amount: %s | Due Date: %s "</li>'%(o['id'], user_name, o['amount'], o['due_date'])
+                    ul_over = ul_over + '<li>%s , Partner Name: %s | Remaining Amount: %s %s | Due Date: %s</li>'%(o['invoice_ref'], o['partner_name'], o['currency_symbol'], format(o['amount'], '0,.2f'), o['due_date'])
                 ul_over = ul_over + '</ul>'
 
             return """
@@ -134,6 +124,7 @@ class AccountInvoice(models.Model):
                 <div style="font-family: 'Lucida Grande', Ubuntu, Arial, Verdana, sans-serif; font-size: 12px; color: rgb(34, 34, 34); background-color: #FFF; ">
                     <p style="margin:0px 0px 10px 0px;">Hello Mr / Mrs %s,</p>
                     %s
+
                     %s
                     <p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>Thank you.</p>
                 </div>
