@@ -275,12 +275,12 @@ select op.id_cart, o.id_order, o.date_add, o.reference as reference_order, o.cur
             if len(bundles) < 1:
                 bundles = line.product_id.product_tmpl_id.product_bundles
 
-            sum_bundle_unit_price = sum([x['qty'] * x['product_id'].list_price for x in bundles]) * line.product_uom_qty
+            sum_bundle_unit_price = sum([x['qty'] * (x['product_id'].sale_price or x['product_id'].list_price)  for x in bundles]) * line.product_uom_qty
 
             for product_bundle in bundles:
                 product = product_bundle['product_id']
                 qty = product_bundle['qty'] * line.product_uom_qty
-                unit_price = product.list_price
+                unit_price = product.sale_price or product.list_price
                 sub_total = qty * unit_price
                 if sub_total != 0:
                     final_price = round((sub_total / sum_bundle_unit_price) * line.price_total)
