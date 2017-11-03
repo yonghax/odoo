@@ -92,9 +92,10 @@ WITH
         INNER JOIN product_brand pb on pb.id = pt.product_brand_id
         LEFT JOIN 
         (
-            SELECT pal.prod_id, pav."name"
+            SELECT pal.prod_id, string_agg(pav."name", ', ') AS "name"
             FROM product_attribute_value pav
             INNER JOIN product_attribute_value_product_product_rel pal on pal.att_id = pav.id
+            GROUP  BY pal.prod_id
         ) pav on pav.prod_id = p.id
         WHERE pt.product_purchase_type = 'cons'"""
 
