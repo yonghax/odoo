@@ -143,8 +143,8 @@ LEFT JOIN adjustments adj on p.product_id = adj.product_id
         if self.product_brand_ids:
             params += (tuple(self.product_brand_ids.ids),)
 
-        params += (dt_start,)
-        params += (dt_end,)
+        params += (start_date_localize,)
+        params += (end_date_localize,)
         params += (start_date_localize,)
         params += (end_date_localize,)
 
