@@ -103,7 +103,7 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         history_date = datetime.strptime(order_history['date_add'], DEFAULT_SERVER_DATETIME_FORMAT).strftime(DEFAULT_SERVER_DATE_FORMAT)
 
         sale_order.create_account_invoice(history_date)
-        if sale_order.invoice_status == 'invoiced':
+        #if sale_order.invoice_status == 'invoiced':
             for inv in sale_order.invoice_ids:
                 inv.action_move_create()
                 inv.signal_workflow('invoice_open')
