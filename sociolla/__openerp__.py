@@ -63,6 +63,7 @@
         'views/account_view.xml',
         'views/partner.xml',
         'views/currency_view.xml',
+        'data/invoice_reminder.xml',
         # 'reports/report_stock_picking_slip.xml',
         'reports/account_invoice_report_view.xml',
         # 'security/ir.model.access.csv',

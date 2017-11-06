@@ -20,22 +20,6 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 ##############################################################################
-{
-    'name': 'Automatic Reconcile ',
-    'version': '9',
-    'summary': "Automatic Reconcile",
-    'category': 'Account',
-    'author': 'Sociolla',
-    'company': 'Sociolla',
-    'website': 'google.com',
-    'depends': [
-                'account',
-                ],
-    'data': [
-            'views/account_view.xml',
-            'views/scheduler_run.xml',
-            ],
-    'license': "AGPL-3",
-    'installable': True,
-    'auto_install': False,
-}
+import ar_ap_monitoring_xls
+
+

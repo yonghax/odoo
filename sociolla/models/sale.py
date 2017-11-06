@@ -60,6 +60,13 @@ class SaleOrder(models.Model):
                 'amount_total': amount_untaxed + amount_tax - order.discount_amount,
             })
 
+    @api.multi
+    def _prepare_invoice(self):
+        res = super(SaleOrder,self)._prepare_invoice()
+        if self.origin:
+            res['origin'] = self.origin
+        return res
+
 
 class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
@@ -69,7 +76,8 @@ class SaleOrderLine(models.Model):
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, readonly=True, compute='_compute_amount', track_visibility='always')
     is_from_product_bundle = fields.Boolean(string='Flag from Product Bundle',default=False)
     flag_disc = fields.Char(string='Discount Flag',size=50,)
-    
+    is_gwp_free = fields.Boolean(string=u'GWP line',)
+    gwp_prestashop_id = fields.Integer(string=u'Prestashop GWP',)
     
     @api.depends('product_uom_qty', 'discount', 'price_unit', 'tax_id', 'discount_amount','flag_disc')
     def _compute_amount(self):
@@ -140,27 +148,48 @@ class SaleOrderLine(models.Model):
         })
 
     @api.multi
+    def invoice_line_create(self, invoice_id, qty):
+        """
+        Create an invoice line. The quantity to invoice can be positive (invoice) or negative
+        (refund).
+
+        :param invoice_id: integer
+        :param qty: float quantity to invoice
+        """
+        precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
+        for line in self:
+            if line.product_id.categ_id.free_category:
+                continue
+
+            if not float_is_zero(qty, precision_digits=precision):
+                vals = line._prepare_invoice_line(qty=qty)
+                vals.update({'invoice_id': invoice_id, 'sale_line_ids': [(6, 0, [line.id])]})
+                self.env['account.invoice.line'].create(vals)
+
+    @api.multi
     def _prepare_invoice_line(self, qty):
         """
         Prepare the dict of values to create the new invoice line for a sales order line.
 
         :param qty: float quantity to invoice
         """
+        if self.product_id.categ_id.free_category:
+            return {}
         self.ensure_one()
         res = {}
         account = self.product_id.property_account_income_id or self.product_id.categ_id.property_account_income_categ_id
         discount_account = self.product_id.property_account_sales_discount_id or self.product_id.categ_id.property_account_sales_discount_categ_id
         return_account = self.product_id.property_account_sales_return_id or self.product_id.categ_id.property_account_sales_return_categ_id
 
-        if not account:
+        if not account and not self.product_id.categ_id.free_category:
             raise UserError(_('Please define income account for this product: "%s" (id:%d) - or for its category: "%s".') % \
                             (self.product_id.name, self.product_id.id, self.product_id.categ_id.name))
 
-        if not discount_account and self.product_id.type != 'service':
+        if not discount_account and not self.product_id.type != 'service' and self.product_id.categ_id.free_category:
             raise UserError(_('Please define discount account for this product: "%s" (id:%d) - or for its category: "%s".') % \
                             (self.product_id.name, self.product_id.id, self.product_id.categ_id.name))
 
-        if not return_account:
+        if not return_account and not self.product_id.categ_id.free_category:
             raise UserError(_('Please define return account for this product: "%s" (id:%d) - or for its category: "%s".') % \
                             (self.product_id.name, self.product_id.id, self.product_id.categ_id.name))
 

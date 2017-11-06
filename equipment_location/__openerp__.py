@@ -21,19 +21,18 @@
 #
 ##############################################################################
 {
-    'name': 'Automatic Reconcile ',
+    'name': 'Equipment Location',
     'version': '9',
-    'summary': "Automatic Reconcile",
-    'category': 'Account',
-    'author': 'Sociolla',
+    'summary': "Location Management for Equipment",
+    'category': 'Human Resources',
+    'author': 'Yohanes Ho',
     'company': 'Sociolla',
-    'website': 'google.com',
     'depends': [
-                'account',
+                'base',
+                'hr_equipment',
                 ],
     'data': [
-            'views/account_view.xml',
-            'views/scheduler_run.xml',
+            'views/location_view.xml',
             ],
     'license': "AGPL-3",
     'installable': True,
