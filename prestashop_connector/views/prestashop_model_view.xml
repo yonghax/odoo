@@ -95,7 +95,7 @@
                                         class="oe_highlight"
                                         string="Import in background"/>
                         </group>
-                        <group>
+                        <group name="group_sales_order">
                             <div>
                                <label string="Import sale orders since" class="oe_inline"/>
                                <field name="import_orders_since"

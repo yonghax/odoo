@@ -6,9 +6,21 @@
             <field name="model">stock.inventory</field>
             <field name="inherit_id" ref="stock.view_inventory_form"/>
             <field name="arch" type="xml">
-                <xpath expr="//field[@name='date']" position="after">
-                    <field name="brand_id" attrs="{'invisible': [('filter', '!=', 'brand')], 'required': [('filter', '=', 'brand')]}"/>
-                </xpath>
+                <data>
+                    <xpath expr="//field[@name='date']" position="after">
+                        <field name="brand_id" attrs="{'invisible': [('filter', '!=', 'brand')], 'required': [('filter', '=', 'brand')]}"/>
+                    </xpath>
+
+                    <xpath expr="//button[@name='action_done']" position="replace">
+                        <button name="action_done" states="confirm" string="Validate Inventory" type="object" class="oe_highlight"
+                            groups="stock.group_stock_reviewer"/>
+                    </xpath>
+
+                    <xpath expr="//button[@name='action_done']" position="before">
+                        <button name="request_approval" states="confirm" string="Approve Adjustment" type="object" class="oe_highlight"
+                            groups="stock.group_stock_user"/>
+                    </xpath>
+                </data>
             </field>
         </record>
         
