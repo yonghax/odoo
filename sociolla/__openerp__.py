@@ -66,6 +66,7 @@
         'data/invoice_reminder.xml',
         # 'reports/report_stock_picking_slip.xml',
         'reports/account_invoice_report_view.xml',
+        'data/data.xml',
         # 'security/ir.model.access.csv',
         # 'reports/report_purchaseorder.xml',
         # 'reports/report_purchasequotation.xml',
