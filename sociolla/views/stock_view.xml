@@ -13,7 +13,7 @@
 
                     <xpath expr="//button[@name='action_done']" position="replace">
                         <button name="action_done" states="to approve" string="Approve &amp; Validate" type="object" class="oe_highlight"
-                            groups="stock.group_stock_reviewer"/>
+                            groups="sociolla.group_stock_reviewer"/>
                     </xpath>
 
                     <xpath expr="//button[@name='action_done']" position="before">
