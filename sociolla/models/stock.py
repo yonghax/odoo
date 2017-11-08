@@ -4,16 +4,34 @@ from openerp import api, fields, models, SUPERUSER_ID, _
 from openerp.exceptions import UserError
 from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT, DEFAULT_SERVER_DATE_FORMAT
 from openerp.tools.float_utils import float_compare, float_round
+from email.utils import formataddr
+
+import logging
+_logger = logging.getLogger(__name__)
 
 class stock_inventory(models.Model):
-    _inherit = ['stock.inventory']
+    _name = 'stock.inventory'
+    _inherit = ['stock.inventory', 'mail.thread']
     
     brand_id = fields.Many2one(
         string='Product brand',
         help="Select product brand",
         comodel_name='product.brand',
     )
+
+    INVENTORY_STATE_SELECTION = [
+        ('draft', 'Draft'),
+        ('cancel', 'Cancelled'),
+        ('to approve', 'To Approve'),
+        ('confirm', 'In Progress'),
+        ('done', 'Validated'),
+    ]
     
+    state = fields.Selection(
+        string=u'Status',
+        selection=INVENTORY_STATE_SELECTION,
+        readonly=True, select=True, copy=False
+    )
     is_switchover_stock = fields.Boolean(string='Switchover stock',)
 
     filter = fields.Selection(
@@ -77,17 +95,31 @@ class stock_inventory(models.Model):
             vals.append(product_line)
         return vals
 
-    def auto_proses_action_done(self, cr, uid, domain=None, context=None):
-        obj = self.pool.get('stock.inventory')
-        items = obj.browse(
-            cr,
-            uid,
-            [887],
-            context=context
-        )
+    @api.one
+    def request_approval(self):
+        user_obj = self.env['res.users']
+        group_obj = self.env['res.groups']
+        mail_obj = self.env['mail.mail']
+        message_obj = self.env['mail.message']
+        module_category_obj = self.env['ir.module.category']
 
-        for item in items:
-            item.action_done()
+        user_stock_reviewer = self.env.ref('sociolla.group_stock_reviewer').users
+        subtype_id = self.env.ref('sociolla.stock_adjustment_approval').id
+
+        for user_manager in user_stock_reviewer:
+            msg = message_obj.create({
+                'message_type': 'comment',
+                'subtype_id': 1,
+                'subject' : 'Request Approval Stock Adjustment',
+                'res_id': self.id,
+                'body': 'Stock adjustment: %s , needs your approval to validate.' % (self.name),
+                'email_from': formataddr((self.env.user.name, self.env.user.email)),
+                'model': 'stock.inventory',
+                'partner_ids': [(4, [user_manager.partner_id.id])],
+            })
+            user_manager.partner_id.with_context(auto_delete=True)._notify(msg, force_send=True, user_signature=True)
+        
+        self.write({'state': 'to approve'})
 
 class stock_inventory_line(models.Model):
     _inherit = 'stock.inventory.line'
