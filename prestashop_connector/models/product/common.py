@@ -156,51 +156,50 @@ class TemplateRecordImport(TranslatableRecordImport):
             280, # Sample-2
         ]
 
-
         if template.product_variant_count != 1:
             for product in template.product_variant_ids:
-                if template.product_purchase_type == '' or not template.product_purchase_type:
-                    code = product.default_code
-                    if code: 
-                        id_category_default = int(self.prestashop_record['id_category_default'])
-                        categ_adapter = self.unit_for(BackendAdapter,'prestashop.product.category')
-                        categ_ids = categ_adapter.search({'filter[id]': self.prestashop_record['id_category_default']})
-                        for categ_id in categ_ids:
-                            categ = categ_adapter.read(categ_id)
-                            categ_name = categ['name']['language']['value']
-                            
-                            if categ_name.lower() == 'special price':
-                                pass
-                            else:
-                                categ_obj = self.env['product.category']
-                                if id_category_default in hardcodedPSSampleCategory:
-                                    sample = categ_obj.search([('name', '=', 'Sample')])
+                code = product.default_code
+                if not template.product_purchase_type or template.product_purchase_type == '':
+                    template.write({'product_purchase_type': template.product_brand_id.purchase_type})
 
-                                    if sample:
-                                        template.write({'categ_id': sample.id, 'product_purchase_type': template.product_brand_id.purchase_type})
-                                    else:
-                                        template.write({'categ_id': 2, 'product_purchase_type': template.product_brand_id.purchase_type})
+                if code: 
+                    id_category_default = int(self.prestashop_record['id_category_default'])
+                    categ_adapter = self.unit_for(BackendAdapter,'prestashop.product.category')
+                    categ_ids = categ_adapter.search({'filter[id]': self.prestashop_record['id_category_default']})
+                    for categ_id in categ_ids:
+                        categ = categ_adapter.read(categ_id)
+                        categ_name = categ['name']['language']['value']
+                        if categ_name.lower() == 'special price':
+                            pass
+                        else:
+                            categ_obj = self.env['product.category']
+                            if id_category_default in hardcodedPSSampleCategory:
+                                sample = categ_obj.search([('name', '=', 'Sample')])
+
+                                if sample:
+                                    template.write({'categ_id': sample.id})
                                 else:
-                                    strSplittedDash = code.split('-')
-                                    strSplitted = strSplittedDash[0].split('.')
+                                    template.write({'categ_id': 2})
+                            else:
+                                strSplittedDash = code.split('-')
+                                strSplitted = strSplittedDash[0].split('.')
+                                if len(strSplitted) > 1:
+                                    try:
+                                        categ = categ_obj.search(
+                                            [
+                                                ('category_purchase_type', '=', template.product_brand_id.purchase_type),
+                                                ('name', '=', categoryEnum[strSplitted[1]])
+                                            ]
+                                        )
 
-                                    if len(strSplitted) > 1:
-                                        try:
-                                            categ = categ_obj.search(
-                                                [
-                                                    ('category_purchase_type', '=', template.product_brand_id.purchase_type),
-                                                    ('name', '=', categoryEnum[strSplitted[1]])
-                                                ]
-                                            )
-
-                                            if categ:
-                                                template.write({'categ_id': categ.id, 'product_purchase_type': template.product_brand_id.purchase_type})
-                                            else:
-                                                template.write({'categ_id': 2, 'product_purchase_type': template.product_brand_id.purchase_type})
-                                        except:
-                                            template.write({'categ_id': 2, 'product_purchase_type': template.product_brand_id.purchase_type})
-                                    else:
-                                        template.write({'categ_id': 2, 'product_purchase_type': template.product_brand_id.purchase_type})
+                                        if categ:
+                                            template.write({'categ_id': categ.id})
+                                        else:
+                                            template.write({'categ_id': 2})
+                                    except:
+                                        template.write({'categ_id': 2})
+                                else:
+                                    template.write({'categ_id': 2})
 
                 if len(product.attribute_value_ids) < 1:
                     product.unlink()
