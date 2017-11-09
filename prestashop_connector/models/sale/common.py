@@ -106,10 +106,43 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         for inv in sale_order.invoice_ids:
             inv.action_move_create()
             inv.signal_workflow('invoice_open')
+            self.check_order_cart_rule(sale_order, inv, prestashop_id)
 
         return True
+
+    def check_order_cart_rule(self, sale_order, invoice, prestashop_id):
+        gift_card_obj = self.env['gift.card']
+        move_obj = self.env['account.move.line']
+
+        host = self.env['ir.config_parameter'].get_param('mysql.host')
+        user = self.env['ir.config_parameter'].get_param('mysql.user')
+        passwd = self.env['ir.config_parameter'].get_param('mysql.passwd')
+        dbname = self.env['ir.config_parameter'].get_param('mysql.dbname')
+
+        db = MySQLdb.connect(host, user, passwd, dbname, cursorclass=MySQLdb.cursors.DictCursor)
+        cur = db.cursor()
     
-    def check_gwp_module(self, sale_order, prestashop_id):
+        query = """
+select ocl.id_cart_rule
+from ps_order_cart_rule ocl
+where o.id_order = %s 
+        """ % prestashop_id 
+
+        cur.execute(query)
+        rows = cur.fetchall()
+        cur.close()
+        db.close()
+
+        for row in rows:
+            gift_card = gift_card_obj.search([('prestashop_id', '=', row['id_cart_rule'])])
+            if not gift_card:
+                gift_card = gift_card_obj.import_data_ps(row['id_cart_rule'])
+            
+            # check if gift card then create journal reclass account for unearned revenue (db) - ar (cr)
+            if not gift_card.is_voucher:
+                gift_card.journal_reclass_account(invoice)
+
+    def check_gwp_module(self, salauune_order, prestashop_id):
         host = self.env['ir.config_parameter'].get_param('mysql.host')
         user = self.env['ir.config_parameter'].get_param('mysql.user')
         passwd = self.env['ir.config_parameter'].get_param('mysql.passwd')

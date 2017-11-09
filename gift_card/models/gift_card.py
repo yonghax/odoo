@@ -80,10 +80,29 @@ class gift_card(models.Model):
 	@api.model
 	def _scheduler_import_data(self):
 		session = ConnectorSession(self._cr, self._uid, context=self._context)
-		for x in self.go_query_import_data_ps():
-			proses_import_data_ps.delay(session,'gift.card', x['id_cart_rule'],priority=1)
 
-		self.env['prestashop.backend'].browse(1).write({'import_gift_card_since':datetime.now()})
+		for x in self.go_query_import_data_ps():
+			proses_import_data_ps.delay(session,'gift.card', x['id_cart_rule'],priority=10)
+
+	def _prepare_move_line(self, invoice, debit_account_id, credit_account_id):
+		pass
+		
+	
+	def journal_reclass_account(self, invoice):
+		move_obj = self.env['account.move']
+
+		unearned_account = self.env.ref('account.unearned_revenue_account')
+		account_id = inv.account_id
+		if not unearned_account:
+			unearned_account = self.env['account.account'].search([('code', '=', '2.01000-10')])
+		
+		move_lines = self._prepare_move_line(invoice, unearned_account, account_id)
+
+		new_move = move_obj.create({
+			'journal_id': journal_id,
+			'line_ids': move_lines,
+			'date': date,
+			'ref': move.picking_id.name})
 
 	def import_data_ps(self, prestashop_id):
 		prestashop_cart_rule = self.go_query_import_data_ps(prestashop_id)
@@ -105,9 +124,11 @@ class gift_card(models.Model):
 				prestashop_id = prestashop_id
 			)
 			data.update(listing)
-
-			# create db
-			gift_card_obj.create(data)
+			gift_card = gift_card_obj.search([('prestashop_id', '=', prestashop_id)])
+			if gift_card:
+				return gift_card.write(data)
+			else:
+				return gift_card_obj.create(data)
 
 	def go_query_import_data_ps(self, id=None):
 		import MySQLdb
@@ -132,7 +153,8 @@ class gift_card(models.Model):
 			FROM ps_cart_rule
 				WHERE active = 1 %s
 		'''%(add_query)
-
+		
+		pres_back.write({'import_gift_card_since':datetime.now()})
 		cur.execute(query)
 		result = cur.fetchall()
 		
