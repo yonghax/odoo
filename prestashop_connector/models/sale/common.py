@@ -75,6 +75,7 @@ class SaleOrderImport(PrestashopImportSynchronizer):
             self.add_shipping_cost(sale_order, prestashop_id)
         
         self.check_gwp_module(sale_order, prestashop_id)
+        self.check_order_cart_rule(sale_order, prestashop_id)
         self.work_with_product_bundle(sale_order, prestashop_id)
         self.calculate_discount_proportional(sale_order)
         sale_order.recompute()
@@ -106,11 +107,12 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         for inv in sale_order.invoice_ids:
             inv.action_move_create()
             inv.signal_workflow('invoice_open')
-            self.check_order_cart_rule(sale_order, inv, prestashop_id)
+            if sale_order.gift_card_id and not sale_order.gift_card_id.is_voucher:
+                sale_order.gift_card_id.create_reclass_journal(inv)
 
         return True
 
-    def check_order_cart_rule(self, sale_order, invoice, prestashop_id):
+    def check_order_cart_rule(self, sale_order, prestashop_id):
         gift_card_obj = self.env['gift.card']
         move_obj = self.env['account.move.line']
 
@@ -125,7 +127,7 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         query = """
 select ocl.id_cart_rule
 from ps_order_cart_rule ocl
-where o.id_order = %s 
+where ocl.id_order = %s 
         """ % prestashop_id 
 
         cur.execute(query)
@@ -135,13 +137,14 @@ where o.id_order = %s
 
         for row in rows:
             gift_card = gift_card_obj.search([('prestashop_id', '=', row['id_cart_rule'])])
-            if not gift_card:
-                gift_card = gift_card_obj.import_data_ps(row['id_cart_rule'])
-            
-            # check if gift card then create journal reclass account for unearned revenue (db) - ar (cr)
-            if not gift_card.is_voucher:
-                gift_card.journal_reclass_account(invoice)
+            gift_card = gift_card_obj.import_data_ps(row['id_cart_rule'])
+            sale_order.gift_card_id = gift_card.id
 
+            if sale_order.gift_card_id and not sale_order.gift_card_id.is_voucher:
+                for line in sale_order.order_line:
+                    if len(line.tax_id) > 0:
+                        line.tax_id = [(5, line.tax_id.ids)]
+            
     def check_gwp_module(self, salauune_order, prestashop_id):
         host = self.env['ir.config_parameter'].get_param('mysql.host')
         user = self.env['ir.config_parameter'].get_param('mysql.user')
@@ -366,6 +369,9 @@ select op.id_cart, o.id_order, o.date_add, o.reference as reference_order, o.cur
     def calculate_discount_proportional(self, sale_order): 
         """ Delete order line with product discount. and the amount will be split average per order line.
         """
+        if sale_order.gift_card_id and not sale_order.gift_card_id.is_voucher:
+            return
+
         order_lines = sale_order.order_line
         order_discounts = order_lines.filtered(lambda x: x.product_id.id == self.backend_record.discount_product_id.id)
         order_products = order_lines.filtered(lambda x: x.product_id != self.backend_record.discount_product_id and x.product_id.type == 'product')
@@ -373,9 +379,6 @@ select op.id_cart, o.id_order, o.date_add, o.reference as reference_order, o.cur
 
         sum_discount_amount = float(self.prestashop_record['total_discounts'])
         sum_total_amount_header = sum([x.price_total for x in order_products])
-        print 'order_discounts', len(order_discounts)
-        print 'sum_discount_amount', sum_discount_amount
-        
         
         if sum_discount_amount > 0:
             for i in xrange(0, len(order_products)):

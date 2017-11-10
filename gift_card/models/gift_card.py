@@ -84,25 +84,82 @@ class gift_card(models.Model):
 		for x in self.go_query_import_data_ps():
 			proses_import_data_ps.delay(session,'gift.card', x['id_cart_rule'],priority=10)
 
-	def _prepare_move_line(self, invoice, debit_account_id, credit_account_id):
-		pass
-		
-	
-	def journal_reclass_account(self, invoice):
-		move_obj = self.env['account.move']
+	def _prepare_move_line(self, move, invoice, debit_account_id, credit_account_id):
+		debit_amount = self.amount
+		credit_amount = invoice.residual if self.amount >= invoice.residual else self.amount 
+		balance_amount = debit_amount - credit_amount
+		other_income_account = self.env.ref('account.other_income_account')
+		vals = []
 
+		debit_line_vals = {
+			'ref': self.code,
+			'name': 'Gift Card Used: %s' % (self.code),
+			'debit': debit_amount,
+			'credit': 0,
+			'account_id': debit_account_id.id,
+        }
+
+		vals.append((0, 0, debit_line_vals))
+
+		credit_line_vals = {
+			'ref': '%s - %s' % (invoice.origin, self.code),
+			'name': 'Payment %s Used Gift Card %s' % (invoice.origin, self.code),
+			'partner_id': invoice.partner_id.id,
+			'debit': 0,
+			'credit': credit_amount,
+			'account_id': credit_account_id.id,
+        }
+		vals.append((0, 0, credit_line_vals))
+		
+		if balance_amount != 0:
+			credit_line_vals = {
+				'ref': self.code,
+				'name': 'Income From Gift Card %s' % (self.code),
+				'partner_id': invoice.partner_id.id,
+				'debit': 0,
+				'credit': balance_amount,
+				'account_id': other_income_account.id,
+			}
+			vals.append((0, 0, credit_line_vals))
+		return vals
+			
+	def create_reclass_journal(self, invoice):
+		move_obj = self.env['account.move']
+		journal_id = self.env.ref('account.account_journal_voucher')
 		unearned_account = self.env.ref('account.unearned_revenue_account')
-		account_id = inv.account_id
+		account_id = invoice.account_id
+		account_reconcilleds = []
 		if not unearned_account:
 			unearned_account = self.env['account.account'].search([('code', '=', '2.01000-10')])
 		
-		move_lines = self._prepare_move_line(invoice, unearned_account, account_id)
-
+		move_lines = self._prepare_move_line(move_obj, invoice, unearned_account, account_id)
 		new_move = move_obj.create({
-			'journal_id': journal_id,
+			'journal_id': journal_id.id,
 			'line_ids': move_lines,
-			'date': date,
-			'ref': move.picking_id.name})
+			'date': invoice.date_invoice,
+			'ref': invoice.origin})
+		new_move.post()
+		self.recon_sales(invoice, new_move)
+
+	def recon_sales(self, invoice, account_move):
+		move_line_obj = self.env['account.move.line']
+		account_reconcilleds = []
+		
+		account_reconcilleds.append(account_move.line_ids.filtered(lambda x: x.account_id.internal_type in ['payable','receivable']))
+		account_reconcilleds.append(invoice.move_id.line_ids.filtered(lambda x: x.account_id.internal_type in ['payable','receivable']))
+
+		debit = sum([x['debit'] for x in account_reconcilleds])
+		credit = sum([x['credit'] for x in account_reconcilleds])
+		balance = debit - credit
+
+		if balance == 0:
+			wizard = self.env['account.move.line.reconcile'].with_context(active_ids=[x.id for x in account_reconcilleds]).create({})
+			wizard.trans_rec_reconcile_full()
+			invoice.confirm_paid()
+			assert invoice.state == 'paid', "Invoice not paid"
+		else:
+			wizard = self.env['account.move.line.reconcile'].with_context(active_ids=[x.id for x in account_reconcilleds]).create({})
+			wizard.trans_rec_reconcile_partial_reconcile()
 
 	def import_data_ps(self, prestashop_id):
 		prestashop_cart_rule = self.go_query_import_data_ps(prestashop_id)
@@ -126,8 +183,12 @@ class gift_card(models.Model):
 			data.update(listing)
 			gift_card = gift_card_obj.search([('prestashop_id', '=', prestashop_id)])
 			if gift_card:
-				return gift_card.write(data)
+				print 'gift card write!'
+				gift_card.write(data)
+				gift_card.refresh()
+				return gift_card
 			else:
+				print 'gift card create!'
 				return gift_card_obj.create(data)
 
 	def go_query_import_data_ps(self, id=None):
@@ -162,9 +223,3 @@ class gift_card(models.Model):
 		db.close()
 
 		return result
-
-
-
-
-
-
