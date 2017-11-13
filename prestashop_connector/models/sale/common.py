@@ -145,7 +145,7 @@ where ocl.id_order = %s
                     if len(line.tax_id) > 0:
                         line.tax_id = [(5, line.tax_id.ids)]
             
-    def check_gwp_module(self, salauune_order, prestashop_id):
+    def check_gwp_module(self, sale_order, prestashop_id):
         host = self.env['ir.config_parameter'].get_param('mysql.host')
         user = self.env['ir.config_parameter'].get_param('mysql.user')
         passwd = self.env['ir.config_parameter'].get_param('mysql.passwd')
