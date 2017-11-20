@@ -1,9 +1,7 @@
 from datetime import date, datetime
 
 from openerp import api, fields, models, SUPERUSER_ID, _
-from openerp.exceptions import UserError
-from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT, DEFAULT_SERVER_DATE_FORMAT
-from openerp.tools.float_utils import float_compare, float_round
+import openerp.addons.decimal_precision as dp
 from email.utils import formataddr
 
 import logging
@@ -15,8 +13,8 @@ class stock_inventory(models.Model):
     
     brand_id = fields.Many2one(
         string='Product brand',
-        help="Select product brand",
         comodel_name='product.brand',
+        ondelete='set null'
     )
 
     INVENTORY_STATE_SELECTION = [
@@ -123,6 +121,49 @@ class stock_inventory(models.Model):
 
 class stock_inventory_line(models.Model):
     _inherit = 'stock.inventory.line'
+    
+    product_brand_id = fields.Many2one(string=u'Brand',comodel_name='product.brand',ondelete='set null', readonly=True)
+    standard_price = fields.Float(string=u'Cost')
+    theoretical_qty = fields.Float('Theoretical Quantity', compute='_compute_theoretical_qty',digits=dp.get_precision('Product Unit of Measure'), readonly=True, store=True)
+
+    def _get_quants(self):
+        return self.env['stock.quant'].search([
+            ('company_id', '=', self.company_id.id),
+            ('location_id', '=', self.location_id.id),
+            ('lot_id', '=', self.prod_lot_id.id),
+            ('product_id', '=', self.product_id.id),
+            ('owner_id', '=', self.partner_id.id),
+            ('package_id', '=', self.package_id.id)])
+
+    @api.onchange('product_id')
+    def onchange_product(self):
+        res = {}
+        # If no UoM or incorrect UoM put default one from product
+        if self.product_id:
+            self.product_uom_id = self.product_id.uom_id
+            res['domain'] = {'product_uom_id': [('category_id', '=', self.product_id.uom_id.category_id.id)]}
+            self.product_brand_id = self.product_id.product_brand_id.id
+            self.standard_price = self.product_id.standard_price
+        return res
+
+    @api.one
+    @api.depends('location_id', 'product_id', 'package_id', 'product_uom_id', 'company_id', 'prod_lot_id', 'partner_id')
+    def _compute_theoretical_qty(self):
+        if not self.product_id:
+            self.theoretical_qty = 0
+            return
+        theoretical_qty = sum([x.qty for x in self._get_quants()])
+        if theoretical_qty and self.product_uom_id and self.product_id.uom_id != self.product_uom_id:
+            theoretical_qty = self.product_id.uom_id._compute_quantity(theoretical_qty, self.product_uom_id)
+        self.theoretical_qty = theoretical_qty
+
+    @api.onchange('product_id', 'location_id', 'product_uom_id', 'prod_lot_id', 'partner_id', 'package_id')
+    def onchange_quantity_context(self):
+        if self.product_id and self.location_id and self.product_id.uom_id.category_id == self.product_uom_id.category_id:  # TDE FIXME: last part added because crash
+            if self.location_id.company_id:
+                self.company_id = self.location_id.company_id
+            self._compute_theoretical_qty()
+            self.product_qty = self.theoretical_qty
 
     def _resolve_inventory_line(self, cr, uid, inventory_line, context=None):
         stock_move_obj = self.pool.get('stock.move')
@@ -142,8 +183,14 @@ class stock_inventory_line(models.Model):
             'restrict_lot_id': inventory_line.prod_lot_id.id,
             'restrict_partner_id': inventory_line.partner_id.id,
             'is_switchover_stock': inventory_line.inventory_id.is_switchover_stock,
-         }
+        }
         inventory_location_id = inventory_line.product_id.property_stock_inventory.id
+
+
+        if inventory_line.location_id.usage == 'internal':
+            vals['price_unit'] = inventory_line.standard_price
+            # ctx = dict(context, force_valuation_amount=inventory_line.standard_price)
+
         if diff < 0:
             #found more than expected
             vals['location_id'] = inventory_location_id
@@ -172,99 +219,3 @@ class stock_inventory_line(models.Model):
                     if quant.location_id.id == move.location_dest_id.id: #To avoid we take a quant that was reconcile already
                         quant_obj._quant_reconcile_negative(cr, uid, quant, move, context=context)
         return move_id
-
-class stock_pack_operation(models.Model):
-    _inherit = ['stock.pack.operation']
-    barcode = fields.Char(string=u'Barcode',compute='_get_barcode')
-    warehouse_location = fields.Char(string=u'Location',compute='_get_barcode')
-    
-    def _get_barcode(self):
-        for data in self:
-            if data.product_id:
-                data.barcode = data.product_id.barcode
-                data.warehouse_location = data.product_id.product_tmpl_id.warehouse_location
-
-class stock_move(models.Model):
-    _inherit = 'stock.move'
-    
-    is_switchover_stock = fields.Boolean(string='Switchover stock')
-
-class stock_quant(models.Model):
-    _inherit = 'stock.quant'
-
-    is_switchover_stock = fields.Boolean(string='Switchover stock')
-
-    def _quant_create(self, cr, uid, qty, move, lot_id=False, owner_id=False, src_package_id=False, dest_package_id=False,
-                      force_location_from=False, force_location_to=False, context=None):
-        '''Create a quant in the destination location and create a negative quant in the source location if it's an internal location.
-        '''
-        if context is None:
-            context = {}
-        price_unit = self.pool.get('stock.move').get_price_unit(cr, uid, move, context=context)
-        location = force_location_to or move.location_dest_id
-        rounding = move.product_id.uom_id.rounding
-        vals = {
-            'product_id': move.product_id.id,
-            'location_id': location.id,
-            'qty': float_round(qty, precision_rounding=rounding),
-            'cost': price_unit,
-            'history_ids': [(4, move.id)],
-            'in_date': datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
-            'company_id': move.company_id.id,
-            'lot_id': lot_id,
-            'owner_id': owner_id,
-            'package_id': dest_package_id,
-            'is_switchover_stock': move.is_switchover_stock,
-        }
-        if move.location_id.usage == 'internal':
-            #if we were trying to move something from an internal location and reach here (quant creation),
-            #it means that a negative quant has to be created as well.
-            negative_vals = vals.copy()
-            negative_vals['location_id'] = force_location_from and force_location_from.id or move.location_id.id
-            negative_vals['qty'] = float_round(-qty, precision_rounding=rounding)
-            negative_vals['cost'] = price_unit
-            negative_vals['negative_move_id'] = move.id
-            negative_vals['package_id'] = src_package_id
-            negative_quant_id = self.create(cr, SUPERUSER_ID, negative_vals, context=context)
-            vals.update({'propagated_from_id': negative_quant_id})
-
-        picking_type = move.picking_id and move.picking_id.picking_type_id or False
-        if lot_id and move.product_id.tracking == 'serial' and (not picking_type or (picking_type.use_create_lots or picking_type.use_existing_lots)):
-            if qty != 1.0:
-                raise UserError(_('You should only receive by the piece with the same serial number'))
-
-        #create the quant as superuser, because we want to restrict the creation of quant manually: we should always use this method to create quants
-        quant_id = self.create(cr, SUPERUSER_ID, vals, context=context)
-        quant = self.browse(cr, uid, quant_id, context=context)
-        if move.product_id.valuation == 'real_time':
-            self._account_entry_move(cr, uid, [quant], move, context)
-
-            # If the precision required for the variable quant cost is larger than the accounting
-            # precision, inconsistencies between the stock valuation and the accounting entries
-            # may arise.
-            # For example, a box of 13 units is bought 15.00. If the products leave the
-            # stock one unit at a time, the amount related to the cost will correspond to
-            # round(15/13, 2)*13 = 14.95. To avoid this case, we split the quant in 12 + 1, then
-            # record the difference on the new quant.
-            # We need to make sure to able to extract at least one unit of the product. There is
-            # an arbitrary minimum quantity set to 2.0 from which we consider we can extract a
-            # unit and adapt the cost.
-            curr_rounding = move.company_id.currency_id.rounding
-            cost_rounded = float_round(quant.cost, precision_rounding=curr_rounding)
-            cost_correct = cost_rounded
-            if float_compare(quant.product_id.uom_id.rounding, 1.0, precision_digits=1) == 0\
-                    and float_compare(quant.qty * quant.cost, quant.qty * cost_rounded, precision_rounding=curr_rounding) != 0\
-                    and float_compare(quant.qty, 2.0, precision_rounding=quant.product_id.uom_id.rounding) >= 0:
-                qty = quant.qty
-                cost = quant.cost
-                quant_correct = quant_obj._quant_split(cr, uid, quant, quant.qty - 1.0, context=context)
-                cost_correct += (qty * cost) - (qty * cost_rounded)
-                quant_obj.write(cr, SUPERUSER_ID, [quant.id], {'cost': cost_rounded}, context=context)
-                quant_obj.write(cr, SUPERUSER_ID, [quant_correct.id], {'cost': cost_correct}, context=context)
-        return quant
-
-    def _account_entry_move(self, cr, uid, quants, move, context=None):
-        if not move.is_switchover_stock:
-            super(stock_quant, self)._account_entry_move(cr, uid, quants, move, context=context)
-        
-        return False
