@@ -8,7 +8,10 @@ import sale_report
 import product_bundle
 import product_brand
 import res_users
-import stock
+import stock_quant  
+import stock_inventory
+import stock_move
+import stock_picking
 import mail
 import shop
 import account_bank_statement

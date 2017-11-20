@@ -24,11 +24,17 @@
                     <xpath expr="//button[@name='action_cancel_inventory']" position="replace">
                         <button name="action_cancel_inventory" states="to approve,confirm" string="Cancel Inventory" type="object"/>
                     </xpath>
+
                     <xpath expr="//notebook" position="after">
                          <div class="oe_chatter">
                             <field name="message_follower_ids" widget="mail_followers"/>
                             <field name="message_ids" widget="mail_thread"/>
                         </div>
+                    </xpath>
+
+                    <xpath expr="//notebook/page/field[@name='line_ids']/tree/field[@name='product_id']" position="after">
+                         <field name="product_brand_id" string="Brand" groups="account.group_account_manager"/>
+                         <field name="standard_price" string="Cost" groups="account.group_account_manager"/>
                     </xpath>
                 </data>
             </field>
