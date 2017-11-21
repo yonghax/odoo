@@ -40,6 +40,12 @@
                     <xpath expr="//notebook/page/field[@name='line_ids']/tree/field[@name='product_qty']" position="after">
                          <field name="total_cost" groups="account.group_account_manager"/>
                     </xpath>
+
+                    <xpath expr="//notebook" position="inside">
+                         <page string="Journal Created" attrs="{'invisible': [('state', '!=', 'done')]}">
+                            <field name="account_move_id"/>
+                        </page>
+                    </xpath>
                 </data>
             </field>
         </record>

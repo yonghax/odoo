@@ -16,6 +16,13 @@ class stock_inventory(models.Model):
         comodel_name='product.brand',
         ondelete='set null'
     )
+    account_move_id = fields.Many2many(
+        string=u'Journal Created',
+        comodel_name='account.move',
+        relation='stock_inventory_account_move',
+        column1='inventory_id',
+        column2='move_id',
+    )
 
     INVENTORY_STATE_SELECTION = [
         ('draft', 'Draft'),
