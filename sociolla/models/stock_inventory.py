@@ -122,18 +122,37 @@ class stock_inventory(models.Model):
 class stock_inventory_line(models.Model):
     _inherit = 'stock.inventory.line'
     
-    product_brand_id = fields.Many2one(string=u'Brand',comodel_name='product.brand',ondelete='set null', readonly=True)
+    product_brand_id = fields.Many2one(string=u'Brand', compute='get_product_brand', comodel_name='product.brand')
     standard_price = fields.Float(string=u'Cost')
     theoretical_qty = fields.Float('Theoretical Quantity', compute='_compute_theoretical_qty',digits=dp.get_precision('Product Unit of Measure'), readonly=True, store=True)
+    total_cost = fields.Float(
+        string=u'Total Cost',
+        compute='_compute_total_cost'
+    )
+
+    @api.depends('product_id', 'product_qty', 'standard_price')
+    @api.one
+    def _compute_total_cost(self):
+        if self.product_id:
+            diff = self.theoretical_qty - self.product_qty
+            if diff:
+                self.total_cost = diff * self.standard_price
+                self.total_cost = -self.total_cost
 
     def _get_quants(self):
         return self.env['stock.quant'].search([
-            ('company_id', '=', self.company_id.id),
+            ('company_id', '=', self.inventory_id.company_id.id),
             ('location_id', '=', self.location_id.id),
             ('lot_id', '=', self.prod_lot_id.id),
             ('product_id', '=', self.product_id.id),
             ('owner_id', '=', self.partner_id.id),
             ('package_id', '=', self.package_id.id)])
+
+    @api.depends('product_id')
+    @api.one
+    def get_product_brand(self):
+        if self.product_id:
+            self.product_brand_id = self.product_id.product_tmpl_id.product_brand_id.id
 
     @api.onchange('product_id')
     def onchange_product(self):
@@ -142,8 +161,9 @@ class stock_inventory_line(models.Model):
         if self.product_id:
             self.product_uom_id = self.product_id.uom_id
             res['domain'] = {'product_uom_id': [('category_id', '=', self.product_id.uom_id.category_id.id)]}
-            self.product_brand_id = self.product_id.product_brand_id.id
-            self.standard_price = self.product_id.standard_price
+            quants = self._get_quants()
+            if quants:
+                self.standard_price = quants[0].cost
         return res
 
     @api.one
