@@ -274,43 +274,28 @@ class PurchaseOrder(models.Model):
 
     @api.multi
     def _add_supplier_to_product(self):
-        # Add the partner in the supplier list of the product if the supplier is not registered for
-        # this product. We limit to 10 the number of suppliers for a product to avoid the mess that
-        # could be caused for some generic products ("Miscellaneous").
         for line in self.order_line:
             # Do not add a contact as a supplier
             partner = self.partner_id if not self.partner_id.parent_id else self.partner_id.parent_id
-            if partner not in line.product_id.seller_ids.mapped('name') and len(line.product_id.seller_ids) <= 10:
+            if partner not in line.product_id.variant_seller_ids.mapped('name') and len(line.product_id.variant_seller_ids) <= 10:
                 currency = partner.property_purchase_currency_id or self.env.user.company_id.currency_id
                 supplierinfo = {
                     'name': partner.id,
-                    'sequence': max(line.product_id.seller_ids.mapped('sequence')) + 1 if line.product_id.seller_ids else 1,
+                    'sequence': max(line.product_id.variant_seller_ids.mapped('sequence')) + 1 if line.product_id.variant_seller_ids else 1,
                     'product_uom': line.product_uom.id,
                     'min_qty': 0.0,
                     'price': self.currency_id.compute(line.price_unit, currency),
-                    'discount': line.discount,
                     'currency_id': currency.id,
+                    'discount': line.discount,
                     'delay': 0,
                 }
                 vals = {
-                    'seller_ids': [(0, 0, supplierinfo)],
+                    'variant_seller_ids': [(0, 0, supplierinfo)],
                 }
                 try:
                     line.product_id.write(vals)
                 except AccessError:  # no write access rights -> just ignore
                     break
-            elif partner in line.product_id.seller_ids.mapped('name'):
-                supplierinfos = line.product_id.seller_ids.filtered(lambda x: x.name == partner)
-                for supplierinfo in supplierinfos:
-                    currency = partner.property_purchase_currency_id or self.env.user.company_id.currency_id
-                    vals = {
-                        'price': self.currency_id.compute(line.price_unit, currency),
-                        'discount': line.discount,
-                    }
-                    try:
-                        supplierinfo.write(vals)
-                    except AccessError:  # no write access rights -> just ignore
-                        break
 
             if partner and line.product_id.product_tmpl_id.product_brand_id:
                 product_brand = line.product_id.product_tmpl_id.product_brand_id
