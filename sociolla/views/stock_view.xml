@@ -36,6 +36,10 @@
                          <field name="product_brand_id" string="Brand" groups="account.group_account_manager"/>
                          <field name="standard_price" string="Cost" groups="account.group_account_manager"/>
                     </xpath>
+
+                    <xpath expr="//notebook/page/field[@name='line_ids']/tree/field[@name='product_qty']" position="after">
+                         <field name="total_cost" groups="account.group_account_manager"/>
+                    </xpath>
                 </data>
             </field>
         </record>
