@@ -65,6 +65,7 @@ class SaleOrder(models.Model):
         res = super(SaleOrder,self)._prepare_invoice()
         if self.origin:
             res['origin'] = self.origin
+            res['order_date'] = self.date_order
         return res
 
 

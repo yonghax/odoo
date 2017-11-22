@@ -27,6 +27,7 @@ class AccountInvoice(models.Model):
 
     discount_amount = fields.Monetary(string='Discount Amount', readonly=True, default=0.0)
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, default=0.0)
+    order_date = fields.Datetime(string=u'Order Date',)
 
     @api.model
     def invoice_reminder(self):
