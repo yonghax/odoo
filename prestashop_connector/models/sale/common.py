@@ -410,6 +410,10 @@ select op.id_cart, o.id_order, o.date_add, o.reference as reference_order, o.cur
         """ Return True if the import can be skipped """
         if self._get_openerp_id():
             return True
+
+        record = self.prestashop_record
+        return record and record['current_state'] not in ['4','5']
+
     #     rules = self.unit_for(SaleImportRule)
     #     return rules.check(self.prestashop_record)
 
