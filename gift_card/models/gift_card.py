@@ -188,7 +188,6 @@ class gift_card(models.Model):
 				gift_card.refresh()
 				return gift_card
 			else:
-				print 'gift card create!'
 				return gift_card_obj.create(data)
 
 	def go_query_import_data_ps(self, id=None):

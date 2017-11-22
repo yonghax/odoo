@@ -201,7 +201,7 @@ where o.id_order = %s and gwpo.free_product <> 0 limit 1
     def add_shipping_cost(self, sale_order, prestashop_id):
         order_adapter = self.unit_for(GenericAdapter, 'prestashop.sale.order')
         ps_order = order_adapter.read(prestashop_id)
-        total_shipping_amount = Decimal(ps_order['total_shipping']) if Decimal(ps_order['total_shipping']) > 0.0 else Decimal(ps_order['total_paid']) - Decimal(sale_order.amount_total)
+        total_shipping_amount = Decimal(ps_order['total_shipping'])
 
         vals = {
             'sequence': 9999999,
@@ -410,6 +410,10 @@ select op.id_cart, o.id_order, o.date_add, o.reference as reference_order, o.cur
         """ Return True if the import can be skipped """
         if self._get_openerp_id():
             return True
+
+        record = self.prestashop_record
+        return record and record['current_state'] not in ['4','5']
+
     #     rules = self.unit_for(SaleImportRule)
     #     return rules.check(self.prestashop_record)
 
