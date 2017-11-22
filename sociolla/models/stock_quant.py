@@ -7,6 +7,7 @@ from openerp.tools.float_utils import float_compare, float_round
 
 class stock_quant(models.Model):
     _inherit = 'stock.quant'
+    _order = 'in_date'
 
     is_switchover_stock = fields.Boolean(string='Switchover stock')
 
@@ -149,3 +150,5 @@ class stock_quant(models.Model):
                                           'date': date,
                                           'ref': move.picking_id.name}, context=context)
                 move_obj.post(cr, uid, [new_move], context=context)
+                if move.inventory_id:
+                    move.inventory_id.write({'account_move_id': [(4, [new_move])]}) 
