@@ -201,7 +201,7 @@ where o.id_order = %s and gwpo.free_product <> 0 limit 1
     def add_shipping_cost(self, sale_order, prestashop_id):
         order_adapter = self.unit_for(GenericAdapter, 'prestashop.sale.order')
         ps_order = order_adapter.read(prestashop_id)
-        total_shipping_amount = Decimal(ps_order['total_shipping']) if Decimal(ps_order['total_shipping']) > 0.0 else Decimal(ps_order['total_paid']) - Decimal(sale_order.amount_total)
+        total_shipping_amount = Decimal(ps_order['total_shipping'])
 
         vals = {
             'sequence': 9999999,
