@@ -169,8 +169,10 @@ class stock_inventory_line(models.Model):
             self.product_uom_id = self.product_id.uom_id
             res['domain'] = {'product_uom_id': [('category_id', '=', self.product_id.uom_id.category_id.id)]}
             quants = self._get_quants()
-            if quants:
+            if quants and len(quants) > 0 and quants[0].cost != 0:
                 self.standard_price = quants[0].cost
+            else:
+                self.standard_price = self.product_id.standard_price
         return res
 
     @api.one
