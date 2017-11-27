@@ -86,7 +86,9 @@ class gift_card(models.Model):
 
 	def _prepare_move_line(self, move, invoice, debit_account_id, credit_account_id):
 		debit_amount = self.amount
-		credit_amount = invoice.residual if self.amount >= invoice.residual else self.amount 
+
+		invoice_lines = invoice.invoice_line_ids.filtered(lambda x: x.product_id.type == 'product')
+		credit_amount = sum([x.price_subtotal for x in invoice_lines])
 		balance_amount = debit_amount - credit_amount
 		other_income_account = self.env.ref('account.other_income_account')
 		vals = []
@@ -122,7 +124,7 @@ class gift_card(models.Model):
 			}
 			vals.append((0, 0, credit_line_vals))
 		return vals
-			
+
 	def create_reclass_journal(self, invoice):
 		move_obj = self.env['account.move']
 		journal_id = self.env.ref('account.account_journal_voucher')

@@ -177,7 +177,7 @@ class PurchaseOrder(models.Model):
             b2b = len(user_manager.groups_id.filtered(lambda x: x.name=='B2B')) > 0
             b2c = len(user_manager.groups_id.filtered(lambda x: x.name=='B2C')) > 0
             
-            if b2c:
+            if b2c and user_manager.partner_id.email != 'john@sociolla.com':
                 list_html += list_html_b2c
 
             if b2b:
