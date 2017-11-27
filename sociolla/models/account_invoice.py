@@ -412,11 +412,14 @@ class AccountInvoice(models.Model):
                     continue
                 elif name == 'account_id':
                     if TYPE2REFUND[line.invoice_id.type] == 'out_refund':
-                        account = line.get_invoice_line_account('out_refund', line.product_id, line.invoice_id.fiscal_position_id, line.invoice_id.company_id)
-                        if account:
-                            values[name] = account.id
+                        if line._table == 'account_invoice_tax':
+                            values[name] = line.account_id.id
                         else:
-                            raise UserError(_('Configuration error!\nCould not find any account to create the return, are you sure you have a chart of account installed?'))
+                            account = line.get_invoice_line_account('out_refund', line.product_id, line.invoice_id.fiscal_position_id, line.invoice_id.company_id)
+                            if account:
+                                values[name] = account.id
+                            else:
+                                raise UserError(_('Configuration error!\nCould not find any account to create the return, are you sure you have a chart of account installed?'))
                     else:
                         values[name] = line[name].id
                 elif field.type == 'many2one':
@@ -504,6 +507,7 @@ class AccountInvoice(models.Model):
                     'amount': tax['amount'],
                     'manual': False,
                     'sequence': tax['sequence'],
+                    'base': tax['base'],
                     'account_analytic_id': tax['analytic'] and line.account_analytic_id.id or False,
                     'account_id': self.type in ('out_invoice', 'in_invoice') and (tax['account_id'] or line.account_id.id) or (tax['refund_account_id'] or line.account_id.id),
                 }
@@ -521,6 +525,7 @@ class AccountInvoice(models.Model):
                     tax_grouped[key] = val
                 else:
                     tax_grouped[key]['amount'] += val['amount']
+                    tax_grouped[key]['base'] += val['base']
         return tax_grouped
 
 class AccountInvoiceLine(models.Model):
@@ -644,12 +649,10 @@ class AccountInvoiceLine(models.Model):
     @api.v8
     def get_invoice_line_account(self, type, product, fpos, company):
         accounts = product.product_tmpl_id.get_product_accounts(fiscal_pos=fpos)
-
         if company.anglo_saxon_accounting and type in ('in_invoice', 'in_refund') and product and product.type in ('consu', 'product'):
             if type == 'in_invoice':
                 return accounts['stock_input']
             return accounts['stock_output']
-
         if type == 'out_invoice':
             return accounts['income']
         elif type == 'out_refund':
