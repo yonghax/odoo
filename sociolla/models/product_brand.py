@@ -13,3 +13,4 @@ class ProductBrand(models.Model):
         comodel_name='product.category',
         domain=[('type','=','normal'), ('parent_id','=',False)],
     )
+    active = fields.Boolean(string=u'Active', default=True,)
