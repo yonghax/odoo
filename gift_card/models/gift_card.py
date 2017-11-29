@@ -86,7 +86,7 @@ class gift_card(models.Model):
 
 	def _prepare_move_line(self, move, invoice, debit_account_id, credit_account_id):
 		debit_amount = self.amount
-
+		print 'debit_amount: ', debit_amount
 		invoice_lines = invoice.invoice_line_ids.filtered(lambda x: x.product_id.type == 'product')
 		credit_amount = sum([x.price_subtotal for x in invoice_lines])
 		balance_amount = debit_amount - credit_amount
@@ -102,6 +102,9 @@ class gift_card(models.Model):
         }
 
 		vals.append((0, 0, debit_line_vals))
+		
+		if credit_amount > debit_amount:
+			credit_amount = debit_amount
 
 		credit_line_vals = {
 			'ref': '%s - %s' % (invoice.origin, self.code),
@@ -113,7 +116,7 @@ class gift_card(models.Model):
         }
 		vals.append((0, 0, credit_line_vals))
 		
-		if balance_amount != 0:
+		if balance_amount > 0:
 			credit_line_vals = {
 				'ref': self.code,
 				'name': 'Income From Gift Card %s' % (self.code),

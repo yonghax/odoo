@@ -140,11 +140,6 @@ where ocl.id_order = %s
             gift_card = gift_card_obj.import_data_ps(row['id_cart_rule'])
             sale_order.gift_card_id = gift_card.id
 
-            if sale_order.gift_card_id and not sale_order.gift_card_id.is_voucher:
-                for line in sale_order.order_line:
-                    if len(line.tax_id) > 0:
-                        line.tax_id = [(5, line.tax_id.ids)]
-            
     def check_gwp_module(self, sale_order, prestashop_id):
         host = self.env['ir.config_parameter'].get_param('mysql.host')
         user = self.env['ir.config_parameter'].get_param('mysql.user')
