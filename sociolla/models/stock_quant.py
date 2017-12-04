@@ -103,9 +103,9 @@ class stock_quant(models.Model):
         if move.product_id.valuation != 'real_time':
             return False
         for q in quants:
-            if q.owner_id:
-                #if the quant isn't owned by the company, we don't make any valuation entry
-                return False
+            # if q.owner_id:
+            #     #if the quant isn't owned by the company, we don't make any valuation entry
+            #     return False
             if q.qty <= 0:
                 #we don't make any stock valuation for negative quants because the valuation is already made for the counterpart.
                 #At that time the valuation will be made at the product cost price and afterward there will be new accounting entries
@@ -114,7 +114,7 @@ class stock_quant(models.Model):
 
         #in case of routes making the link between several warehouse of the same company, the transit location belongs to this company, so we don't need to create accounting entries
         # Create Journal Entry for products arriving in the company
-        if company_to and (move.location_id.usage not in ('internal', 'transit') and move.location_dest_id.usage == 'internal' or company_from != company_to):
+        if company_to and (move.location_id.usage not in ('internal', 'transit') and move.location_dest_id.usage == 'internal' or company_from != company_to) and move.product_id.product_tmpl_id._get_purchase_type() != 'cons':
             ctx = context.copy()
             ctx['force_company'] = company_to.id
             journal_id, acc_src, acc_dest, acc_valuation = self._get_accounting_data_for_valuation(cr, uid, move, context=ctx)
@@ -129,7 +129,12 @@ class stock_quant(models.Model):
             journal_id, acc_src, acc_dest, acc_valuation = self._get_accounting_data_for_valuation(cr, uid, move, context=ctx)
 
             adj_account = move.product_id.property_account_inv_adjustment_out_id.id or move.product_id.categ_id.property_account_inv_adjustment_out_categ_id.id
-            self._create_account_move_line(cr, uid, quants, move, acc_valuation, adj_account, journal_id, context=ctx)
+            if move.product_id.product_tmpl_id._get_purchase_type() == 'cons':
+                credit_account_id = move.product_id.product_brand_id.partner_id.property_account_payable_id.id
+                debit_account_id = move.product_id.property_account_expense_id.id or move.product_id.categ_id.property_account_expense_categ_id.id
+                self._create_account_move_line(cr, uid, quants, move, credit_account_id, debit_account_id, journal_id, context=ctx)
+            else:
+                self._create_account_move_line(cr, uid, quants, move, acc_valuation, adj_account, journal_id, context=ctx)
 
     def _create_account_move_line(self, cr, uid, quants, move, credit_account_id, debit_account_id, journal_id, context=None):
         #group quants by cost
@@ -139,7 +144,11 @@ class stock_quant(models.Model):
             if quant_cost_qty.get(quant.cost):
                 quant_cost_qty[quant.cost] += quant.qty
             else:
-                quant_cost_qty[quant.cost] = quant.qty
+                cost = quant.cost
+                if cost == 0 and move.product_id.product_tmpl_id._get_purchase_type() == 'cons':
+                    cost = move.inventory_line_id.standard_price
+
+                quant_cost_qty[cost] = quant.qty
         move_obj = self.pool.get('account.move')
         for cost, qty in quant_cost_qty.items():
             move_lines = self._prepare_account_move_line(cr, uid, move, qty, cost, credit_account_id, debit_account_id, context=context)
@@ -152,3 +161,4 @@ class stock_quant(models.Model):
                 move_obj.post(cr, uid, [new_move], context=context)
                 if move.inventory_id:
                     move.inventory_id.write({'account_move_id': [(4, [new_move])]}) 
+                

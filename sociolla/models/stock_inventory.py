@@ -35,6 +35,7 @@ class stock_inventory(models.Model):
     state = fields.Selection(
         string=u'Status',
         selection=INVENTORY_STATE_SELECTION,
+        track_visibility='onchange',
         readonly=True, select=True, copy=False
     )
     is_switchover_stock = fields.Boolean(string='Switchover stock',)
@@ -147,6 +148,7 @@ class stock_inventory_line(models.Model):
                 self.total_cost = -self.total_cost
 
     def _get_quants(self):
+        print 'self.partner_id.id: ', self.partner_id.id
         return self.env['stock.quant'].search([
             ('company_id', '=', self.inventory_id.company_id.id),
             ('location_id', '=', self.location_id.id),
@@ -161,7 +163,7 @@ class stock_inventory_line(models.Model):
         if self.product_id:
             self.product_brand_id = self.product_id.product_tmpl_id.product_brand_id.id
 
-    @api.onchange('product_id')
+    @api.onchange('product_id', 'partner_id')
     def onchange_product(self):
         res = {}
         # If no UoM or incorrect UoM put default one from product
@@ -212,6 +214,7 @@ class stock_inventory_line(models.Model):
             'restrict_lot_id': inventory_line.prod_lot_id.id,
             'restrict_partner_id': inventory_line.partner_id.id,
             'is_switchover_stock': inventory_line.inventory_id.is_switchover_stock,
+            'inventory_line_id': inventory_line.id,
         }
         inventory_location_id = inventory_line.product_id.property_stock_inventory.id
 

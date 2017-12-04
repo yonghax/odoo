@@ -77,6 +77,45 @@ class PurchaseOrder(models.Model):
 
     @api.multi
     def button_approve(self):
+        for order in self:
+            is_valid = True
+            lines = []
+            for line in order.order_line:
+                if len(line._validate_order_line()) > 0:
+                    print '_validate_order_line', line._validate_order_line() 
+                    vals = {
+                        'purchase_order_line': line.id,
+                        'product_id': line.product_id.id,
+                        'msg_validation': line._validate_order_line()
+                    }
+                    is_valid = False
+                    lines.append((0, 0, vals))
+
+            if not is_valid:
+                vals = {
+                    'order_id' : order.id,
+                    'validator_lines': lines
+                }
+                wiz_id = self.env['purchase.validator.approval'].create(vals)
+                print 'wiz_id: ', wiz_id.id
+                view = self.env['ir.model.data'].xmlid_to_res_id('sociolla.purchase_order_validator_wizard')
+                print 'view: ', view
+
+                return {
+                     'name': _('Immediate Confirm Validate?'),
+                     'type': 'ir.actions.act_window',
+                     'view_type': 'form',
+                     'view_mode': 'form',
+                     'res_model': 'purchase.validator.approval',
+                     'views': [(view, 'form')],
+                     'view_id': view,
+                     'target': 'new',
+                     'res_id': wiz_id.id,
+                }
+
+            order.do_approve_po()
+
+    def do_approve_po(self):
         self.write({
             'state': 'purchase',
             'approved_uid': self.env.uid,
@@ -106,7 +145,7 @@ class PurchaseOrder(models.Model):
                     or (order.company_id.po_double_validation == 'two_step'\
                         and order.amount_total < self.env.user.company_id.currency_id.compute(order.company_id.po_double_validation_amount, order.currency_id))\
                     or order.user_has_groups('purchase.group_purchase_manager'):
-                order.button_approve()
+                return order.button_approve()
             else:
                 order.write({
                     'state': 'to approve', 
@@ -450,6 +489,11 @@ class PurchaseOrderLine(models.Model):
         if order.currency_id != order.company_id.currency_id:
             price_unit = order.currency_id.compute(price_unit, order.company_id.currency_id, round=False)
         return price_unit
+
+    def _validate_order_line(self):
+        if self.price_unit < 1:
+            return "Unit Price is 0"
+        return ""
 
 class AccountInvoice(models.Model):
     _inherit = 'account.invoice'

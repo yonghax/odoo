@@ -83,13 +83,6 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         # Confirm sale.order and validate inventory out
         sale_order.action_confirm()
 
-        for pick in sale_order.picking_ids:
-            pick.write({'state':'assigned'})
-            for pack in pick.pack_operation_ids:
-                pack.write({'qty_done':pack.product_qty})
-            
-            pick.do_new_transfer()
-
         # Create and validate direct account.invoice 
         filters = {'filter[id_order]': prestashop_id, 'filter[id_order_state]':'4'}
         order_history_adapter = self.unit_for(GenericAdapter, 'order.histories')
@@ -102,6 +95,14 @@ class SaleOrderImport(PrestashopImportSynchronizer):
 
         order_history = order_history_adapter.read(order_history_adapter.search(filters)[0])
         history_date = datetime.strptime(order_history['date_add'], DEFAULT_SERVER_DATETIME_FORMAT).strftime(DEFAULT_SERVER_DATE_FORMAT)
+        history_date_time = datetime.strptime(order_history['date_add'], DEFAULT_SERVER_DATETIME_FORMAT).strftime(DEFAULT_SERVER_DATETIME_FORMAT)
+        print 'history_date_time: ', history_date_time
+        for pick in sale_order.picking_ids:
+            pick.write({'state':'assigned', 'min_date': history_date_time})
+            for pack in pick.pack_operation_ids:
+                pack.write({'qty_done':pack.product_qty})
+            
+            pick.do_new_transfer()
 
         sale_order.create_account_invoice(history_date)
         for inv in sale_order.invoice_ids:
