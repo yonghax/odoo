@@ -5,3 +5,4 @@ import product
 import product_combination
 import sale
 import stock
+import product_brand

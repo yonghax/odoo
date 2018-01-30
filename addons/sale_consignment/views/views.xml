@@ -14,15 +14,17 @@
 	                        <field name="date_range_id" domain="[('company_id','=',company_id)]"/>
 	                        <field name="start_date"/>
 	                        <field name="end_date"/>
+                            <field name="product_brand_ids" options="{'no_create': True}"/>
+                            <field name="claim_support_promo"/>
 	                	</group>
 	                	<group>
 	                	</group>
                     </group>
-                    <label string="Filter by Brand" style="font-weight:bold"/>
-                    <field name="product_brand_ids" options="{'no_create': True}"/>
                 </div>
                 <footer>
                     <div>
+                        <button name="button_export_pdf" string="Export pdf" type="object"/>
+                        or
                         <button name="button_export_xlsx" string="Export xlsx" type="object"/>
                         or
                         <button string="Cancel" class="oe_link" special="cancel"/>

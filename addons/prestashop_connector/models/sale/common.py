@@ -12,6 +12,7 @@ from ...unit.import_synchronizer import PrestashopImportSynchronizer, BatchImpor
 from ...unit.backend_adapter import GenericAdapter
 from ...connector import get_environment
 
+import pytz
 import MySQLdb
 import MySQLdb.cursors as cursors
 
@@ -44,6 +45,49 @@ class OrderHistoryImport(BatchImportSynchronizer):
 class SaleOrderImport(PrestashopImportSynchronizer):
     _model_name = ['prestashop.sale.order']
 
+    fresh_record = False
+
+    def run(self, prestashop_id, force=False):
+        """ Run the synchronization
+
+        :param prestashop_id: identifier of the record on Prestashop
+        """
+        self.prestashop_id = prestashop_id
+        self.prestashop_record = self._get_prestashop_data()
+        self.fresh_record = False 
+
+        skip = self._has_to_skip()
+        if skip:
+            return skip
+
+        binding = self._get_binding()
+        
+        if not force and self._is_uptodate(binding):
+            return _('Already up-to-date.')
+        self._before_import()
+
+        # import the missing linked resources
+        self._import_dependencies()
+
+        map_record = self._map_data()
+
+        if binding:
+            self.fresh_record = False
+            if self.prestashop_record['current_state'] == '7':
+                prestashop_sale_order = binding
+                prestashop_sale_order.write({'current_state': self.prestashop_record['current_state']})
+            else:
+                record = self._update_data(map_record)
+                self._update(binding, record)
+        else:
+            record = self._create_data(map_record)
+            binding = self._create(record)
+            self.fresh_record = True
+
+        self.binder.bind(self.prestashop_id, binding)
+
+        self._after_import(binding)
+
     def _import_dependencies(self):
         record = self.prestashop_record
         
@@ -71,45 +115,123 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         sale_order = erp_id.openerp_id
         prestashop_id = erp_id.prestashop_id
 
-        if sale_order.amount_total <= self.backend_record.ship_free_order_amount:
-            self.add_shipping_cost(sale_order, prestashop_id)
-        
-        self.check_gwp_module(sale_order, prestashop_id)
-        self.work_with_product_bundle(sale_order, prestashop_id)
-        self.calculate_discount_proportional(sale_order)
-        sale_order.recompute()
-
-        # Confirm sale.order and validate inventory out
-        sale_order.action_confirm()
-
-        for pick in sale_order.picking_ids:
-            pick.write({'state':'assigned'})
-            for pack in pick.pack_operation_ids:
-                pack.write({'qty_done':pack.product_qty})
+        if self.fresh_record:
+            if erp_id.total_shipping_tax_excluded > 0:
+                self.add_shipping_cost(sale_order, prestashop_id)
             
-            pick.do_new_transfer()
+            self.check_gwp_module(sale_order, prestashop_id)
+            self.check_order_cart_rule(sale_order, prestashop_id)
+            self.work_with_product_bundle(sale_order, prestashop_id)
+            self.calculate_discount_proportional(sale_order)
+            sale_order.recompute()
 
-        # Create and validate direct account.invoice 
-        filters = {'filter[id_order]': prestashop_id, 'filter[id_order_state]':'4'}
-        order_history_adapter = self.unit_for(GenericAdapter, 'order.histories')
+            # Confirm sale.order and validate inventory out
+            sale_order.action_confirm()
 
-        if len(order_history_adapter.search(filters)) < 1:
-            filters = {'filter[id_order]': prestashop_id, 'filter[id_order_state]':'5'}
+            # Create and validate direct account.invoice 
+            filters = {'filter[id_order]': prestashop_id, 'filter[id_order_state]':'4'}
+            order_history_adapter = self.unit_for(GenericAdapter, 'order.histories')
 
-        if len(order_history_adapter.search(filters)) < 1:
-            raise UserError(('Status order not yet shipped nor deliver'))
+            if len(order_history_adapter.search(filters)) < 1:
+                filters = {'filter[id_order]': prestashop_id, 'filter[id_order_state]':'5'}
 
-        order_history = order_history_adapter.read(order_history_adapter.search(filters)[0])
-        history_date = datetime.strptime(order_history['date_add'], DEFAULT_SERVER_DATETIME_FORMAT).strftime(DEFAULT_SERVER_DATE_FORMAT)
+            if len(order_history_adapter.search(filters)) < 1:
+                raise UserError(('Status order not yet shipped nor deliver'))
 
-        sale_order.create_account_invoice(history_date)
-        if sale_order.invoice_status == 'invoiced':
+            tz = self.env.user.partner_id.tz
+            order_history = order_history_adapter.read(order_history_adapter.search(filters)[0])
+            history_date = datetime.strptime(order_history['date_add'], DEFAULT_SERVER_DATETIME_FORMAT).strftime(DEFAULT_SERVER_DATE_FORMAT)
+            history_date_time = pytz.timezone(tz).localize(datetime.strptime(order_history['date_add'], DEFAULT_SERVER_DATETIME_FORMAT)).astimezone(pytz.utc).strftime(DEFAULT_SERVER_DATETIME_FORMAT)
+            
+            for pick in sale_order.picking_ids: 
+                pick.write({'state':'assigned', 'min_date': history_date_time})
+                for pack in pick.pack_operation_ids:
+                    pack.write({'qty_done':pack.product_qty})
+                
+                pick.do_new_transfer()
+                if pick.move_lines:
+                    for move in pick.move_lines:
+                        val_update = {}
+                        val_update['source_date'] = sale_order.date_order
+                        if move.procurement_id and move.procurement_id.sale_line_id and move.procurement_id.sale_line_id.is_gwp_free:
+                            val_update['is_gwp_free'] = move.procurement_id.sale_line_id.is_gwp_free
+                        move.write(val_update)
+
+
+            sale_order.create_account_invoice(history_date)
             for inv in sale_order.invoice_ids:
                 inv.action_move_create()
                 inv.signal_workflow('invoice_open')
+                if sale_order.gift_card_id and not sale_order.gift_card_id.is_voucher:
+                    sale_order.gift_card_id.create_reclass_journal(inv)
+
+        if erp_id.current_state == '7':
+            self.process_refund_order(erp_id, sale_order)
 
         return True
+
+    def process_refund_order(self, erp_id, sale_order):
+        # Create return picking
+        print 'Create return picking'
+        StockReturnPicking = self.env['stock.return.picking']
+        default_data = StockReturnPicking.with_context(active_ids=sale_order.picking_ids.ids, active_id=sale_order.picking_ids.ids).default_get(['move_dest_exists', 'original_location_id', 'product_return_moves', 'parent_location_id', 'location_id'])
+        return_wiz = StockReturnPicking.with_context(active_ids=sale_order.picking_ids.ids, active_id=sale_order.picking_ids.ids).create(default_data)
+        res = return_wiz.create_returns()
+        return_pick = self.env['stock.picking'].browse(res['res_id'])
+        print 'Reverse created id: ', return_pick.id
+
+        print 'Create return invoice'
+        invoice_ids = sale_order.mapped('invoice_ids')
+        for invoice_id in invoice_ids:
+            ctx = dict(invoice_id._context)
+            ctx['active_ids'] = invoice_id.id
+            invoice_refund_obj = self.env['account.invoice.refund'].with_context(ctx)
+            account_invoice_refund_0 = invoice_refund_obj.create(dict(
+                description='Refund on Prestashop',
+                date=datetime.today(),
+                filter_refund='refund',
+            ))
+
+            # I clicked on refund button.
+            res = account_invoice_refund_0.invoice_refund()
+            domain = res['domain']
+            created_invs = self.env['account.invoice'].search(domain)
+            for inv in created_invs:
+                inv.write({'origin': invoice_id.origin + '-' + invoice_id.number})
+                inv.action_move_create()
+                inv.signal_workflow('invoice_open')
+        
+        return True
+
+    def check_order_cart_rule(self, sale_order, prestashop_id):
+        gift_card_obj = self.env['gift.card']
+        move_obj = self.env['account.move.line']
+
+        host = self.env['ir.config_parameter'].get_param('mysql.host')
+        user = self.env['ir.config_parameter'].get_param('mysql.user')
+        passwd = self.env['ir.config_parameter'].get_param('mysql.passwd')
+        dbname = self.env['ir.config_parameter'].get_param('mysql.dbname')
+
+        db = MySQLdb.connect(host, user, passwd, dbname, cursorclass=MySQLdb.cursors.DictCursor)
+        cur = db.cursor()
     
+        query = """
+select ocl.id_cart_rule
+from ps_order_cart_rule ocl 
+inner join ps_cart_rule cr on ocl.id_cart_rule = cr.id_cart_rule and cr.active = 1
+where ocl.id_order = %s 
+        """ % prestashop_id 
+
+        cur.execute(query)
+        rows = cur.fetchall()
+        cur.close()
+        db.close()
+
+        for row in rows:
+            gift_card = gift_card_obj.search([('prestashop_id', '=', row['id_cart_rule'])])
+            gift_card = gift_card_obj.import_data_ps(row['id_cart_rule'])
+            sale_order.gift_card_id = gift_card.id
+
     def check_gwp_module(self, sale_order, prestashop_id):
         host = self.env['ir.config_parameter'].get_param('mysql.host')
         user = self.env['ir.config_parameter'].get_param('mysql.user')
@@ -117,6 +239,7 @@ class SaleOrderImport(PrestashopImportSynchronizer):
         dbname = self.env['ir.config_parameter'].get_param('mysql.dbname')
 
         ps_prd_tmpl_obj  = self.env['prestashop.product.template']
+        ps_prd_cmb_obj  = self.env['prestashop.product.combination']
 
         db = MySQLdb.connect(host, user, passwd, dbname, cursorclass=MySQLdb.cursors.DictCursor)
         cur = db.cursor()
@@ -135,12 +258,21 @@ where o.id_order = %s and gwpo.free_product <> 0 limit 1
         db.close()
 
         for row in rows:
-            id_products = row['free_product'].split(',')
+            for id_products in row['free_product'].split(','):
+                if len(id_products) > 1:
+                    id_product = id_products.split('|')[0]
+                    id_attribute = 0
+                    if len(id_products.split('|')) > 1:
+                        id_attribute = id_products.split('|')[1]
 
-            for id_product in id_products:
-                ps_product = ps_prd_tmpl_obj.search([('prestashop_id', '=', id_product)])
-                if ps_product and ps_product.openerp_id:
-                    product = ps_product.openerp_id.product_variant_ids[0]
+                    if id_attribute != 0 and id_attribute != "0":
+                        ps_product_attribute = ps_prd_cmb_obj.search([('prestashop_id', '=', id_attribute)])
+                        product = ps_product_attribute.openerp_id
+                    else:
+                        ps_product = ps_prd_tmpl_obj.search([('prestashop_id', '=', id_product)])
+                        if ps_product and ps_product.openerp_id:
+                            product = ps_product.openerp_id.product_variant_ids[0]
+
                     line = sale_order.order_line[0]
                     vals = {
                         'price_unit': 0,
@@ -166,7 +298,7 @@ where o.id_order = %s and gwpo.free_product <> 0 limit 1
     def add_shipping_cost(self, sale_order, prestashop_id):
         order_adapter = self.unit_for(GenericAdapter, 'prestashop.sale.order')
         ps_order = order_adapter.read(prestashop_id)
-        total_shipping_amount = Decimal(ps_order['total_shipping']) if Decimal(ps_order['total_shipping']) > 0.0 else Decimal(ps_order['total_paid']) - Decimal(sale_order.amount_total)
+        total_shipping_amount = Decimal(ps_order['total_shipping'])
 
         vals = {
             'sequence': 9999999,
@@ -275,12 +407,12 @@ select op.id_cart, o.id_order, o.date_add, o.reference as reference_order, o.cur
             if len(bundles) < 1:
                 bundles = line.product_id.product_tmpl_id.product_bundles
 
-            sum_bundle_unit_price = sum([x['qty'] * x['product_id'].list_price for x in bundles]) * line.product_uom_qty
+            sum_bundle_unit_price = sum([x['qty'] * (x['product_id'].sale_price or x['product_id'].list_price)  for x in bundles]) * line.product_uom_qty
 
             for product_bundle in bundles:
                 product = product_bundle['product_id']
                 qty = product_bundle['qty'] * line.product_uom_qty
-                unit_price = product.list_price
+                unit_price = product.sale_price or product.list_price
                 sub_total = qty * unit_price
                 if sub_total != 0:
                     final_price = round((sub_total / sum_bundle_unit_price) * line.price_total)
@@ -334,13 +466,17 @@ select op.id_cart, o.id_order, o.date_add, o.reference as reference_order, o.cur
     def calculate_discount_proportional(self, sale_order): 
         """ Delete order line with product discount. and the amount will be split average per order line.
         """
+        if sale_order.gift_card_id and not sale_order.gift_card_id.is_voucher:
+            return
+
         order_lines = sale_order.order_line
-        order_discounts = order_lines.filtered(lambda x: x.product_id == self.backend_record.discount_product_id)
+        order_discounts = order_lines.filtered(lambda x: x.product_id.id == self.backend_record.discount_product_id.id)
         order_products = order_lines.filtered(lambda x: x.product_id != self.backend_record.discount_product_id and x.product_id.type == 'product')
         order_products = sorted(order_products, key=lambda x : x.price_total, reverse=True)
-        
-        sum_discount_amount = sum([x.price_unit for x in order_discounts])
+
+        sum_discount_amount = float(self.prestashop_record['total_discounts'])
         sum_total_amount_header = sum([x.price_total for x in order_products])
+        
         if sum_discount_amount > 0:
             for i in xrange(0, len(order_products)):
                 total_amount = order_products[i].price_total
@@ -349,8 +485,6 @@ select op.id_cart, o.id_order, o.date_add, o.reference as reference_order, o.cur
                      discount_header_amount = total_amount
 
                 order_products[i]._compute_proportional_amount(discount_header_amount)
-        
-            order_discounts.unlink()
 
         sale_order.discount_amount = sum_discount_amount
         sale_order.update({
@@ -371,10 +505,20 @@ select op.id_cart, o.id_order, o.date_add, o.reference as reference_order, o.cur
 
     def _has_to_skip(self):
         """ Return True if the import can be skipped """
-        if self._get_openerp_id():
+        if self.prestashop_record['current_state'] not in ['4','5','7']:
             return True
-    #     rules = self.unit_for(SaleImportRule)
-    #     return rules.check(self.prestashop_record)
+        elif self.prestashop_record['current_state']  == '7' and not self._get_openerp_id():
+            # Create and validate direct account.invoice 
+            filters = {'filter[id_order]': self.prestashop_record['id'], 'filter[id_order_state]':'4'}
+            order_history_adapter = self.unit_for(GenericAdapter, 'order.histories')
+
+            if len(order_history_adapter.search(filters)) < 1:
+                raise UserError(('Cannot refund order cause old status not yet shipped'))
+            
+        elif self.prestashop_record['current_state']  != '7' and self._get_openerp_id():
+            return True
+
+        return False
 
 @prestashop
 class SaleOrderLineRecordImport(PrestashopImportSynchronizer):

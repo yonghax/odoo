@@ -26,35 +26,35 @@ class stock_move(models.Model):
 
     def scheduler_push_qty(self, cr, uid, domain=None, context=None):
         ps_backend_obj = self.pool.get('prestashop.backend')
-        ps_backends = ps_backend_obj.browse(
-            cr,
-            uid, 
-            [1], 
-            context=context
-        )
-        for ps_backend in ps_backends:
-            if ps_backend and ps_backend.export_qty_since:
-                move_obj = self.pool.get('stock.move')
-                moves = move_obj.browse(
-                    cr,
-                    uid,
-                    move_obj.search(
-                        cr,
-                        uid,
-                        [('date', '>=', ps_backend.export_qty_since), ('state', '=', 'done'), ('location_dest_id', '!=', 9)]
-                    )
-                )
+        # ps_backends = ps_backend_obj.browse(
+        #     cr,
+        #     uid, 
+        #     [1], 
+        #     context=context
+        # )
+        # for ps_backend in ps_backends:
+        #     if ps_backend and ps_backend.export_qty_since:
+        #         move_obj = self.pool.get('stock.move')
+        #         moves = move_obj.browse(
+        #             cr,
+        #             uid,
+        #             move_obj.search(
+        #                 cr,
+        #                 uid,
+        #                 [('date', '>=', ps_backend.export_qty_since), ('state', '=', 'done'), ('location_dest_id', '!=', 9)]
+        #             )
+        #         )
 
-                for move in moves:
-                    ps_backend.update_product_stock_qty(context=context, product=move.product_id)
+        #         for move in moves:
+        #             ps_backend.update_product_stock_qty(context=context, product=move.product_id)
          
-            ps_backend_obj.write(
-                cr,
-                uid,
-                ps_backend.id,
-                {'import_partners_since': datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)},
-                context=context
-            )
+        #     ps_backend_obj.write(
+        #         cr,
+        #         uid,
+        #         ps_backend.id,
+        #         {'import_partners_since': datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT)},
+        #         context=context
+        #     )
 
 
 class stock_quant(models.Model):

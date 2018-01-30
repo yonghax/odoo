@@ -31,6 +31,7 @@ class TemplateRecordImport(TranslatableRecordImport):
 
     is_product_switchover = False
     product_maps = False
+    new_record = False
 
     def run(self, prestashop_id, force=False):
         """ Run the synchronization
@@ -67,9 +68,19 @@ class TemplateRecordImport(TranslatableRecordImport):
                 erp_id
             )
 
+        binding = self._get_binding()
+
+        if binding:
+            self.new_record = False
+        else:
+            self.new_record = True
+
         self.binder.bind(self.prestashop_id, erp_id)
 
         self._after_import(erp_id)
+
+    def _has_to_skip(self):
+        return self.prestashop_record['id'] in self.backend_record.restrict_product_ids.split(',')
 
     def _before_import(self):
         record = self.prestashop_record
@@ -90,35 +101,13 @@ class TemplateRecordImport(TranslatableRecordImport):
             self.prestashop_record['switchover_product_mapping'] = False
 
     def _import_dependencies(self):
-        self._import_product_brand()
-
-    def _import_product_brand(self):
         record = self.prestashop_record
-        
-        if self.product_maps and self.is_product_switchover:
-            self.prestashop_record['product_brand_id'] = self.product_maps.product_tmpl_id.product_brand_id.id
-            self.prestashop_record['categ_id'] = self.product_maps.product_tmpl_id.categ_id.id
-            return
+        self._check_dependency(record['id_manufacturer'],'prestashop.product.brand')
 
-        manufacturer_name = record['manufacturer_name']['value']
-        if not manufacturer_name:
-            backend_adapter = self.unit_for(GenericAdapter,'prestashop.product.brand')
-            option_value = backend_adapter.read(record['id_manufacturer'])
-            manufacturer_name = option_value['name']
-
-            # self.prestashop_record['product_brand_id'] = False
-            # return
-        
-        brand = self.env['product.brand'].search([('name','=',manufacturer_name.strip())])
-
-        if not brand:
-            brand_set = {
-                'name': manufacturer_name.strip(),
-            }
-            brand = self.env['product.brand'].with_context(self.session.context).create(brand_set)
-        
-        self.prestashop_record['product_brand_id'] = brand.id
-        self.prestashop_record['product_purchase_type'] = brand.purchase_type
+        ps_brand_id = self.env['prestashop.product.brand'].search([('prestashop_id', '=', record['id_manufacturer'])])
+        if ps_brand_id:
+            self.prestashop_record['product_brand_id'] = ps_brand_id.openerp_id.id
+            self.prestashop_record['product_purchase_type'] = ps_brand_id.openerp_id.purchase_type
 
     def _after_import(self, erp_id):
         self.import_combinations()
@@ -156,11 +145,13 @@ class TemplateRecordImport(TranslatableRecordImport):
             280, # Sample-2
         ]
 
-
-        if template.product_variant_count != 1:
-            for product in template.product_variant_ids:
-                if template.product_purchase_type == '' or not template.product_purchase_type:
+        if template.product_brand_id.business_type == 'b2c' and self.new_record:
+            if template.product_variant_count != 1:
+                for product in template.product_variant_ids:
                     code = product.default_code
+                    if not template.product_purchase_type or template.product_purchase_type == '':
+                        template.write({'product_purchase_type': template.product_brand_id.purchase_type})
+
                     if code: 
                         id_category_default = int(self.prestashop_record['id_category_default'])
                         categ_adapter = self.unit_for(BackendAdapter,'prestashop.product.category')
@@ -168,7 +159,6 @@ class TemplateRecordImport(TranslatableRecordImport):
                         for categ_id in categ_ids:
                             categ = categ_adapter.read(categ_id)
                             categ_name = categ['name']['language']['value']
-                            
                             if categ_name.lower() == 'special price':
                                 pass
                             else:
@@ -177,13 +167,12 @@ class TemplateRecordImport(TranslatableRecordImport):
                                     sample = categ_obj.search([('name', '=', 'Sample')])
 
                                     if sample:
-                                        template.write({'categ_id': sample.id, 'product_purchase_type': template.product_brand_id.purchase_type})
+                                        template.write({'categ_id': sample.id})
                                     else:
-                                        template.write({'categ_id': 2, 'product_purchase_type': template.product_brand_id.purchase_type})
+                                        template.write({'categ_id': 2})
                                 else:
                                     strSplittedDash = code.split('-')
                                     strSplitted = strSplittedDash[0].split('.')
-
                                     if len(strSplitted) > 1:
                                         try:
                                             categ = categ_obj.search(
@@ -194,16 +183,16 @@ class TemplateRecordImport(TranslatableRecordImport):
                                             )
 
                                             if categ:
-                                                template.write({'categ_id': categ.id, 'product_purchase_type': template.product_brand_id.purchase_type})
+                                                template.write({'categ_id': categ.id})
                                             else:
-                                                template.write({'categ_id': 2, 'product_purchase_type': template.product_brand_id.purchase_type})
+                                                template.write({'categ_id': 2})
                                         except:
-                                            template.write({'categ_id': 2, 'product_purchase_type': template.product_brand_id.purchase_type})
+                                            template.write({'categ_id': 2})
                                     else:
-                                        template.write({'categ_id': 2, 'product_purchase_type': template.product_brand_id.purchase_type})
+                                        template.write({'categ_id': 2})
 
-                if len(product.attribute_value_ids) < 1:
-                    product.unlink()
+                    if len(product.attribute_value_ids) < 1:
+                        product.unlink()
 
     def attribute_line(self, erp_id):
         _logger.debug("GET ATTRIBUTES LINE")

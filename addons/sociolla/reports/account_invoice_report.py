@@ -35,7 +35,7 @@ class AccountInvoiceReport(models.Model):
     def _select(self):
         select_str = super(AccountInvoiceReport,self)._select()
         select_str += """
-                , sub.discount_amount, sub.discount_header_amount, sub.brand_name, sub.price_total as revenue_amount, (sub.price_total + sub.discount_amount + sub.discount_header_amount) as gmv_amount, sub.cogs_amount as cogs_amount
+                , sub.discount_amount, sub.discount_header_amount, sub.brand_name, sub.price_total as revenue_amount, (sub.price_total + sub.discount_amount + sub.discount_header_amount) as gmv_amount, coalesce(cogs_tbl.price_unit,0) as cogs_amount
         """
         return select_str
 
@@ -66,8 +66,7 @@ class AccountInvoiceReport(models.Model):
                             ELSE 1
                         END
                 ) AS discount_header_amount, 
-                pb.name as brand_name,
-                AVG(ABS(COALESCE(sh.price_unit_on_quant,0))) AS cogs_amount
+                pb.name as brand_name
         """
         return select_str 
 
@@ -93,6 +92,7 @@ class AccountInvoiceReport(models.Model):
     def init(self, cr):
         # self._table = account_invoice_report
         tools.drop_view_if_exists(cr, self._table)
+
         cr.execute("""CREATE or REPLACE VIEW %s as (
             WITH currency_rate AS (%s)
             %s
@@ -104,6 +104,14 @@ class AccountInvoiceReport(models.Model):
                  cr.company_id = sub.company_id AND
                  cr.date_start <= COALESCE(sub.date, NOW()) AND
                  (cr.date_end IS NULL OR cr.date_end > COALESCE(sub.date, NOW())))
+            LEFT JOIN (
+                select sol_ai.invoice_line_id, sm.price_unit
+                    from procurement_order proc
+                    inner join procurement_group proc_group on proc.group_id = proc_group.id
+                    inner join sale_order_line sol on sol.id = proc.sale_line_id
+                    inner join sale_order_line_invoice_rel sol_ai on sol_ai.order_line_id = sol.id
+                    inner join stock_move sm on sm.procurement_id = proc.id and sm.state = 'done'
+            ) cogs_tbl on cogs_tbl.invoice_line_id = sub.id
         )""" % (
                     self._table, self.pool['res.currency']._select_companies_rates(),
                     self._select(), self._sub_select(), self._from(), self._where(), self._group_by()))

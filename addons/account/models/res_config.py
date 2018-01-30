@@ -144,83 +144,83 @@ class AccountConfigSettings(models.TransientModel):
         return bool(count == 1)
 
 
-    @api.onchange('company_id')
-    def onchange_company_id(self):
-        # update related fields
-        self.currency_id = False
-        if self.company_id:
-            company = self.company_id
-            self.chart_template_id = company.chart_template_id
-            self.has_chart_of_accounts = len(company.chart_template_id) > 0 or False
-            self.expects_chart_of_accounts = company.expects_chart_of_accounts
-            self.currency_id = company.currency_id
-            self.transfer_account_id = company.transfer_account_id
-            self.paypal_account = company.paypal_account
-            self.company_footer = company.rml_footer
-            self.tax_calculation_rounding_method = company.tax_calculation_rounding_method
-            self.bank_account_code_prefix = company.bank_account_code_prefix
-            self.cash_account_code_prefix = company.cash_account_code_prefix
-            self.code_digits = company.accounts_code_digits
+        @api.onchange('company_id')
+        def onchange_company_id(self):
+            # update related fields
+            self.currency_id = False
+            if self.company_id:
+                company = self.company_id
+                self.chart_template_id = company.chart_template_id
+                self.has_chart_of_accounts = len(company.chart_template_id) > 0 or False
+                self.expects_chart_of_accounts = company.expects_chart_of_accounts
+                self.currency_id = company.currency_id
+                self.transfer_account_id = company.transfer_account_id
+                self.paypal_account = company.paypal_account
+                self.company_footer = company.rml_footer
+                self.tax_calculation_rounding_method = company.tax_calculation_rounding_method
+                self.bank_account_code_prefix = company.bank_account_code_prefix
+                self.cash_account_code_prefix = company.cash_account_code_prefix
+                self.code_digits = company.accounts_code_digits
 
-            # update taxes
-            ir_values = self.env['ir.values']
-            taxes_id = ir_values.get_default('product.template', 'taxes_id', company_id = self.company_id.id)
-            supplier_taxes_id = ir_values.get_default('product.template', 'supplier_taxes_id', company_id = self.company_id.id)
-            self.default_sale_tax_id = isinstance(taxes_id, list) and len(taxes_id) > 0 and taxes_id[0] or taxes_id
-            self.default_purchase_tax_id = isinstance(supplier_taxes_id, list) and len(supplier_taxes_id) > 0 and supplier_taxes_id[0] or supplier_taxes_id
-        return {}
+                # update taxes
+                ir_values = self.env['ir.values']
+                taxes_id = ir_values.get_default('product.template', 'taxes_id', company_id = self.company_id.id)
+                supplier_taxes_id = ir_values.get_default('product.template', 'supplier_taxes_id', company_id = self.company_id.id)
+                self.default_sale_tax_id = isinstance(taxes_id, list) and len(taxes_id) > 0 and taxes_id[0] or taxes_id
+                self.default_purchase_tax_id = isinstance(supplier_taxes_id, list) and len(supplier_taxes_id) > 0 and supplier_taxes_id[0] or supplier_taxes_id
+            return {}
 
-    @api.onchange('chart_template_id')
-    def onchange_chart_template_id(self):
-        tax_templ_obj = self.env['account.tax.template']
-        self.complete_tax_set = self.sale_tax_id = self.purchase_tax_id = False
-        self.sale_tax_rate = self.purchase_tax_rate = 15
-        if self.chart_template_id and not self.has_chart_of_accounts:
-            # update complete_tax_set, sale_tax_id and purchase_tax_id
-            self.complete_tax_set = self.chart_template_id.complete_tax_set
-            if self.chart_template_id.complete_tax_set:
-                ir_values_obj = self.env['ir.values']
-                # default tax is given by the lowest sequence. For same sequence we will take the latest created as it will be the case for tax created while isntalling the generic chart of account
-                sale_tax = tax_templ_obj.search(
-                    [('chart_template_id', 'parent_of', self.chart_template_id.id), ('type_tax_use', '=', 'sale')], limit=1,
-                    order="sequence, id desc")
-                purchase_tax = tax_templ_obj.search(
-                    [('chart_template_id', 'parent_of', self.chart_template_id.id), ('type_tax_use', '=', 'purchase')], limit=1,
-                    order="sequence, id desc")
-                self.sale_tax_id = sale_tax
-                self.purchase_tax_id = purchase_tax
-            if self.chart_template_id.code_digits:
-                self.code_digits = self.chart_template_id.code_digits
-            if self.chart_template_id.transfer_account_id:
-                self.template_transfer_account_id = self.chart_template_id.transfer_account_id.id
-            if self.chart_template_id.bank_account_code_prefix:
-                self.bank_account_code_prefix = self.chart_template_id.bank_account_code_prefix
-            if self.chart_template_id.cash_account_code_prefix:
-                self.cash_account_code_prefix = self.chart_template_id.cash_account_code_prefix
-        return {}
+        @api.onchange('chart_template_id')
+        def onchange_chart_template_id(self):
+            tax_templ_obj = self.env['account.tax.template']
+            self.complete_tax_set = self.sale_tax_id = self.purchase_tax_id = False
+            self.sale_tax_rate = self.purchase_tax_rate = 15
+            if self.chart_template_id and not self.has_chart_of_accounts:
+                # update complete_tax_set, sale_tax_id and purchase_tax_id
+                self.complete_tax_set = self.chart_template_id.complete_tax_set
+                if self.chart_template_id.complete_tax_set:
+                    ir_values_obj = self.env['ir.values']
+                    # default tax is given by the lowest sequence. For same sequence we will take the latest created as it will be the case for tax created while isntalling the generic chart of account
+                    sale_tax = tax_templ_obj.search(
+                        [('chart_template_id', 'parent_of', self.chart_template_id.id), ('type_tax_use', '=', 'sale')], limit=1,
+                        order="sequence, id desc")
+                    purchase_tax = tax_templ_obj.search(
+                        [('chart_template_id', 'parent_of', self.chart_template_id.id), ('type_tax_use', '=', 'purchase')], limit=1,
+                        order="sequence, id desc")
+                    self.sale_tax_id = sale_tax
+                    self.purchase_tax_id = purchase_tax
+                if self.chart_template_id.code_digits:
+                    self.code_digits = self.chart_template_id.code_digits
+                if self.chart_template_id.transfer_account_id:
+                    self.template_transfer_account_id = self.chart_template_id.transfer_account_id.id
+                if self.chart_template_id.bank_account_code_prefix:
+                    self.bank_account_code_prefix = self.chart_template_id.bank_account_code_prefix
+                if self.chart_template_id.cash_account_code_prefix:
+                    self.cash_account_code_prefix = self.chart_template_id.cash_account_code_prefix
+            return {}
 
-    @api.onchange('sale_tax_rate')
-    def onchange_tax_rate(self):
-        self.purchase_tax_rate = self.sale_tax_rate or False
+        @api.onchange('sale_tax_rate')
+        def onchange_tax_rate(self):
+            self.purchase_tax_rate = self.sale_tax_rate or False
 
-    @api.multi
-    def set_group_multi_currency(self):
-        ir_model = self.env['ir.model.data']
-        group_user = ir_model.get_object('base', 'group_user')
-        group_product = ir_model.get_object('product', 'group_sale_pricelist')
-        if self.group_multi_currency:
-            group_user.write({'implied_ids': [(4, group_product.id)]})
-        return True
+        @api.multi
+        def set_group_multi_currency(self):
+            ir_model = self.env['ir.model.data']
+            group_user = ir_model.get_object('base', 'group_user')
+            group_product = ir_model.get_object('product', 'group_sale_pricelist')
+            if self.group_multi_currency:
+                group_user.write({'implied_ids': [(4, group_product.id)]})
+            return True
 
-    @api.multi
-    def open_bank_accounts(self):
-        action_rec = self.env['ir.model.data'].xmlid_to_object('account.action_account_bank_journal_form')
-        return action_rec.read([])[0]
+        @api.multi
+        def open_bank_accounts(self):
+            action_rec = self.env['ir.model.data'].xmlid_to_object('account.action_account_bank_journal_form')
+            return action_rec.read([])[0]
 
-    @api.multi
-    def set_transfer_account(self):
-        if self.transfer_account_id and self.transfer_account_id != self.company_id.transfer_account_id:
-            self.company_id.write({'transfer_account_id': self.transfer_account_id.id})
+        @api.multi
+        def set_transfer_account(self):
+            if self.transfer_account_id and self.transfer_account_id != self.company_id.transfer_account_id:
+                self.company_id.write({'transfer_account_id': self.transfer_account_id.id})
 
     @api.multi
     def set_product_taxes(self):

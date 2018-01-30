@@ -20,6 +20,7 @@ class SaleOrderMapper(PrestashopImportMapper):
         ('total_paid', 'total_amount'),
         ('total_shipping_tax_incl', 'total_shipping_tax_included'),
         ('total_shipping_tax_excl', 'total_shipping_tax_excluded'),
+        ('current_state', 'current_state'),
     ]
 
     def _get_sale_order_lines(self, record):
@@ -48,10 +49,6 @@ class SaleOrderMapper(PrestashopImportMapper):
             _get_sale_order_lines,
             'prestashop_order_line_ids',
             'prestashop.sale.order.line'
-        ),
-        (   _get_discounts_lines,
-            'prestashop_discount_line_ids',
-            'prestashop.sale.order.line.discount'
         )
     ]
 
@@ -99,7 +96,9 @@ class SaleOrderMapper(PrestashopImportMapper):
     @mapping
     def date_order(self, record):
         date_order = datetime.strptime(record['date_add'], DEFAULT_SERVER_DATETIME_FORMAT)
-        return {'date_order': pytz.timezone('Asia/Jakarta').localize(date_order).astimezone(pytz.utc)}
+        return {
+            'date_order': pytz.timezone('Asia/Jakarta').localize(date_order).astimezone(pytz.utc),
+        }
 
     @mapping
     def name(self, record):
@@ -222,7 +221,7 @@ class SaleOrderMapper(PrestashopImportMapper):
             result = sess.pool['sale.order']._convert_special_fields(
                 sess.cr,
                 sess.uid,
-                result,
+                result, 
                 order_line_ids,
                 sess.context
             )
@@ -266,7 +265,7 @@ class SaleOrderLineMapper(PrestashopImportMapper):
     @mapping
     def discount_amount(self, record):
         qty = int(record['product_quantity'])
-        price_unit = Decimal(record['original_product_price'])
+        price_unit = Decimal(record['product_price'])
         final_price = Decimal(record['unit_price_tax_incl']) 
         price_undiscounted = qty * price_unit
         
@@ -298,7 +297,7 @@ class SaleOrderLineMapper(PrestashopImportMapper):
         #    price_unit = price / ((100 - reduction) / 100)
         #else:
         #    price_unit = record[key]
-        price_unit = Decimal(record['original_product_price'])
+        price_unit = Decimal(record['product_price'])
         final_price = Decimal(record['unit_price_tax_incl'])
 
         if final_price > price_unit:

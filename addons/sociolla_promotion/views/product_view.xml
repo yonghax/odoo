@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+        <record id="master_product_promotion_inherit" model="ir.ui.view">
+            <field name="name">master.product.promotion</field>
+            <field name="model">product.product</field>
+            <field name="inherit_id" ref="product.product_variant_easy_edit_view"/>
+            <field name="arch" type="xml">
+                <field name="active" position="after">
+                    <field name="bogo_promo"/>
+                </field>
+            </field>
+        </record>
+    </data>
+</openerp>

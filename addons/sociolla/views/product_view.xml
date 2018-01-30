@@ -91,6 +91,18 @@
       </field>
     </record>
 
+    <record id="product_template_account_form_view" model="ir.ui.view">
+      <field name="name">product.template.stock.account.form.inherit</field>
+      <field name="model">product.template</field>
+      <field name="inherit_id" ref="stock_account.view_template_property_form"/>
+      <field name="arch" type="xml">
+        <field name="property_account_income_id" position="after">
+          <field name="property_account_inv_adjustment_in_id" domain="[('internal_type','=','other'),('deprecated', '=', False)]" groups="account.group_account_user"/>
+          <field name="property_account_inv_adjustment_out_id" domain="[('internal_type','=','other'),('deprecated', '=', False)]" groups="account.group_account_user"/>
+        </field>
+      </field>
+    </record>
+
     <record id="view_category_property_form" model="ir.ui.view">
       <field name="name">product.category.stock.property.form.inherit</field>
       <field name="model">product.category</field>
@@ -104,6 +116,20 @@
             <field name="property_account_sales_discount_categ_id" domain="[('internal_type','=','other'),('deprecated', '=', False)]"/>
             <field name="property_account_sales_return_categ_id" domain="[('internal_type','=','other'),('deprecated', '=', False)]"/>
           </group>
+        </data>
+      </field>
+    </record>
+
+    <record id="view_category_stock_account_form" model="ir.ui.view">
+      <field name="name">product.category.stock.account.form.inherit</field>
+      <field name="model">product.category</field>
+      <field name="inherit_id" ref="stock_account.view_category_property_form"/>
+      <field name="arch" type="xml">
+        <data>
+          <field name="property_stock_valuation_account_id" position="before">
+            <field name="property_account_inv_adjustment_in_categ_id" domain="[('internal_type','=','other'),('deprecated', '=', False)]"/>
+            <field name="property_account_inv_adjustment_out_categ_id" domain="[('internal_type','=','other'),('deprecated', '=', False)]"/>
+          </field>
         </data>
       </field>
     </record>

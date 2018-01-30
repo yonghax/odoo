@@ -60,6 +60,14 @@ class SaleOrder(models.Model):
                 'amount_total': amount_untaxed + amount_tax - order.discount_amount,
             })
 
+    @api.multi
+    def _prepare_invoice(self):
+        res = super(SaleOrder,self)._prepare_invoice()
+        if self.origin:
+            res['origin'] = self.origin
+            res['order_date'] = self.date_order
+        return res
+
 
 class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"

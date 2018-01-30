@@ -13,6 +13,7 @@ from ...unit.import_synchronizer import (
     import_batch,
     import_customers_since,
     import_orders_since,
+    import_product_brand_since,
     import_products,
     import_refunds,
     import_product_attribute,
@@ -58,12 +59,17 @@ class prestashop_backend(orm.Model):
             required=True,
             help='Warehouse used to compute the stock quantities.'
         ),
+        'restrict_product_ids': fields.char(
+            'Restrict Product',
+            help="Restrict Prestashop product id to download!"
+        ),
         'taxes_included': fields.boolean("Use tax included prices"),
         'import_partners_since': fields.datetime('Import partners since'),
         'import_orders_since': fields.datetime('Import Orders since'),
         'import_products_since': fields.datetime('Import Products since'),
         'import_refunds_since': fields.datetime('Import Refunds since'),
         'import_suppliers_since': fields.datetime('Import Suppliers since'),
+        'import_product_brand_since': fields.datetime('Import Product Brand since'),
         'export_qty_since': fields.datetime('Export Qty since'),
         'language_ids': fields.one2many(
             'prestashop.res.lang',
@@ -184,6 +190,22 @@ class prestashop_backend(orm.Model):
         # for backend_id in ids:
         #     import_inventory.delay(session, backend_id)
 
+    def import_product_brand(self, cr, uid, ids, context=None):
+        if not hasattr(ids, '__iter__'):
+            ids = [ids]
+        session = ConnectorSession(cr, uid, context=context)
+        for backend_record in self.browse(cr, uid, ids, context=context):
+            since_date = self._date_as_user_tz(
+                cr, uid, backend_record.import_product_brand_since
+            )
+            import_product_brand_since(
+                session,
+                'prestashop.product.brand',
+                backend_record.id,
+                since_date,
+            )
+        return True
+
     def import_sale_orders(self, cr, uid, ids, context=None):
         if not hasattr(ids, '__iter__'):
             ids = [ids]
@@ -218,6 +240,10 @@ class prestashop_backend(orm.Model):
         ids = self.search(cr, uid, domain, context=context)
         if ids:
             callback(cr, uid, ids, context=context)
+
+    def _scheduler_import_product_brand(self, cr, uid, domain=None, context=None):
+        self._scheduler_launch(cr, uid, self.import_product_brand, domain=domain,
+                               context=context)
 
     def _scheduler_import_sale_orders(self, cr, uid, domain=None, context=None):
         self._scheduler_launch(cr, uid, self.import_sale_orders, domain=domain,

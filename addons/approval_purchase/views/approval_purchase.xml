@@ -1,0 +1,139 @@
+<odoo>
+	<data>
+		<record id="purchase_order_form" model="ir.ui.view">
+            <field name="name">purchase.order.form.inherit</field>
+            <field name="model">purchase.order</field>
+            <field name="inherit_id" ref="purchase.purchase_order_form"/>
+            <field name="arch" type="xml">
+                <data>
+					<xpath expr="//button[@id='draft_confirm']" position="replace">
+                    	<button name="button_confirm" type="object" states="draft" string="Request Confirm Order" id="draft_confirm"/>
+                    </xpath>
+					<xpath expr="//button[@id='bid_confirm']" position="replace">
+						<button name="button_confirm" type="object" states="sent" string="Request Confirm Order" class="oe_highlight" id="bid_confirm"/>
+                    </xpath>
+					<xpath expr="//button[@name='button_approve']" position="replace">
+                        <button name="button_to_approve" type="object" states="to confirm" string="Confirm Order" class="oe_highlight" groups="purchase.group_purchase_manager"/>
+                    </xpath>
+                    <xpath expr="//button[@name='button_to_approve']" position="after">
+                        <button name="button_approve" type="object" states="to approve" string="Approve Order" class="oe_highlight" groups="sociolla.group_purchase_director"/>
+                    </xpath>
+                </data>
+            </field>
+        </record>
+
+		<record id="approval_purchase_order_form" model="ir.ui.view">
+            <field name="name">purchase.order.approval.form</field>
+            <field name="model">purchase.order</field>
+            <field name="arch" type="xml">
+                <form string="Approval Purchase Order">
+                	<header>
+						<button name="button_to_approve" type="object" states="to confirm" string="Confirm Order" class="oe_highlight" groups="purchase.group_purchase_manager"/>
+	                    <button name="button_approve" type="object" states='to approve' string="Approve Order" class="oe_highlight" groups="sociolla.group_purchase_director"/>
+	                    <button name="button_cancel" states="draft,to approve,sent,purchase" string="Cancel" type="object" />
+	                    <field name="state" widget="statusbar" statusbar_visible="draft,sent,purchase,done" readonly="1" />
+	                </header>
+                	<sheet>
+	                    <div class="oe_title">
+	                        <label string="Approval Purchase Order "/>
+	                        <h1>
+	                            <field name="name" readonly="1"/>
+	                        </h1>
+	                    </div>
+	                    <group>
+	                        <group>
+	                            <field name="partner_id" context="{'search_default_supplier':1, 'default_supplier':1, 'default_customer':0}" domain="[('supplier','=',True)]"/>
+	                            <field name="partner_ref"/>
+	                            <field name="currency_id" groups="base.group_multi_currency"/>
+	                        </group>
+	                        <group>
+	                            <field name="date_order"/>
+	                            <field name="origin" attrs="{'invisible': [('origin','=',False)]}"/>
+	                            <field name="company_id" groups="base.group_multi_company" options="{'no_create': True}"/>
+	                        </group>
+	                    </group>
+	                    <notebook>
+                        	<page string="Products">
+                        		<field name="order_line">
+	                        		<tree string="Purchase Order Lines" editable="false" create="false" delete="false">
+	                                    <field name="product_id"/>
+	                                    <field name="name"/>
+	                                    <field name="company_id" groups="base.group_multi_company" options="{'no_create': True}"/>
+	                                    <field name="product_qty"/>
+	                                    <field name="qty_system"/>
+	                                    <field name="qty_avg_sales"/>
+	                                    <field name="product_uom" groups="product.group_uom"/>
+	                                    <field name="price_unit"/>
+	                                    <field name="last_price"/>
+	                                    <field name="discount"/>
+	                                    <field name="last_disc"/>
+	                                    <field name="price_subtotal" widget="monetary"/>
+	                                </tree>
+                           		</field>
+                           	</page>
+                       	</notebook>
+	                </sheet>
+	                <div class="oe_chatter">
+	                    <field name="message_follower_ids" widget="mail_followers"/>
+	                    <field name="message_ids" widget="mail_thread"/>
+	                </div>
+                </form>
+            </field>
+		</record>
+
+		<record model="ir.actions.act_window" id="action_approval_order">
+	        <field name="name">Approval Orders</field>
+	        <field name="res_model">purchase.order</field>
+	        <field name="view_type">form</field>
+	        <field name="view_mode">tree,form</field>
+	        <field name="domain">[('state', 'in', ['to approve', 'to confirm'])]</field>
+	    </record>
+
+		<menuitem id="approval_order_menu" name="Approval Order"
+            parent="purchase.menu_procurement_management" string="Approval Orders"
+            action="action_approval_order" sequence="5" 
+			groups="purchase.group_purchase_manager"/>
+
+		<record model="ir.actions.act_window.view" id="purchase_rfq_act_tree_view">
+		    <field eval="1" name="sequence"/>
+		    <field name="view_mode">tree</field>
+		    <field name="view_id" ref="purchase.purchase_order_tree"/>
+		    <field name="act_window_id" ref="purchase.purchase_rfq"/>
+		</record>
+
+		<record model="ir.actions.act_window.view" id="purchase_rfq_act_form_view">
+		    <field eval="2" name="sequence"/>
+		    <field name="view_mode">form</field>
+		    <field name="view_id" ref="purchase.purchase_order_form"/>
+		    <field name="act_window_id" ref="purchase.purchase_rfq"/>
+		</record>
+
+		<record model="ir.actions.act_window.view" id="purchase_form_action_tree_view">
+		    <field eval="1" name="sequence"/>
+		    <field name="view_mode">tree</field>
+		    <field name="view_id" ref="purchase.purchase_order_tree"/>
+		    <field name="act_window_id" ref="purchase.purchase_form_action"/>
+		</record>
+
+		<record model="ir.actions.act_window.view" id="purchase_form_action_form_view">
+		    <field eval="2" name="sequence"/>
+		    <field name="view_mode">form</field>
+		    <field name="view_id" ref="purchase.purchase_order_form"/>
+		    <field name="act_window_id" ref="purchase.purchase_form_action"/>
+		</record>
+
+		<record model="ir.actions.act_window.view" id="action_approval_order_tree_view">
+		    <field eval="1" name="sequence"/>
+		    <field name="view_mode">tree</field>
+		    <field name="view_id" ref="purchase.purchase_order_tree"/>
+		    <field name="act_window_id" ref="action_approval_order"/>
+		</record>
+
+		<record model="ir.actions.act_window.view" id="action_approval_order_form_view">
+		    <field eval="2" name="sequence"/>
+		    <field name="view_mode">form</field>
+		    <field name="view_id" ref="approval_purchase_order_form"/>
+		    <field name="act_window_id" ref="action_approval_order"/>
+		</record>
+	</data>
+</odoo>

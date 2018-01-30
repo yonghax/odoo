@@ -16,26 +16,22 @@
                         <span t-if="o.type == 'in_invoice'">Vendor Bill</span>
                         <span t-field="o.number"/>
                     </h2>
-                        <div class="col-xs-4" t-if="o.date_invoice" style="padding-left: 0">
-                            <strong>Invoice Date:</strong>
-                            <p t-field="o.date_invoice"/>
-                        </div>
-                        <div class="col-xs-4" t-if="o.date_due and o.type == 'out_invoice' and (o.state == 'open' or o.state == 'paid')" style="padding-left: 0">
-                            <strong>Due Date:</strong>
-                            <p t-field="o.date_due"/>
-                        </div>
-                        <div class="col-xs-4" t-if="o.origin" style="padding-left: 0">
-                            <strong>Source:</strong>
-                            <p t-field="o.origin"/>
-                        </div>
-                        <div name="reference" class="col-xs-3" t-if="o.reference" style="padding-left: 0">
-                            <strong>Reference:</strong>
-                            <p t-field="o.reference"/>
+                    <div class="col-xs-4" t-if="o.date_invoice" style="padding-left: 0">
+                        <strong>Invoice Date:</strong>
+                        <p t-field="o.date_invoice" t-field-options='{"format": "d-MMM-y"}'/>
                     </div>
-                    <!--<div class="col-xs-3" t-if="o.partner_id.ref">
-                        <strong>Customer Code:</strong>
-                        <p t-field="o.partner_id.ref"/>
-                    </div>-->
+                    <div class="col-xs-4" t-if="o.date_due and o.type == 'out_invoice' and (o.state == 'open' or o.state == 'paid')" style="padding-left: 0">
+                        <strong>Due Date:</strong>
+                        <p t-field="o.date_due" t-field-options='{"format": "d-MMM-y"}'/>
+                    </div>
+                    <div class="col-xs-4" t-if="o.origin" style="padding-left: 0">
+                        <strong>Source:</strong>
+                        <p t-field="o.origin"/>
+                    </div>
+                    <div name="reference" class="col-xs-3" t-if="o.reference" style="padding-left: 0">
+                        <strong>Reference:</strong>
+                        <p t-field="o.reference"/>
+                    </div>
                 </div>
 
                 <div class="col-xs-6">
@@ -86,7 +82,7 @@
                     <div style="border-bottom: 1px solid black;"/>
                 </div>   
                 
-                <div class="col-xs-6">
+                <!--<div class="col-xs-6">
                     <table class="table table-condensed">
                         <thead>
                             <tr>
@@ -107,8 +103,10 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>-->
+                 <div class="col-xs-6" t-if="o.company_id.sale_note">
+                    <span t-field="o.company_id.sale_note"/>
                 </div>
-
                 <div class="col-xs-4 pull-right">
                     <table class="table table-condensed">
                         <tr>
@@ -132,10 +130,22 @@
                             </td>
                         </tr>
                     </table>
+                    <div style="width:250px; float: right; margin-top:64px">
+                        <div class="text-center">
+                            Acknowlegde:
+                        </div>
+                        <div style="vertical-align:middle;height:120px">
+                            <!--<img t-if="o.approved_uid.esignature" t-att-src="'data:image/png;base64,%s' % o.approved_uid.esignature" style="height: 64px; max-width:190px; margin:0 auto; display: block;"/>-->
+                        </div>
+                        <!--<div class="text-center" t-field="o.approved_uid.partner_id.name"/>-->
+                        <div class="text-center">
+                            Calista Pratama
+                        </div>
+                        <div class="text-center" t-field="o.company_id.name" style="font-weight:bold"/>
+                    </div>
                 </div>
             </div>
            
-            
             <p t-if="o.fiscal_position_id.note">
                 <strong>Fiscal Position Remark:</strong>
                 <span t-field="o.fiscal_position_id.note"/>

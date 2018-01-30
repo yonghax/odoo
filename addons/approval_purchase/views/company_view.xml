@@ -1,0 +1,16 @@
+<odoo>
+	<data>
+        <record id="company_view_inherit" model="ir.ui.view">
+            <field name="name">res.company.mrp.config</field>
+            <field name="model">res.company</field>
+            <field name="inherit_id" ref="purchase.mrp_company"/>
+            <field name="arch" type="xml">
+                <data>
+                    <field name="po_double_validation_amount" position="after">
+                        <field name="po_third_validation_amount" attrs="{'invisible': [('po_double_validation', 'in', ['one_step', 'two_step'])]}"/>
+                    </field>
+                </data>
+            </field>
+        </record>
+    </data>
+</odoo>

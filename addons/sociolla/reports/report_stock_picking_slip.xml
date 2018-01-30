@@ -1,17 +1,16 @@
 <odoo>
-    <template id="report_delivery_document_inherited" inherit_id="stock.report_delivery_document">
-        <xpath expr="//span[@class='row']" position="replace">
-            <div class="row" t-if="o.picking_type_id.code == 'outgoing'">
-                <div class="col-xs-6">
-                    <div>
-                        <span><strong>Customer Address:</strong></span>
-                    </div>
-                    <div t-if="o.partner_id" name="partner_header">
-                        <div t-field="o.partner_id"
-                            t-field-options='{"widget": "contact", "fields": ["address", "name", "phone", "fax"], "no_marker": true}'/>
-                    </div>
-                </div>    
-            </div>
+    <template id="report_delivery_document_inherit" inherit_id="stock.report_delivery_document">
+        <xpath expr="//th[@name='td_sched_date_h']" position="after">
+            <th t-if="o.picking_type_id.code == 'outgoing'"><strong>Carrier</strong></th>
+            <th><strong>Weight</strong></th>
+        </xpath>
+        <xpath expr="//td[@name='td_sched_date']" position="after">
+            <td t-if="o.picking_type_id.code == 'outgoing'">
+                    <span t-field="o.carrier_id"/>
+            </td>
+            <td>
+                <span t-field="o.weight"/>
+            </td>
         </xpath>
     </template>
 </odoo>

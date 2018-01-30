@@ -57,3 +57,13 @@ class PurchaseOrderLine(models.Model):
         product_tmpl_id = self.product_id.product_tmpl_id
         if product_tmpl_id._get_purchase_type() == 'cons':
             self.owner_id = self.order_id.partner_id.id
+
+    def _validate_order_line(self):
+        vals = super(PurchaseOrderLine, self)._validate_order_line()
+        if self.product_id.product_tmpl_id._get_purchase_type() == 'cons' and not self.owner_id:
+            if len(vals) > 0:
+                vals = "%s | owner id is missing" % vals
+            else:
+                vals = "Owner id is missing"
+
+        return vals

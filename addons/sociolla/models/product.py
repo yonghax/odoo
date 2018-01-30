@@ -18,6 +18,14 @@ class ProductCategory(models.Model):
         string="Sales Return", 
         domain=[('deprecated', '=', False)],
         help="This account will be used for invoices to value sales return.")
+    property_account_inv_adjustment_in_categ_id = fields.Many2one('account.account', company_dependent=True,
+        string="Stock Adjustment In", 
+        domain=[('deprecated', '=', False)],
+        help="This account will be used for adjustment inventory in.")
+    property_account_inv_adjustment_out_categ_id = fields.Many2one('account.account', company_dependent=True,
+        string="Stock Adjustment Out", 
+        domain=[('deprecated', '=', False)],
+        help="This account will be used for adjustment inventory out.")
     free_category = fields.Boolean(string=u'For Sample',)
         
 class ProductTemplate(models.Model):
@@ -31,6 +39,14 @@ class ProductTemplate(models.Model):
         string="Sales Return", 
         domain=[('deprecated', '=', False)],
         help="This account will be used for invoices instead of the default one to value sales return for the current product.")
+    property_account_inv_adjustment_in_id = fields.Many2one('account.account', company_dependent=True,
+        string="Stock Adjustment In", 
+        domain=[('deprecated', '=', False)],
+        help="This account will be used for adjustment inventory in.")
+    property_account_inv_adjustment_out_id = fields.Many2one('account.account', company_dependent=True,
+        string="Stock Adjustment Out", 
+        domain=[('deprecated', '=', False)],
+        help="This account will be used for adjustment inventory out.")
     
     is_product_switchover = fields.Boolean(string='Product Switchover')
 
@@ -62,6 +78,8 @@ class ProductTemplate(models.Model):
         res = super(ProductTemplate, self)._get_asset_accounts()
         res['sales_discount'] = False
         res['sales_return'] = False
+        res['adjustment_in_account'] = False
+        res['adjustment_out_account'] = False
         return res
 
 class product_template(osv.osv):
@@ -78,6 +96,8 @@ class product_template(osv.osv):
         accounts.update({
             'sales_discount': res['sales_discount'] or self.property_account_sales_discount_id or self.categ_id.property_account_sales_discount_categ_id,
             'sales_return': res['sales_return'] or self.property_account_sales_return_id or self.categ_id.property_account_sales_return_categ_id,
+            'adjustment_in_account': res['adjustment_in_account'] or self.property_account_inv_adjustment_in_id or self.categ_id.property_account_inv_adjustment_in_categ_id,
+            'adjustment_out_account': res['adjustment_out_account'] or self.property_account_inv_adjustment_out_id or self.categ_id.property_account_inv_adjustment_out_categ_id,
         })
         return accounts
 

@@ -6,6 +6,8 @@ from collections import Counter
 from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT, DEFAULT_SERVER_DATE_FORMAT
 from openerp import api, fields, models, _
 
+import openerp.addons.decimal_precision as dp
+
 class wizard_sale_consignment_history(models.TransientModel):
     _name = 'wizard.sale.consignment.history'
     _description = 'Wizard that open sales consignment history'
@@ -23,15 +25,21 @@ class wizard_sale_consignment_history(models.TransientModel):
         string=u'End Date',
         readonly=True,
     )
-    product_brand_ids = fields.Many2many(
+    product_brand_ids = fields.Many2one(
         comodel_name='product.brand', 
-        relation='wizard_sale_history_product_brand', 
-        column1='wizard_id', 
-        column2='product_brand_id', 
-        string='Filter Product Brand', 
+        string='Filter Product Brand',  
         domain="[('purchase_type','=','cons')]"
     )
-    
+    partner_id = fields.Many2one(
+        string=u'Partner',
+        comodel_name='res.partner',
+        ondelete='set null',
+    )
+    claim_support_promo = fields.Float(
+        string=u'Claim Promotion',
+        digits=dp.get_precision('Product Price')
+    )
+
     @api.onchange('date_range_id')
     def onchange_date_range_id(self):
         """Handle date range change."""
@@ -45,6 +53,11 @@ class wizard_sale_consignment_history(models.TransientModel):
             raise ValidationError("End date must be greather than start date.")
             
     @api.multi
+    def button_export_pdf(self):
+        self.ensure_one()
+        return self._export(False)
+
+    @api.multi
     def button_export_xlsx(self):
         self.ensure_one()
         return self._export(xlsx_report=True)
@@ -52,7 +65,7 @@ class wizard_sale_consignment_history(models.TransientModel):
     def _export(self, xlsx_report=False):
         """Default export is PDF."""
         sale_history = self.env['sale.consignment.history']
-        report = sale_history.create(self._prepare_report_sale_consignment_history())
+        report = sale_history.create(self._prepare_report_sale_consignment_history(xlsx_report))
         return report.print_report(xlsx_report)
 
     def _process_reconcile(self):
@@ -73,12 +86,14 @@ class wizard_sale_consignment_history(models.TransientModel):
 
             rows = self._generate_data_source()
 
-    def _prepare_report_sale_consignment_history(self):
+    def _prepare_report_sale_consignment_history(self, xlsx_report=False):
         self.ensure_one()
         return {
             'date_from': datetime.strptime(self.date_range_id.date_start, DEFAULT_SERVER_DATE_FORMAT),
             'date_to': datetime.strptime(self.date_range_id.date_end, DEFAULT_SERVER_DATE_FORMAT),
-            'sale_history_brands': self._create_sale_history_brand()
+            'partner_id': self.product_brand_ids.partner_id.id,
+            'claim_support_promo': - self.claim_support_promo,
+            'sale_history_brands': self._create_sale_history_brand(xlsx_report),
         }
 
     def _generate_data_source(self):
@@ -86,52 +101,66 @@ class wizard_sale_consignment_history(models.TransientModel):
 WITH
     products AS
     (
-        SELECT p.id as product_id, pb.id as product_brand_id, p.default_code, p.barcode, p.name_template, pav.name as attr_value
+        SELECT p.id as product_id, pb.id as product_brand_id, p.default_code, p.barcode, p.name_template, pav.name as attr_value, psi.price, psi.discount
         FROM product_product p
         INNER JOIN product_template pt on pt.id = p.product_tmpl_id
         INNER JOIN product_brand pb on pb.id = pt.product_brand_id
         LEFT JOIN 
         (
-            SELECT pal.prod_id, pav."name"
+            SELECT pal.prod_id, string_agg(pav."name", ', ') AS "name"
             FROM product_attribute_value pav
             INNER JOIN product_attribute_value_product_product_rel pal on pal.att_id = pav.id
+            GROUP  BY pal.prod_id
         ) pav on pav.prod_id = p.id
+        LEFT JOIN product_supplierinfo psi on psi.product_id = p.id
         WHERE pt.product_purchase_type = 'cons'"""
 
         if self.product_brand_ids:
             query += """
         AND pb.id IN %s"""
         query += """
-),
-operationals AS
-(
-    SELECT spo.product_id,
-        SUM(CASE WHEN sp.picking_type_id = 1 AND spo.location_id = 8 AND spo.location_dest_id = 12  THEN spo.qty_done ELSE 0 END) as qty_in,
-        SUM(CASE WHEN sp.picking_type_id = 2 AND spo.location_id = 12 AND spo.location_dest_id = 9 THEN spo.qty_done ELSE 0 END) as qty_out,
-        SUM(CASE WHEN sp.picking_type_id = 1 AND spo.location_id = 9 AND spo.location_dest_id = 12 THEN spo.qty_done ELSE 0 END) as qty_return_in,
-        SUM(CASE WHEN sp.picking_type_id = 2 AND spo.location_id = 12 AND spo.location_dest_id = 8 THEN spo.qty_done ELSE 0 END) as qty_return_out
-    FROM stock_picking sp
-    INNER JOIN stock_pack_operation spo on spo.picking_id = sp.id and spo.owner_id is not null
-    WHERE sp.state = 'done' AND sp.date_done BETWEEN %s AND %s
-    GROUP BY spo.product_id
-),
-adjustments AS
-(
-    SELECT sm.product_id, 
-        SUM(CASE WHEN sm.location_id = 5 AND sm.location_dest_id = 12 THEN sm.product_qty ELSE 0 END) as qty_adj_in,
-        SUM(CASE WHEN sm.location_id = 12 AND sm.location_dest_id = 5 THEN sm.product_qty ELSE 0 END) as qty_adj_out
-    FROM stock_move sm
-    INNER JOIN stock_inventory inv on inv.id = sm.inventory_id
-    INNER JOIN stock_inventory_line inv_line on inv_line.inventory_id = inv.id and inv_line.product_id = sm.product_id
-    WHERE sm.state = 'done' AND sm.date BETWEEN %s AND %s
-    GROUP BY sm.product_id
-)
+    ),
+    initial as 
+    (
+        SELECT sh.product_id, sum(sh.quantity) as quantity
+        FROM stock_history sh
+        WHERE sh.location_id = 12 and sh.date < %s
+        GROUP BY sh.product_id
+    ),
+    operationals AS
+    (
+        SELECT spo.product_id,
+            SUM(CASE WHEN sp.picking_type_id = 1 AND spo.location_id = 8 AND spo.location_dest_id = 12  THEN spo.qty_done ELSE 0 END) as qty_in,
+            SUM(CASE WHEN sp.picking_type_id = 2 AND spo.location_id = 12 AND spo.location_dest_id = 9 THEN spo.qty_done ELSE 0 END) as qty_out,
+            SUM(CASE WHEN sp.picking_type_id = 1 AND spo.location_id = 9 AND spo.location_dest_id = 12 THEN spo.qty_done ELSE 0 END) as qty_return_in,
+            SUM(CASE WHEN sp.picking_type_id = 2 AND spo.location_id = 12 AND spo.location_dest_id = 8 THEN spo.qty_done ELSE 0 END) as qty_return_out
+        FROM stock_picking sp
+        INNER JOIN stock_pack_operation spo on spo.picking_id = sp.id and spo.owner_id is not null
+        WHERE sp.state = 'done' AND sp.date_done BETWEEN %s AND %s
+        GROUP BY spo.product_id
+    ),
+    adjustments AS
+    (
+        SELECT sm.product_id, 
+            SUM(CASE WHEN sm.location_id = 5 AND sm.location_dest_id = 12 THEN sm.product_qty ELSE 0 END) as qty_adj_in,
+            SUM(CASE WHEN sm.location_id = 12 AND sm.location_dest_id = 5 THEN sm.product_qty ELSE 0 END) as qty_adj_out
+        FROM stock_move sm
+        INNER JOIN stock_inventory inv on inv.id = sm.inventory_id
+        INNER JOIN stock_inventory_line inv_line on inv_line.inventory_id = inv.id and inv_line.product_id = sm.product_id
+        WHERE sm.state = 'done' AND sm.date BETWEEN %s AND %s
+        GROUP BY sm.product_id
+    )
 SELECT p.product_brand_id, p.product_id, p.default_code, p.name_template, p.barcode, p.attr_value,
-    COALESCE(ops.qty_in, 0) as qty_in, COALESCE(ops.qty_out, 0) as qty_out, COALESCE(ops.qty_return_in, 0) as qty_return_in, COALESCE(ops.qty_return_out, 0) as qty_return_out,
-    COALESCE(adj.qty_adj_in, 0) as qty_adj_in, COALESCE(adj.qty_adj_out, 0) as qty_adj_out
+    COALESCE(init.quantity, 0) as qty_init, COALESCE(ops.qty_in, 0) as qty_in, COALESCE(ops.qty_out, 0) as qty_out, COALESCE(ops.qty_return_in, 0) as qty_return_in, COALESCE(ops.qty_return_out, 0) as qty_return_out,
+    COALESCE(adj.qty_adj_in, 0) as qty_adj_in, COALESCE(adj.qty_adj_out, 0) as qty_adj_out, 
+    COALESCE(p.price,(SELECT price_unit from purchase_order_line WHERE purchase_order_line.product_id = p.product_id ORDER BY purchase_order_line.create_date DESC LIMIT 1)) as price_unit,
+    COALESCE(p.discount,(SELECT discount from purchase_order_line WHERE purchase_order_line.product_id = p.product_id ORDER BY purchase_order_line.create_date DESC LIMIT 1)) as discount,
+    SUM(COALESCE(ops.qty_out, 0) + COALESCE(adj.qty_adj_out, 0)) OVER (PARTITION BY p.product_brand_id) as qty_total_brand_out
 FROM products p
 LEFT JOIN operationals ops on p.product_id = ops.product_id
 LEFT JOIN adjustments adj on p.product_id = adj.product_id
+LEFT JOIN initial init on init.product_id = p.product_id
+ORDER p.default_code
         """
         dt_start = datetime.strptime(self.date_range_id.date_start, DEFAULT_SERVER_DATE_FORMAT)
         dt_end = datetime.strptime(self.date_range_id.date_end, DEFAULT_SERVER_DATE_FORMAT)
@@ -143,8 +172,9 @@ LEFT JOIN adjustments adj on p.product_id = adj.product_id
         if self.product_brand_ids:
             params += (tuple(self.product_brand_ids.ids),)
 
-        params += (dt_start,)
-        params += (dt_end,)
+        params += (start_date_localize,)
+        params += (start_date_localize,)
+        params += (end_date_localize,)
         params += (start_date_localize,)
         params += (end_date_localize,)
 
@@ -153,41 +183,42 @@ LEFT JOIN adjustments adj on p.product_id = adj.product_id
 
         return rows
 
-    def _create_sale_history_brand(self):
+    def _create_sale_history_brand(self, xlsx_report=False):
         vals = []
         rows = self._generate_data_source()
         if len(rows)  > 0:
             for brand_id, products in groupby(rows,key=lambda x:x['product_brand_id']):
                 val = {
                     'product_brand_id': brand_id, 
-                    'sale_history_products': self._create_sale_history_product(products)
+                    'sale_history_products': self._create_sale_history_product(products,xlsx_report)
                 }
                 vals += [(0, 0, val)]
 
         return vals
 
-    def _create_sale_history_product(self, products):
-        vals = []
-        
+    def _create_sale_history_product(self, products,xlsx_report=False):
+        vals = []    
         for row in products:
+            product_reference = row['default_code']
+            if not xlsx_report:
+                product_reference = row['name_template'] + ' - ' + product_reference
+
             val = {
                 'product_id': row['product_id'], 
-                'product_reference': row['default_code'], 
+                'product_reference': product_reference, 
                 'product_barcode': row['barcode'], 
                 'product_name': row['name_template'], 
                 'product_attribute_value': row['attr_value'],
-                'qty_in': row['qty_in'],
-                'qty_out': row['qty_out'],
+                'qty_initial':row['qty_init'],
+                'qty_purchase': row['qty_in'],
+                'qty_sold': row['qty_out'],
                 'qty_return_in': row['qty_return_in'],
                 'qty_return_out': row['qty_return_out'],
                 'qty_adj_in': row['qty_adj_in'],
                 'qty_adj_out': row['qty_adj_out'],
+                'price': row['price_unit'],
+                'margin': row['discount'],
+                'qty_total_brand_out': row['qty_total_brand_out'],
             }
             vals += [(0, 0, val)]
         return vals
-
-    
-
-    
-
-    

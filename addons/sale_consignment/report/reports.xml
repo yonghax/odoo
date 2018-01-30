@@ -8,4 +8,142 @@
         <field name="report_type">xlsx</field>
         <field name="auto" eval="False"/>
     </record>
+
+    <record id="report_portrait_paperformat" model="report.paperformat">
+        <field name="name">Portrait paper format</field>
+        <field name="default" eval="False"/>
+        <field name="format">custom</field>
+        <field name="page_height">297</field>
+        <field name="page_width">210</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">40</field>
+        <field name="margin_bottom">8</field>
+        <field name="margin_left">5</field>
+        <field name="margin_right">5</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">30</field>
+        <field name="dpi">110</field>
+    </record>
+
+    <report
+        id="sales_brand_report"
+        model="sale.consignment.history"
+        string="Sale Brand"
+        report_type="qweb-pdf"
+        name="sale_consignment.sale_brand_report"
+        file="sale_consignment.sale_consignment_history"/>
+
+    <record id="sales_brand_report" model="ir.actions.report.xml">
+        <field name="paperformat_id" ref="report_portrait_paperformat"/>
+    </record>
+
+    <template id="sale_brand_report">
+        <t t-name="sale_consignment.sale_brand_report">
+        <t t-call="report.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="report.external_layout">
+                    <div class="page">
+                        <h2 class="text-center" >Sales Report - <span t-field="o.partner_id.name"/></h2>
+                        <h3 class="text-center" style="margin-bottom:24px;">From <span t-field="o.date_from" t-field-options="{&quot;format&quot;: &quot;d-MMMM-y&quot;}"/> To <span t-field="o.date_to" t-field-options="{&quot;format&quot;: &quot;d-MMMM-y&quot;}"/></h3>
+
+                        <t t-foreach="o.sale_history_brands" t-as="brands">
+                            <div>
+                                <label style="font-weight:bold;margin-bottom:8px">Brand: <span t-field="brands.product_brand_id.name"/></label>
+                                <table class="table table-condensed">
+                                    <thead>
+                                        <tr>
+                                            <th>Item No - Desc</th>
+                                            <th class="text-right">Selling Prices</th>
+                                            <th class="text-right">Margin</th>
+                                            <th class="text-right">Qty Sold</th>
+                                            <th class="text-right">Total Sales</th>
+                                            <th class="text-right">Total %</th>
+                                            <th style="border-right-style:double;border-right-width:2px"> </th>
+                                            <th class="text-right">Beg.Qty</th>
+                                            <th class="text-right">Qty In</th>
+                                            <th class="text-right">Qty Out</th>
+                                            <th class="text-right">End Qty</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr t-foreach="brands.sale_history_products" t-as="data">
+                                            <td><span t-field="data.product_reference"/></td>
+                                            <td class="text-right" ><span t-field="data.price"/></td>
+                                            <td class="text-right"><span t-field="data.margin"/>%</td>
+                                            <td class="text-right"><span t-field="data.qty_total_out"/></td>
+                                            <td class="text-right"><span t-field="data.total_price"/></td>
+                                            <td class="text-right"><span t-field="data.total_percentage"/>%</td>
+                                            <td style="border-right-style:double;border-right-width:2px"> </td>
+                                            <td class="text-right"><span t-field="data.qty_initial"/></td>
+                                            <td class="text-right"><span t-field="data.qty_purchase"/></td>
+                                            <td class="text-right"><span t-field="data.qty_total_out"/></td>
+                                            <td class="text-right"><span t-field="data.qty_total"/></td>
+                                        </tr>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr style="font-weight:bold;border-top-style:double;border-top-width:2px;">
+                                            <td colspan="3">Total</td>
+                                            <td class="text-right" ><span t-field="brands.total_qty_sold"/></td>
+                                            <td class="text-right"><span t-field="brands.total_sales"/></td>
+                                            <td class="text-right"><span t-field="brands.total_percentage"/>%</td>
+                                            <td style="border-right-style:double;border-right-width:2px"> </td>
+                                            <td class="text-right"><span t-field="brands.total_qty_init"/></td>
+                                            <td class="text-right"><span t-field="brands.total_qty_in"/></td>
+                                            <td class="text-right"><span t-field="brands.total_qty_out"/></td>
+                                            <td class="text-right"><span t-field="brands.total_qty_end"/></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </t>
+                        <div class="row">
+                            <div class="col-xs-4 pull-right">
+                                <table class="table table-condensed">
+                                    <tr>
+                                        <td>Total Sales</td>
+                                        <td class="text-right"><span t-field="o.total_sales"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Margin</td>
+                                        <td class="text-right"><span t-field="o.total_margin"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Claim Promotion</td>
+                                        <td class="text-right"><span t-field="o.claim_support_promo"/></td>
+                                    </tr>
+                                    <tr style="font-weight:bold;border-bottom-style:double;border-bottom-width:2px;">
+                                        <td>Total Paid</td>
+                                        <td class="text-right"><span t-field="o.total_paid"/></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-xs-3 pull-left">
+                                <div class="text-center mb8">
+                                    Confirmed By:
+                                </div>
+                                <div style="height: 64px; "/>
+                                <div class="text-center" t-field="o.partner_id.name"/>
+                            </div>
+                            <div class="col-xs-3 pull-right">
+                                <div class="text-center mb8">
+                                    Approved By:
+                                </div>
+                                <div style="vertical-align:middle;">
+                                    <!-- <img t-if="o.approved_uid.esignature" t-att-src="'data:image/png;base64,%s' % o.approved_uid.esignature" style="height: 64px; max-width:190px; margin:0 auto; display: block;"/> -->
+                                </div>
+                                <!-- <div class="text-center" t-field="o.approved_uid.partner_id.name"/> -->
+                            </div>
+                        </div>                        
+                        <div class="row col-xs-6 pull-left mt8">
+                            <label style="font-weight:bold;">Notes:</label>
+                        </div>
+                        <label style="font-weight:bold;">If there is no confirmation regarding the Sales Report in 3 days after the day we send, we consider the sales Report is valid.</label>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </t>
+    </template>
 </odoo>

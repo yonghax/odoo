@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+        <menuitem id="menu_action_wizard_valuation_history" action="stock_account.action_wizard_stock_valuation_history" parent="purchase.menu_purchase_control" sequence="1"/>
+
+        <record id="view_wizard_valuation_history_inherit" model="ir.ui.view">
+            <field name="name">Inventory at Date</field>
+            <field name="model">wizard.valuation.history</field>
+            <field name="inherit_id" ref="stock_account.view_wizard_valuation_history"/>
+            <field name="arch" type="xml">
+                <field name="date" position="after">
+                    <field name="filter_type"/>
+                    <field name="product_brand_ids" attrs="{'invisible': [('filter_type', '=', 'product')]}"/>
+                    <field name="product_product_ids" attrs="{'invisible': [('filter_type', '=', 'brand')]}"/>
+                </field>
+            </field>
+        </record>
+    </data>
+</openerp>

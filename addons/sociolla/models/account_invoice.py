@@ -1,7 +1,9 @@
-from openerp import api, fields, models, _
+from openerp import api, fields, models, SUPERUSER_ID, _
 from decimal import *
-
 import openerp.addons.decimal_precision as dp
+from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT, DEFAULT_SERVER_DATE_FORMAT
+from datetime import datetime, timedelta
+from openerp.tools import float_compare
 
 # mapping invoice type to journal type
 TYPE2JOURNAL = {
@@ -26,6 +28,100 @@ class AccountInvoice(models.Model):
 
     discount_amount = fields.Monetary(string='Discount Amount', readonly=True, default=0.0)
     price_undiscounted = fields.Monetary(string='Undiscount Amount', store=True, default=0.0)
+    order_date = fields.Datetime(string=u'Order Date',)
+
+    @api.model
+    def invoice_reminder(self):
+        todays = datetime.now()
+        stack = { 'invoices_will_due': [], 'invoices_over_due': [] }
+        for x in self._get_outstanding_invoice():
+            dd = datetime.strptime(x['date_due'], "%Y-%m-%d")
+            count_less_day = (dd-todays).days
+            if dd >= todays:
+                stack['invoices_will_due'].append(dict(invoice_ref=x.number,amount=x.residual_company_signed, due_date=x.date_due, partner_name=x.partner_id.name, currency_symbol=x.currency_id.symbol))
+
+            if dd < todays:
+                stack['invoices_over_due'].append(dict(invoice_ref=x.number,amount=x.residual_company_signed, due_date=x.date_due, partner_name=x.partner_id.name, currency_symbol=x.currency_id.symbol))
+
+        self.progress_mail_sender(stack)
+
+    def _get_outstanding_invoice(self):
+        due_date_plus_7_days = (datetime.now().date() + timedelta(days=7)).strftime(DEFAULT_SERVER_DATE_FORMAT)
+        acc_inv_obj = self.env['account.invoice']
+        data = acc_inv_obj.search([
+            ('state','=','open'), 
+            ('type', '=', 'out_invoice'), 
+            ('team_id', 'in', [2, 3]), 
+            ('date_due', '<=', due_date_plus_7_days), 
+            ('residual', '!=', 0)
+        ])
+        return data
+
+    def progress_mail_sender(self, data):
+        user_obj = self.env['res.users']
+        group_obj = self.env['res.groups']
+        mail_obj = self.env['mail.mail']
+        message_obj = self.env['mail.message']
+        module_category_obj = self.env['ir.module.category']
+
+        user_accounting_finance_bill = self.env.ref('sociolla.ar_monitoring').users
+
+        su = self.env['res.users'].sudo().browse(SUPERUSER_ID)
+
+        for item_user in user_accounting_finance_bill:
+            mail_ids = []
+           
+            mail_body = self.generate_mail_body_html(item_user.partner_id.name, data)
+            subtype_id = self.env['mail.message.subtype'].sudo().browse(
+                self.env['mail.message.subtype'].sudo().search([
+                    ('res_model', '=', 'sale.order'), 
+                    ('name', '=', 'Invoice Status Reminder')
+                ]).ids
+            )
+
+            message_id = message_obj.create({
+                'type' : 'email',
+                'subject' : 'Invoice Status Reminder : (%s)' % datetime.now().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
+                'body': mail_body,
+            })
+
+            mail = mail_obj.create({
+                'mail_message_id' : message_id.id,
+                'state' : 'outgoing',
+                'auto_delete' : True,
+                'email_from' :  su.partner_id.email,
+                'email_to' : item_user.partner_id.email,
+                'body_html' : mail_body
+            })
+            mail.send()
+
+    def generate_mail_body_html(self, user_name, data):
+        if data:
+            ul_will = ''
+            if data['invoices_will_due']:
+                ul_will = '''<h3>Here is the invoice due within 7 days again:</h3><ul style="margin:0px 0 10px 0;">'''
+                for x in data['invoices_will_due']:
+                    ul_will = ul_will + '<li>%s , Partner Name: %s | Remaining Amount: %s %s | Due Date: %s</li>'%(x['invoice_ref'], x['partner_name'], x['currency_symbol'], format(x['amount'], '0,.2f'), x['due_date'])
+                ul_will = ul_will + '</ul>'
+
+            ul_over = ''
+            if data['invoices_over_due']:
+                ul_over = '''<h3>Here the invoice has been overdue:</h3><ul style="margin:0px 0 10px 0;">'''
+                for o in data['invoices_over_due']:
+                    ul_over = ul_over + '<li>%s , Partner Name: %s | Remaining Amount: %s %s | Due Date: %s</li>'%(o['invoice_ref'], o['partner_name'], o['currency_symbol'], format(o['amount'], '0,.2f'), o['due_date'])
+                ul_over = ul_over + '</ul>'
+
+            return """
+                <p style="margin:0px 0px 10px 0px;"></p>
+                <div style="font-family: 'Lucida Grande', Ubuntu, Arial, Verdana, sans-serif; font-size: 12px; color: rgb(34, 34, 34); background-color: #FFF; ">
+                    <p style="margin:0px 0px 10px 0px;">Hello Mr / Mrs %s,</p>
+                    %s
+
+                    %s
+                    <p style='margin:0px 0px 10px 0px;font-size:13px;font-family:"Lucida Grande", Helvetica, Verdana, Arial, sans-serif;'>Thank you.</p>
+                </div>
+            """ % (user_name, ul_over, ul_will)
+
 
     @api.multi
     def action_move_create(self):
@@ -158,7 +254,7 @@ class AccountInvoice(models.Model):
     def invoice_line_move_line_get(self):
         res = []
         for line in self.invoice_line_ids:
-            if not line.product_id.categ_id.free_category or line.account_id.user_type_id == 15:
+            if not line.product_id.categ_id.free_category or line.account_id.user_type_id.id == 15:
                 tax_ids = []
                 for tax in line.invoice_line_tax_ids:
                     tax_ids.append((4, tax.id, None))
@@ -317,11 +413,14 @@ class AccountInvoice(models.Model):
                     continue
                 elif name == 'account_id':
                     if TYPE2REFUND[line.invoice_id.type] == 'out_refund':
-                        account = line.get_invoice_line_account('out_refund', line.product_id, line.invoice_id.fiscal_position_id, line.invoice_id.company_id)
-                        if account:
-                            values[name] = account.id
+                        if line._table == 'account_invoice_tax':
+                            values[name] = line.account_id.id
                         else:
-                            raise UserError(_('Configuration error!\nCould not find any account to create the return, are you sure you have a chart of account installed?'))
+                            account = line.get_invoice_line_account('out_refund', line.product_id, line.invoice_id.fiscal_position_id, line.invoice_id.company_id)
+                            if account:
+                                values[name] = account.id
+                            else:
+                                raise UserError(_('Configuration error!\nCould not find any account to create the return, are you sure you have a chart of account installed?'))
                     else:
                         values[name] = line[name].id
                 elif field.type == 'many2one':
@@ -348,6 +447,9 @@ class AccountInvoice(models.Model):
                 price = inv_line.price_unit - (inv_line.discount_amount / inv_line.quantity)
             
             amount = inv_line.quantity * price
+            if amount == 0:
+                continue
+
             discount_proportional = self.currency_id.round(amount / gross_amount * discount_amount)
 
             if discount_proportional > amount:
@@ -406,6 +508,7 @@ class AccountInvoice(models.Model):
                     'amount': tax['amount'],
                     'manual': False,
                     'sequence': tax['sequence'],
+                    'base': tax['base'],
                     'account_analytic_id': tax['analytic'] and line.account_analytic_id.id or False,
                     'account_id': self.type in ('out_invoice', 'in_invoice') and (tax['account_id'] or line.account_id.id) or (tax['refund_account_id'] or line.account_id.id),
                 }
@@ -423,8 +526,63 @@ class AccountInvoice(models.Model):
                     tax_grouped[key] = val
                 else:
                     tax_grouped[key]['amount'] += val['amount']
+                    tax_grouped[key]['base'] += val['base']
         return tax_grouped
 
+    @api.onchange('purchase_id')
+    def purchase_order_change(self):
+        # Override to set disc %, disc amount & discount header amount
+        if not self.purchase_id:
+            return {}
+        if not self.partner_id:
+            self.partner_id = self.purchase_id.partner_id.id
+
+        if not self.currency_id:
+            self.currency_id = self.purchase_id.currency_id
+
+        new_lines = self.env['account.invoice.line']
+        for line in self.purchase_id.order_line:
+            # Load a PO line only once
+            if line in self.invoice_line_ids.mapped('purchase_line_id'):
+                continue
+            if line.product_id.purchase_method == 'purchase':
+                qty = line.product_qty - line.qty_invoiced
+            else:
+                qty = line.qty_received - line.qty_invoiced
+            if float_compare(qty, 0.0, precision_rounding=line.product_uom.rounding) <= 0:
+                qty = 0.0
+
+            if qty == 0.0:
+                continue
+                
+            taxes = line.taxes_id
+            invoice_line_tax_ids = self.purchase_id.fiscal_position_id.map_tax(taxes)
+            data = {
+                'purchase_line_id': line.id,
+                'name': line.name,
+                'origin': self.purchase_id.origin,
+                'uom_id': line.product_uom.id,
+                'product_id': line.product_id.id,
+                'account_id': self.env['account.invoice.line'].with_context({'journal_id': self.journal_id.id, 'type': 'in_invoice'})._default_account(),
+                'price_unit': line.order_id.currency_id.compute(line.price_unit, self.currency_id, round=False),
+                'quantity': qty,
+                'discount': line.discount,
+                'discount_amount': line.discount_amount,
+                'discount_header_amount': line.discount_header_amount,
+                'price_undiscounted': line.price_undiscounted,
+                'account_analytic_id': line.account_analytic_id.id,
+                'invoice_line_tax_ids': invoice_line_tax_ids.ids
+            }
+            account = new_lines.get_invoice_line_account('in_invoice', line.product_id, self.purchase_id.fiscal_position_id, self.env.user.company_id)
+            if account:
+                data['account_id'] = account.id
+            new_line = new_lines.new(data)
+            new_line._set_additional_fields(self)
+            new_lines += new_line
+
+        self.invoice_line_ids += new_lines
+        self.purchase_id = False
+        return {}
 
 class AccountInvoiceLine(models.Model):
     _inherit = "account.invoice.line"
@@ -547,12 +705,10 @@ class AccountInvoiceLine(models.Model):
     @api.v8
     def get_invoice_line_account(self, type, product, fpos, company):
         accounts = product.product_tmpl_id.get_product_accounts(fiscal_pos=fpos)
-
         if company.anglo_saxon_accounting and type in ('in_invoice', 'in_refund') and product and product.type in ('consu', 'product'):
             if type == 'in_invoice':
                 return accounts['stock_input']
             return accounts['stock_output']
-
         if type == 'out_invoice':
             return accounts['income']
         elif type == 'out_refund':

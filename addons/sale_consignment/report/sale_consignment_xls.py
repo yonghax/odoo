@@ -1,8 +1,9 @@
-from . import abstract_report_xlsx
 from openerp.report import report_sxw
+from openerp.addons.report_xlsx.report.abstract_report_xlsx import AbstractReportXslx
 from openerp import _
 
-class sale_consignment_report(abstract_report_xlsx.AbstractReportXslx):
+    
+class sale_consignment_report(AbstractReportXslx):
     def __init__(self, name, table, rml=False, parser=False, header=True,
                  store=False):
         super(sale_consignment_report, self).__init__(
@@ -13,16 +14,16 @@ class sale_consignment_report(abstract_report_xlsx.AbstractReportXslx):
 
     def _get_report_columns(self, report):
         return {
-            0: {'header': _('Product Reference'),'field': 'product_reference','width': 25},
-            1: {'header': _('Barcode'),'field': 'product_barcode','width': 15},
-            2: {'header': _('Product Name'),'field': 'product_name','width': 60},
-            3: {'header': _('Product Attribute Name'),'field': 'product_attribute_value','width': 35},
-            4: {'header': _('Qty Purchased'),'field': 'qty_in', 'type': 'amount', 'width': 15, 'compute_subtotal': True,},
-            5: {'header': _('Qty Sold'),'field': 'qty_out', 'type': 'amount', 'width': 15, 'compute_subtotal': True,},
-            6: {'header': _('Qty Returned(Purchase)'),'field': 'qty_return_out', 'type': 'amount', 'width': 15, 'compute_subtotal': True,},
-            7: {'header': _('Qty Returned(Sale)'),'field': 'qty_return_in', 'type': 'amount', 'width': 15, 'compute_subtotal': True,},
-            8: {'header': _('Qty Adjustment(IN)'),'field': 'qty_adj_in', 'type': 'amount', 'width': 15, 'compute_subtotal': True,},
-            9: {'header': _('Qty Adjustment(OUT)'),'field': 'qty_adj_out', 'type': 'amount', 'width': 15, 'compute_subtotal': True,},
+            0: {'header': _('Product Reference'), 'field': 'product_reference', 'width': 25},
+            1: {'header': _('Barcode'), 'field': 'product_barcode','width': 15},
+            2: {'header': _('Product Name'), 'field': 'product_name','width': 60},
+            3: {'header': _('Product Attribute Name'), 'field': 'product_attribute_value', 'width': 35},
+            4: {'header': _('Qty Purchased'), 'field': 'qty_purchase', 'type': 'amount', 'width': 15, 'compute_subtotal': True, },
+            5: {'header': _('Qty Sold'), 'field': 'qty_sold', 'type': 'amount', 'width': 15, 'compute_subtotal': True, },
+            6: {'header': _('Qty Returned(Purchase)'), 'field': 'qty_return_out', 'type': 'amount', 'width': 15, 'compute_subtotal': True, },
+            7: {'header': _('Qty Returned(Sale)'), 'field': 'qty_return_in', 'type': 'amount', 'width': 15, 'compute_subtotal': True, },
+            8: {'header': _('Qty Adjustment(IN)'), 'field': 'qty_adj_in', 'type': 'amount', 'width': 15, 'compute_subtotal': True, },
+            9: {'header': _('Qty Adjustment(OUT)'), 'field': 'qty_adj_out', 'type': 'amount', 'width': 15, 'compute_subtotal': True, },
         }
 
     def _get_report_filters(self, report):

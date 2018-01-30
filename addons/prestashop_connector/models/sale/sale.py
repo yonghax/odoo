@@ -149,6 +149,8 @@ class prestashop_sale_order(models.Model):
         string='Payment Method',
     )
     
+    current_state = fields.Char(string=u'Current State', size=64)
+    
     @api.model
     def create_payments(self, ps_orders):
         _logger.debug("CREATE PAYMENTS")

@@ -17,10 +17,6 @@ class ProductCombinationMapper(PrestashopImportMapper):
     from_main = []
 
     @mapping
-    def active(self, record):
-        return {'active': True}
-
-    @mapping
     def default_on(self, record):
         return {'default_on': bool(int(record['default_on']))}
 
@@ -45,6 +41,16 @@ class ProductCombinationMapper(PrestashopImportMapper):
         _logger.debug(prices_and_taxes)
         _logger.debug(main_template['taxes_id'])
         return prices_and_taxes
+
+    @mapping
+    def barcode(self, record):
+        if record['ean13'] in ['', '0']:
+            return {'barcode': False}
+        
+        # barcode_nomenclature = self.env['barcode.nomenclature'].search([])[:1]
+        # if barcode_nomenclature.check_ean(record['ean13']):
+        #     return {'ean13': record['ean13']}
+        return {'barcode': record['ean13']}
 
     @mapping
     def sale_price(self, record):

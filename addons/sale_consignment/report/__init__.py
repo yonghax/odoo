@@ -1,3 +1,2 @@
-import abstract_report_xlsx
 import sale_consignment_history
 import sale_consignment_xls
